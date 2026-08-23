@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useLocale, useTranslations } from 'next-intl';
+import { useLocale } from 'next-intl';
 import { Menu, X, GraduationCap, LogOut } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
@@ -21,10 +21,8 @@ interface TopNavProps {
 }
 
 export function TopNav({ role, userName, brandName = 'منصة التعليم' }: TopNavProps) {
-  const t = useTranslations('nav');
   const locale = useLocale();
   const pathname = usePathname();
-  const isRtl = locale === 'ar';
   const [menuOpen, setMenuOpen] = useState(false);
 
   const base = `/${locale}/${role === 'TEACHER' ? 'teacher' : 'student'}`;
@@ -35,16 +33,17 @@ export function TopNav({ role, userName, brandName = 'منصة التعليم' }
           { label: 'الرئيسية',       href: base },
           { label: 'الاختبارات',     href: `${base}/quizzes` },
           { label: 'الواجبات',       href: `${base}/assignments` },
+          { label: 'سجل الدرجات',   href: `${base}/grades` },
+          { label: 'لوحة الشرف',    href: `${base}/leaderboard` },
           { label: 'البث المباشر',   href: `${base}/live` },
-          { label: 'المذكرات',       href: `${base}/grades` },
         ]
       : [
           { label: 'الرئيسية',         href: base },
           { label: 'الفصول',           href: `${base}/classrooms` },
           { label: 'الواجبات',         href: `${base}/assignments` },
           { label: 'الامتحانات',       href: `${base}/quizzes` },
-          { label: 'البث المباشر',     href: `${base}/live` },
           { label: 'الطلاب',          href: `${base}/students` },
+          { label: 'البث المباشر',     href: `${base}/live` },
         ];
 
   const isActive = (href: string) =>
@@ -64,14 +63,14 @@ export function TopNav({ role, userName, brandName = 'منصة التعليم' }
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
 
           {/* ── Brand (right in RTL) ─────────────────────────────────── */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <Link href={base} className="flex items-center gap-2 flex-shrink-0">
             <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center flex-shrink-0">
               <GraduationCap className="h-4 w-4 text-white" strokeWidth={2} />
             </div>
             <span className="hidden sm:block text-sm font-bold text-n-800 dark:text-n-700 leading-none">
               {brandName}
             </span>
-          </div>
+          </Link>
 
           {/* ── Center nav links (desktop only) ─────────────────────── */}
           <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
@@ -82,7 +81,7 @@ export function TopNav({ role, userName, brandName = 'منصة التعليم' }
                 className={cn(
                   'px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-[140ms] whitespace-nowrap',
                   isActive(href)
-                    ? 'bg-accent-light text-accent-text'
+                    ? 'bg-accent-light text-accent-text font-bold'
                     : 'text-n-600 dark:text-n-400 hover:text-n-800 dark:hover:text-n-700 hover:bg-n-100 dark:hover:bg-n-200',
                 )}
               >
@@ -135,7 +134,7 @@ export function TopNav({ role, userName, brandName = 'منصة التعليم' }
                 className={cn(
                   'flex items-center w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-[140ms]',
                   isActive(href)
-                    ? 'bg-accent-light text-accent-text'
+                    ? 'bg-accent-light text-accent-text font-bold'
                     : 'text-n-600 dark:text-n-400 hover:bg-n-100 dark:hover:bg-n-200',
                 )}
               >

@@ -14,7 +14,7 @@ interface Student {
   avgScore: number | null;
   submissionsCount: number;
   attendanceCount: number;
-  lastActive: Date | null;
+  lastActive: string | Date | null;
 }
 
 type SortKey = keyof Student;
