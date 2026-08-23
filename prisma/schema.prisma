@@ -1,0 +1,192 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?  @unique
+  phone       String?
+  studentCode String?  @unique
+  password    String
+  role        String   @default("STUDENT") // TEACHER | STUDENT
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  classroomsAsTeacher Classroom[]            @relation("TeacherClassrooms")
+  enrollments         Enrollment[]
+  submissions         AssignmentSubmission[]
+  quizResults         QuizResult[]
+  attendance          LiveAttendance[]       @relation("StudentAttendance")
+}
+
+model Classroom {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  code        String   @unique
+  teacherId   String
+  createdAt   DateTime @default(now())
+
+  teacher      User            @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
+  enrollments  Enrollment[]
+  assignments  Assignment[]
+  quizzes      Quiz[]
+  liveSessions LiveSession[]
+  resources    ClassResource[]
+}
+
+model Enrollment {
+  id          String   @id @default(cuid())
+  userId      String
+  classroomId String
+  enrolledAt  DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classroomId])
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  dueDate     DateTime
+  maxScore    Int      @default(10)
+  type        String   @default("ESSAY") // ESSAY | PDF
+  classroomId String
+  createdAt   DateTime @default(now())
+
+  classroom   Classroom              @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String    @id @default(cuid())
+  assignmentId String
+  studentId    String
+  answerText   String?
+  fileUrl      String?
+  grade        Float?
+  teacherNote  String?
+  status       String    @default("SUBMITTED") // SUBMITTED | GRADED
+  submittedAt  DateTime  @default(now())
+  gradedAt     DateTime?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+}
+
+model Quiz {
+  id               String   @id @default(cuid())
+  title            String
+  type             String   @default("WEEKLY") // WEEKLY | MONTHLY
+  duration         Int      @default(30) // in minutes
+  passingScore     Int      @default(50) // percentage
+  maxViolations    Int      @default(2)
+  shuffleQuestions Boolean  @default(true)
+  isPublished      Boolean  @default(true)
+  classroomId      String
+  createdAt        DateTime @default(now())
+
+  classroom Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questions Question[]
+  results   QuizResult[]
+}
+
+model Question {
+  id            String   @id @default(cuid())
+  quizId        String
+  text          String
+  type          String   @default("MCQ") // MCQ | ESSAY
+  options       String   @default("[]") // JSON stringified array of options
+  correctAnswer String?
+  maxScore      Int      @default(5)
+  difficulty    String   @default("MEDIUM") // EASY | MEDIUM | HARD
+  order         Int      @default(0)
+
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizResult {
+  id             String    @id @default(cuid())
+  quizId         String
+  studentId      String
+  totalScore     Float?
+  maxScore       Float     @default(0)
+  autoScore      Float     @default(0)
+  isPassed       Boolean   @default(false)
+  status         String    @default("AUTO_GRADED") // PENDING | AUTO_GRADED | GRADED
+  violationCount Int       @default(0)
+  autoSubmitted  Boolean   @default(false)
+  submittedAt    DateTime  @default(now())
+
+  quiz       Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student    User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  violations QuizViolation[]
+}
+
+model QuizViolation {
+  id            String   @id @default(cuid())
+  resultId      String
+  violationType String   // TAB_SWITCH | WINDOW_BLUR | COPY_PASTE
+  createdAt     DateTime @default(now())
+
+  result QuizResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+}
+
+model LiveSession {
+  id          String    @id @default(cuid())
+  title       String
+  roomCode    String    @unique
+  isActive    Boolean   @default(true)
+  classroomId String
+  startedAt   DateTime  @default(now())
+  endedAt     DateTime?
+
+  classroom  Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  attendance LiveAttendance[]
+}
+
+model LiveAttendance {
+  id          String    @id @default(cuid())
+  sessionId   String
+  studentId   String
+  joinedAt    DateTime  @default(now())
+  leftAt      DateTime?
+  durationMin Int?
+
+  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student User        @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+}
+
+model Announcement {
+  id         String    @id @default(cuid())
+  message    String
+  targetRole String?   // TEACHER | STUDENT | null (all)
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+}
+
+model ClassResource {
+  id          String   @id @default(cuid())
+  title       String
+  type        String   @default("PDF") // RECORDING | PDF | HOMEWORK_SOLUTION | SUMMARY
+  url         String
+  description String?
+  classroomId String
+  createdAt   DateTime @default(now())
+
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+}
