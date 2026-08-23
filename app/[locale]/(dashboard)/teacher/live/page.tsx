@@ -1,37 +1,32 @@
 import { prisma } from '@/lib/prisma';
-import { Sidebar } from '@/components/shared/Sidebar';
 import { TeacherLiveClient } from './TeacherLiveClient';
 
 export default async function TeacherLivePage({ params: { locale } }: { params: { locale: string } }) {
   const teacher = await prisma.user.findFirst({ where: { role: 'TEACHER' } });
   const teacherId = teacher?.id || '';
 
-  const [classrooms, activeSessions, pastSessions] = await Promise.all([
+  const [classrooms, activeSession] = await Promise.all([
     prisma.classroom.findMany({ where: { teacherId } }),
-    prisma.liveSession.findMany({
+    prisma.liveSession.findFirst({
       where: { classroom: { teacherId }, isActive: true },
       include: { classroom: true },
-      orderBy: { startedAt: 'desc' },
-    }),
-    prisma.liveSession.findMany({
-      where: { classroom: { teacherId }, isActive: false },
-      include: { classroom: true },
-      orderBy: { endedAt: 'desc' },
-      take: 10,
     }),
   ]);
 
   return (
-    <div className="min-h-screen bg-n-50 dark:bg-n-50 flex" dir="rtl">
-      <Sidebar role="TEACHER" userName={teacher?.name || 'المعلمة'} />
-      <main className="flex-1 mr-60 p-8">
-        <TeacherLiveClient
-          teacherName={teacher?.name || 'المعلمة'}
-          classrooms={classrooms}
-          activeSessions={activeSessions as any}
-          pastSessions={pastSessions as any}
-        />
-      </main>
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">البث المباشر وغرفة التحكم</h1>
+        <p className="text-xs text-n-500 dark:text-n-400 mt-1">
+          بدء الحصص التفاعلية، كتم الصوت، مشاركة الشاشة، وتسجيل حضور الطلاب التلقائي
+        </p>
+      </div>
+
+      <TeacherLiveClient
+        classrooms={classrooms}
+        initialSession={activeSession}
+        teacherName={teacher?.name || 'المعلمة'}
+      />
     </div>
   );
 }
