@@ -1,9 +1,9 @@
 import dynamic from 'next/dynamic';
 import { prisma } from '@/lib/prisma';
-import { Video, ShieldCheck, Users } from 'lucide-react';
+import { ShieldCheck } from 'lucide-react';
 
 const LiveClassroom = dynamic(
-  () => import('@/components/LiveClassroom').then((m) => m.LiveClassroom),
+  () => import('@/components/LiveClassroom'),
   { ssr: false }
 );
 
@@ -37,10 +37,9 @@ export default async function StudentLivePage({
       {/* Embedded Live Classroom Window */}
       <div className="rounded-2xl border border-n-200 dark:border-n-300 overflow-hidden bg-black aspect-video shadow-sm">
         <LiveClassroom
-          roomName={room}
-          displayName={displayName}
-          isModerator={false}
-          role="student"
+          roomCode={room}
+          userName={displayName}
+          isTeacher={false}
         />
       </div>
 

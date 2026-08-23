@@ -4,27 +4,29 @@ import { Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface CopyButtonProps {
-  text: string
+  text?: string
+  value?: string
   className?: string
   label?: string
 }
 
-export function CopyButton({ text, className, label }: CopyButtonProps) {
+export function CopyButton({ text, value, className, label }: CopyButtonProps) {
+  const contentToCopy = text || value || ''
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const handleCopy = useCallback(async () => {
-    if (loading || copied) return
+    if (loading || copied || !contentToCopy) return
     setLoading(true)
     try {
-      await navigator.clipboard.writeText(text)
+      await navigator.clipboard.writeText(contentToCopy)
       setLoading(false)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
       setLoading(false)
       const el = document.createElement('textarea')
-      el.value = text
+      el.value = contentToCopy
       el.style.position = 'fixed'
       el.style.opacity = '0'
       document.body.appendChild(el)
@@ -34,7 +36,7 @@ export function CopyButton({ text, className, label }: CopyButtonProps) {
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     }
-  }, [text, loading, copied])
+  }, [contentToCopy, loading, copied])
 
   return (
     <button
