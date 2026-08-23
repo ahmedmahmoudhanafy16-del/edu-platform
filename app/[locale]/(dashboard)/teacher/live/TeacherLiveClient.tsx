@@ -22,15 +22,16 @@ const LiveClassroom = dynamic(() => import('@/components/LiveClassroom'), {
 });
 
 export function TeacherLiveClient({
-  teacherName,
-  classrooms,
-  activeSessions,
-  pastSessions,
+  teacherName = 'المعلمة',
+  classrooms = [],
+  activeSessions = [],
+  pastSessions = [],
 }: {
-  teacherName: string;
-  classrooms: any[];
-  activeSessions: any[];
-  pastSessions: any[];
+  teacherName?: string;
+  classrooms?: any[];
+  activeSessions?: any[];
+  pastSessions?: any[];
+  initialSession?: any;
 }) {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -158,7 +159,7 @@ export function TeacherLiveClient({
         </Button>
       </div>
 
-      {activeSessions.length > 0 && (
+      {(activeSessions?.length ?? 0) > 0 && (
         <div className="bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-5">
           <h2 className="text-sm font-bold text-n-800 dark:text-n-700 mb-3 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />

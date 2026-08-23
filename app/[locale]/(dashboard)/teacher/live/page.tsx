@@ -5,13 +5,41 @@ export default async function TeacherLivePage({ params: { locale } }: { params: 
   const teacher = await prisma.user.findFirst({ where: { role: 'TEACHER' } });
   const teacherId = teacher?.id || '';
 
-  const [classrooms, activeSession] = await Promise.all([
+  const [classrooms, activeSessions, pastSessions] = await Promise.all([
     prisma.classroom.findMany({ where: { teacherId } }),
-    prisma.liveSession.findFirst({
+    prisma.liveSession.findMany({
       where: { classroom: { teacherId }, isActive: true },
       include: { classroom: true },
+      orderBy: { startedAt: 'desc' },
+    }),
+    prisma.liveSession.findMany({
+      where: { classroom: { teacherId }, isActive: false },
+      include: { classroom: true },
+      take: 5,
+      orderBy: { startedAt: 'desc' },
     }),
   ]);
+
+  const serializedActive = activeSessions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    roomCode: s.roomCode,
+    isActive: s.isActive,
+    classroomId: s.classroomId,
+    classroom: { name: s.classroom.name },
+    startedAt: s.startedAt.toISOString(),
+  }));
+
+  const serializedPast = pastSessions.map((s) => ({
+    id: s.id,
+    title: s.title,
+    roomCode: s.roomCode,
+    isActive: s.isActive,
+    classroomId: s.classroomId,
+    classroom: { name: s.classroom.name },
+    startedAt: s.startedAt.toISOString(),
+    endedAt: s.endedAt ? s.endedAt.toISOString() : null,
+  }));
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -24,7 +52,8 @@ export default async function TeacherLivePage({ params: { locale } }: { params: 
 
       <TeacherLiveClient
         classrooms={classrooms}
-        initialSession={activeSession}
+        activeSessions={serializedActive}
+        pastSessions={serializedPast}
         teacherName={teacher?.name || 'المعلمة'}
       />
     </div>
