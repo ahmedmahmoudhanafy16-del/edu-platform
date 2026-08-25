@@ -12,7 +12,7 @@ export interface SessionUser {
  * Fallbacks safely to existing database role if needed.
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('user_session');
 
   if (sessionCookie?.value) {

@@ -1,7 +1,18 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 
-export default async function TeacherStudentsPage({ params: { locale } }: { params: { locale: string } }) {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function TeacherStudentsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}) {
+  // Await params for Next.js 15+ promise resolution compatibility
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+
   const teacher = await prisma.user.findFirst({ where: { role: 'TEACHER' } });
   const teacherId = teacher?.id || '';
 
@@ -31,6 +42,8 @@ export default async function TeacherStudentsPage({ params: { locale } }: { para
       name: s.name,
       studentCode: s.studentCode || '—',
       phone: s.phone,
+      parentPhone: s.parentPhone,
+      grade: s.grade || 'الصف الثالث الإعدادي',
       avgScore,
       submissionsCount: s.submissions.length,
       attendanceCount: s.attendance.length,
@@ -39,7 +52,7 @@ export default async function TeacherStudentsPage({ params: { locale } }: { para
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
       <TeacherStudentsClient initialStudents={formatted} classrooms={classrooms} />
     </div>
   );
