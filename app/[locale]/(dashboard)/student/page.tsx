@@ -24,7 +24,13 @@ export default async function StudentDashboardPage({
   const [activeLive, assignments, quizResults, quizzes, resources, attendance] =
     await Promise.all([
       prisma.liveSession.findMany({
-        where: { isActive: true },
+        where: {
+          isActive: true,
+          OR: [
+            { targetGrade: student?.grade || 'الصف الثالث الإعدادي' },
+            { targetGrade: null },
+          ],
+        },
         include: { classroom: true },
         take: 1,
       }),

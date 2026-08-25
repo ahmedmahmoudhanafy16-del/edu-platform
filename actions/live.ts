@@ -3,13 +3,15 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
+import { broadcastLiveSessionByGrade } from '@/lib/whatsapp';
 import crypto from 'crypto';
 
 /**
  * Starts a live classroom session with a cryptographically secure UUID room identifier.
- * Enforces Teacher/Admin authorization.
+ * Requires and saves targeted Academic Grade (e.g. "الصف الثالث الإعدادي").
+ * Automatically triggers WhatsApp broadcast alerts exclusively to parents of students in that grade.
  */
-export async function startLiveSession(classroomId: string, title: string) {
+export async function startLiveSession(classroomId: string, title: string, targetGrade: string = 'الصف الثالث الإعدادي') {
   // Enforce Teacher Role
   await requireRole(['TEACHER', 'ADMIN']);
 
@@ -17,20 +19,42 @@ export async function startLiveSession(classroomId: string, title: string) {
   const secureUuid = crypto.randomUUID();
   const roomCode = `live-${secureUuid}`;
 
+  const classroom = await prisma.classroom.findUnique({
+    where: { id: classroomId },
+    select: { name: true },
+  });
+
   const session = await prisma.liveSession.create({
     data: {
       title,
       roomCode,
+      targetGrade,
       classroomId,
       isActive: true,
       startedAt: new Date(),
     },
   });
 
+  // Automated WhatsApp broadcast strictly targeting parents of students in this grade
+  let broadcastStats = { totalTargeted: 0, sentCount: 0 };
+  if (targetGrade) {
+    try {
+      const res = await broadcastLiveSessionByGrade({
+        targetGrade,
+        title,
+        roomCode,
+        classroomName: classroom?.name || 'الفصل التعليمي',
+      });
+      broadcastStats = { totalTargeted: res.totalTargeted, sentCount: res.sentCount };
+    } catch (err) {
+      console.error('Live broadcast WhatsApp error:', err);
+    }
+  }
+
   revalidatePath('/[locale]/teacher/live');
   revalidatePath('/[locale]/student/live');
   revalidatePath('/[locale]/student');
-  return session;
+  return { ...session, broadcastStats };
 }
 
 export async function endLiveSession(sessionId: string) {

@@ -12,6 +12,8 @@ model User {
   name        String
   email       String?  @unique
   phone       String?
+  parentPhone String?  // WhatsApp notifications for guardian/parent
+  grade       String?  // Academic Grade / Cohort (e.g. "الصف الأول الإعدادي")
   studentCode String?  @unique
   password    String
   role        String   @default("STUDENT") // TEACHER | STUDENT
@@ -23,6 +25,7 @@ model User {
   submissions         AssignmentSubmission[]
   quizResults         QuizResult[]
   attendance          LiveAttendance[]       @relation("StudentAttendance")
+  notifications       NotificationLog[]
 }
 
 model Classroom {
@@ -148,6 +151,7 @@ model LiveSession {
   id          String    @id @default(cuid())
   title       String
   roomCode    String    @unique
+  targetGrade String?   // Targeted Academic Grade / Cohort for targeted broadcasts
   isActive    Boolean   @default(true)
   classroomId String
   startedAt   DateTime  @default(now())
@@ -190,4 +194,17 @@ model ClassResource {
   createdAt   DateTime @default(now())
 
   classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+}
+
+model NotificationLog {
+  id           String   @id @default(cuid())
+  recipient    String   // phone number
+  studentId    String?
+  type         String   // QUIZ_RESULT | HOMEWORK_GRADED | LIVE_SESSION_ALERT | GENERAL
+  status       String   @default("SENT") // SENT | FAILED | DELIVERED
+  content      String
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  student User? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 }

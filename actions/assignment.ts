@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole, requireStudentOwnership } from '@/lib/auth';
+import { notifyParentHomeworkGraded } from '@/lib/whatsapp';
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -100,8 +101,27 @@ export async function gradeSubmission(submissionId: string, grade: number, teach
       status: 'GRADED',
       gradedAt: new Date(),
     },
+    include: {
+      student: { select: { id: true, name: true, parentPhone: true, phone: true } },
+      assignment: { select: { title: true, maxScore: true } },
+    },
   });
 
+  // Automated WhatsApp Notification trigger to Parent
+  const parentNumber = submission.student.parentPhone || submission.student.phone;
+  if (parentNumber) {
+    notifyParentHomeworkGraded({
+      studentName: submission.student.name,
+      parentPhone: parentNumber,
+      studentId: submission.student.id,
+      assignmentTitle: submission.assignment.title,
+      grade,
+      maxScore: submission.assignment.maxScore,
+      teacherNote,
+    }).catch((err) => console.error('WhatsApp notify error on grading:', err));
+  }
+
   revalidatePath('/[locale]/teacher/assignments');
+  revalidatePath('/[locale]/student/assignments');
   return submission;
 }

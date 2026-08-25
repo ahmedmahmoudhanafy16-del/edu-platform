@@ -3,23 +3,36 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
-import { Video, StopCircle, Copy, Plus, Clock } from 'lucide-react';
+import { Video, StopCircle, Copy, Plus, Clock, Users, Send, CheckCircle2, MessageSquare } from 'lucide-react';
 import { startLiveSession, endLiveSession } from '@/actions/live';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 const LiveClassroom = dynamic(() => import('@/components/LiveClassroom'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[85vh] rounded-2xl bg-n-900 flex items-center justify-center">
+    <div className="w-full h-[85vh] rounded-2xl bg-slate-900 flex items-center justify-center">
       <div className="text-center text-white">
         <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-sm font-medium">جاري تحميل غرفة البث المباشر...</p>
+        <p className="text-sm font-medium">جاري تشغيل وتأمين غرفة البث المباشر...</p>
       </div>
     </div>
   ),
 });
+
+const ACADEMIC_GRADES = [
+  'الصف الثالث الإعدادي',
+  'الصف الثاني الإعدادي',
+  'الصف الأول الإعدادي',
+  'الصف الثالث الثانوي',
+  'الصف الثاني الثانوي',
+  'الصف الأول الثانوي',
+  'الصف السادس الابتدائي',
+  'الصف الخامس الابتدائي',
+  'الصف الرابع الابتدائي',
+];
 
 export function TeacherLiveClient({
   teacherName = 'المعلمة',
@@ -38,6 +51,7 @@ export function TeacherLiveClient({
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [classroomId, setClassroomId] = useState(classrooms[0]?.id || '');
+  const [targetGrade, setTargetGrade] = useState(ACADEMIC_GRADES[0]);
 
   async function handleStart() {
     if (!title.trim()) {
@@ -50,12 +64,17 @@ export function TeacherLiveClient({
     }
     setLoading(true);
     try {
-      const s = await startLiveSession(classroomId, title);
+      const s = await startLiveSession(classroomId, title, targetGrade);
       setActiveRoom(s.roomCode);
       setSessionId(s.id);
-      toast.success(`تم إنشاء الحصة بنجاح! الكود: ${s.roomCode}`);
+
+      if (s.broadcastStats && s.broadcastStats.totalTargeted > 0) {
+        toast.success(`تم بدء البث وإرسال إشعار WhatsApp لـ ${s.broadcastStats.sentCount} من أولياء أمور (${targetGrade})! 📲`);
+      } else {
+        toast.success(`تم إنشاء الحصة بنجاح! كود الدخول: ${s.roomCode}`);
+      }
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e.message || 'حدث خطأ أثناء بدء الحصة');
     } finally {
       setLoading(false);
     }
@@ -76,13 +95,16 @@ export function TeacherLiveClient({
   if (activeRoom) {
     return (
       <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 px-5 py-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="w-2.5 h-2.5 bg-bad rounded-full animate-pulse" />
-            <span className="font-bold text-n-800 dark:text-n-700 text-sm">بث مباشر نشط</span>
-            <span className="text-n-400 text-xs">|</span>
-            <span className="text-n-500 text-xs">كود الطلاب:</span>
-            <code className="bg-accent-light text-accent-text font-bold font-mono px-3 py-1 rounded-md text-base tracking-widest border border-accent/20">
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
+            <span className="font-bold text-slate-900 dark:text-white text-sm">بث مباشر نشط الآن</span>
+            <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold">
+              {targetGrade}
+            </Badge>
+            <span className="text-slate-400 text-xs">|</span>
+            <span className="text-slate-500 text-xs">كود الغرفة:</span>
+            <code className="bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300 font-bold font-mono px-3 py-1 rounded-md text-xs tracking-wider border border-blue-200 dark:border-slate-700">
               {activeRoom}
             </code>
             <button
@@ -90,12 +112,12 @@ export function TeacherLiveClient({
                 navigator.clipboard.writeText(activeRoom);
                 toast.success('تم نسخ كود الغرفة');
               }}
-              className="p-1.5 hover:bg-n-100 dark:hover:bg-n-200 rounded text-n-500 hover:text-n-800 transition-colors"
+              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 transition-colors"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
           </div>
-          <Button variant="danger" size="sm" onClick={handleEnd}>
+          <Button variant="danger" size="sm" onClick={handleEnd} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
             <StopCircle className="h-4 w-4 ml-1.5" />
             إنهاء الحصة
           </Button>
@@ -116,33 +138,59 @@ export function TeacherLiveClient({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">غرفة البث المباشر (Live Classroom)</h1>
-        <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          ابدأ الحصة المباشرة وسيتم توليد كود الغرفة تلقائياً ليتمكن الطلاب من الدخول فوراً
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <Video className="h-6 w-6 text-blue-600" />
+          غرفة البث المباشر الموجهة (Targeted Live Stream)
+        </h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          حدد الصف الدراسي المستهدف لبدء الحصة وإرسال إشعارات WhatsApp فورية لأولياء الأمور
         </p>
       </div>
 
-      <div className="bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-6 space-y-4">
-        <h2 className="text-sm font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
-          <Plus className="h-4 w-4 text-accent" />
-          بدء حصة جديدة
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
+        <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <Plus className="h-4 w-4 text-blue-600" />
+          إطلاق بث مباشر جديد موجه
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="text-xs font-medium text-n-700 dark:text-n-600 block mb-1">عنوان الحصة</label>
+          <div className="md:col-span-3">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              عنوان الحصة التفاعلية:
+            </label>
             <Input
-              placeholder="مثال: مراجعة نهائية - حل معادلات الدرجة الأولى"
+              placeholder="مثال: مراجعة ليلة الامتحان وحل بنك الأسئلة"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              className="h-10"
             />
           </div>
+
           <div>
-            <label className="text-xs font-medium text-n-700 dark:text-n-600 block mb-1">الفصل الدراسي</label>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              الصف الدراسي المستهدف (Target Grade):
+            </label>
+            <select
+              value={targetGrade}
+              onChange={(e) => setTargetGrade(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 font-medium"
+            >
+              {ACADEMIC_GRADES.map((g) => (
+                <option key={g} value={g}>
+                  {g}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+              الفصل الدراسي:
+            </label>
             <select
               value={classroomId}
               onChange={(e) => setClassroomId(e.target.value)}
-              className="w-full h-9 px-3 rounded-md border border-n-200 dark:border-n-300 bg-white dark:bg-n-200 text-sm text-n-800 dark:text-n-700 outline-none focus:border-accent"
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 font-medium"
             >
               {classrooms.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -153,31 +201,49 @@ export function TeacherLiveClient({
           </div>
         </div>
 
-        <Button onClick={handleStart} loading={loading} className="mt-2">
+        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl p-3.5 flex items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
+          <MessageSquare className="h-5 w-5 text-blue-600 flex-shrink-0" />
+          <p>
+            سيتم إرسال إشعار <strong>WhatsApp</strong> فوري لأولياء أمور طلاب <strong>({targetGrade})</strong> فور بدء البث يحتوي على رابط الحصة وكود الدخول المباشر.
+          </p>
+        </div>
+
+        <Button
+          onClick={handleStart}
+          loading={loading}
+          className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 h-11 shadow-sm"
+        >
           <Video className="h-4 w-4 ml-1.5" />
-          بدء البث المباشر الآن
+          بدء البث المباشر وإرسال التنبيهات
         </Button>
       </div>
 
       {(activeSessions?.length ?? 0) > 0 && (
-        <div className="bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-5">
-          <h2 className="text-sm font-bold text-n-800 dark:text-n-700 mb-3 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
             الحصص النشطة حالياً ({activeSessions.length})
           </h2>
           <div className="space-y-2">
             {activeSessions.map((s) => (
-              <div key={s.id} className="flex items-center justify-between p-3 bg-n-50 dark:bg-n-200 rounded-lg border border-n-100 dark:border-n-300">
+              <div key={s.id} className="flex flex-wrap items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-700 gap-3">
                 <div>
-                  <p className="text-xs font-semibold text-n-800 dark:text-n-700">{s.title}</p>
-                  <p className="text-[11px] text-n-500">{s.classroom.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{s.title}</p>
+                    {s.targetGrade && (
+                      <Badge variant="outline" className="text-[11px] font-bold text-blue-600 border-blue-300">
+                        {s.targetGrade}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">{s.classroom.name}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <code className="bg-white dark:bg-n-100 text-accent font-bold font-mono px-3 py-1 rounded text-xs border border-n-200">
+                  <code className="bg-white dark:bg-slate-900 text-blue-600 font-bold font-mono px-2.5 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">
                     {s.roomCode}
                   </code>
-                  <Button size="sm" onClick={() => { setActiveRoom(s.roomCode); setSessionId(s.id); }}>
-                    دخول
+                  <Button size="sm" onClick={() => { setActiveRoom(s.roomCode); setSessionId(s.id); }} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
+                    دخول الغرفة
                   </Button>
                 </div>
               </div>

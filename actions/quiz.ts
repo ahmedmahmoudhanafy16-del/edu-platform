@@ -3,11 +3,13 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireStudentOwnership } from '@/lib/auth';
+import { notifyParentQuizCompleted } from '@/lib/whatsapp';
 
 /**
  * Grades quiz submissions strictly on the server side.
  * Enforces server-side timer verification (startedAt + duration + 60s tolerance).
  * Guarantees zero client-side answer verification or tampering.
+ * Triggers automated WhatsApp notification to parents with score summary.
  */
 export async function submitQuizAnswers(
   quizId: string,
@@ -108,6 +110,30 @@ export async function submitQuizAnswers(
         submittedAt: new Date(),
       },
     });
+  }
+
+  // 5. Automated WhatsApp Notification Trigger to Parent
+  const studentUser = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { id: true, name: true, parentPhone: true, phone: true },
+  });
+
+  const parentNumber = studentUser?.parentPhone || studentUser?.phone;
+  if (studentUser && parentNumber) {
+    const finalScore = hasEssay ? autoScore : (result.totalScore ?? autoScore);
+    const finalPct = totalMaxScore > 0 ? Math.round((finalScore / totalMaxScore) * 100) : 0;
+
+    notifyParentQuizCompleted({
+      studentName: studentUser.name,
+      parentPhone: parentNumber,
+      studentId: studentUser.id,
+      quizTitle: quiz.title,
+      score: finalScore,
+      maxScore: totalMaxScore,
+      percentage: finalPct,
+      isPassed,
+      status,
+    }).catch((err) => console.error('WhatsApp notify error on quiz completion:', err));
   }
 
   revalidatePath('/[locale]/student/grades');
