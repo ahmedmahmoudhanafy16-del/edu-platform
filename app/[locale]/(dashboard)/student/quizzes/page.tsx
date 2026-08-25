@@ -4,9 +4,20 @@ import { ClipboardList, Clock, BarChart3, CheckCircle2, ArrowRight } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { getAuthenticatedStudent } from '@/lib/auth';
 
-export default async function StudentQuizzesPage({ params: { locale } }: { params: { locale: string } }) {
-  const student = await prisma.user.findFirst({ where: { role: 'STUDENT' } });
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function StudentQuizzesPage({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}) {
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+
+  const student = await getAuthenticatedStudent();
   const studentId = student?.id || '';
 
   const [quizzes, results] = await Promise.all([
@@ -30,7 +41,7 @@ export default async function StudentQuizzesPage({ params: { locale } }: { param
           بنك الاختبارات والامتحانات
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          الاختبارات الأسبوعية والشهرية التفاعلية مع رصد الدرجات والتصحيح الفوري
+          مرحباً {student?.name} — الاختبارات الأسبوعية والشهرية التفاعلية مع رصد الدرجات والتصحيح الفوري
         </p>
       </div>
 
@@ -78,7 +89,7 @@ export default async function StudentQuizzesPage({ params: { locale } }: { param
                 </div>
               </CardContent>
 
-              {/* Card Footer - Dedicated full-width action button */}
+              {/* Card Footer */}
               <CardFooter className="p-5 pt-3">
                 {isDone ? (
                   <div className="w-full flex items-center gap-2">

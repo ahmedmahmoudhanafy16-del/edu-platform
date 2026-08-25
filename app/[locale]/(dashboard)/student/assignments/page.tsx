@@ -1,8 +1,19 @@
 import { prisma } from '@/lib/prisma';
 import { StudentAssignmentsClient } from './StudentAssignmentsClient';
+import { getAuthenticatedStudent } from '@/lib/auth';
 
-export default async function StudentAssignmentsPage({ params: { locale } }: { params: { locale: string } }) {
-  const student = await prisma.user.findFirst({ where: { role: 'STUDENT' } });
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function StudentAssignmentsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}) {
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+
+  const student = await getAuthenticatedStudent();
   const studentId = student?.id || '';
 
   const assignments = await prisma.assignment.findMany({
@@ -34,10 +45,12 @@ export default async function StudentAssignmentsPage({ params: { locale } }: { p
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">الواجبات والتسليمات</h1>
-        <p className="text-xs text-n-500 dark:text-n-400 mt-1">قائمة بالواجبات المطلوبة ومتابعة درجات وملاحظات المعلم</p>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">الواجبات والتسليمات</h1>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          مرحباً {student?.name} — قائمة بالواجبات المطلوبة ومتابعة درجات وملاحظات المعلم
+        </p>
       </div>
 
       <StudentAssignmentsClient initialAssignments={serialized} />

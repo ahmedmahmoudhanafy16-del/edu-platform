@@ -12,14 +12,22 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
+import { getAuthenticatedStudent } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function StudentDashboardPage({
-  params: { locale },
+  params,
 }: {
-  params: { locale: string };
+  params: Promise<{ locale: string }> | { locale: string };
 }) {
-  const student = await prisma.user.findFirst({ where: { role: 'STUDENT' } });
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+
+  const student = await getAuthenticatedStudent();
   const studentId = student?.id ?? '';
+  console.log(`[Student Dashboard Debug] Rendering dashboard for Student: ID=${student?.id}, Name=${student?.name}, Code=${student?.studentCode}`);
 
   const [activeLive, assignments, quizResults, quizzes, resources, attendance] =
     await Promise.all([

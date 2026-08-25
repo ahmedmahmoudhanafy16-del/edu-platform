@@ -1,13 +1,19 @@
 import { prisma } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { QuizRunner } from './QuizRunner';
-import { getCurrentUser } from '@/lib/auth';
+import { getAuthenticatedStudent } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function StudentQuizPage({
-  params: { id, locale },
+  params,
 }: {
-  params: { id: string; locale: string };
+  params: Promise<{ id: string; locale: string }> | { id: string; locale: string };
 }) {
+  const resolvedParams = await params;
+  const { id, locale } = resolvedParams;
+
   const quiz = await prisma.quiz.findUnique({
     where: { id },
     include: {
@@ -19,13 +25,9 @@ export default async function StudentQuizPage({
 
   if (!quiz || !quiz.isPublished) notFound();
 
-  // 1. Resolve logged in student
-  const currentUser = await getCurrentUser();
-  let studentId = currentUser?.id;
-  if (!studentId) {
-    const defaultStudent = await prisma.user.findFirst({ where: { role: 'STUDENT' } });
-    studentId = defaultStudent?.id || 'guest';
-  }
+  // 1. Resolve logged in student from session
+  const student = await getAuthenticatedStudent();
+  const studentId = student?.id || 'guest';
 
   // 2. Server-side Timer & Attempt Initialization
   let attempt = await prisma.quizResult.findFirst({

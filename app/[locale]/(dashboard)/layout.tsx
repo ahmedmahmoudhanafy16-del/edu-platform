@@ -1,19 +1,21 @@
 import { TopNav } from '@/components/shared/TopNav';
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner';
+import { getCurrentUser } from '@/lib/auth';
 
-/**
- * Shared layout for all (dashboard) routes — teacher & student.
- * Extremely lightweight and fast — zero blocking queries.
- */
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const currentUser = await getCurrentUser();
+
   return (
-    <div className="min-h-screen flex flex-col bg-n-50 dark:bg-n-50">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
       <AnnouncementBanner />
-      <TopNav />
+      <TopNav
+        role={currentUser?.role === 'TEACHER' ? 'TEACHER' : 'STUDENT'}
+        userName={currentUser?.name}
+      />
       <main className="flex-1">
         {children}
       </main>
