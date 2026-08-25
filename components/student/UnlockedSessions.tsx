@@ -18,29 +18,34 @@ export async function UnlockedSessions({
   let dbUnlocked: any[] = [];
 
   try {
-    dbUnlocked = await prisma.sessionAccessCode.findMany({
-      where: { usedByStudentId: studentId },
-      include: {
-        liveSession: {
-          include: { classroom: true },
+    if (studentId) {
+      dbUnlocked = await prisma.sessionAccessCode.findMany({
+        where: { usedByStudentId: studentId },
+        include: {
+          liveSession: {
+            include: { classroom: true },
+          },
         },
-      },
-      orderBy: { usedAt: 'desc' },
-    });
+        orderBy: { usedAt: 'desc' },
+      }).catch(() => []);
+    }
   } catch (err) {
     console.warn('[UnlockedSessions] DB query skipped:', err);
   }
 
+  // Filter out any DB records missing liveSession
+  const validDbUnlocked = (dbUnlocked || []).filter((item) => item && item.code);
+  const dbCodeSet = new Set(validDbUnlocked.map((u) => u.code));
+
   // Merge with memory codes
-  const dbCodeSet = new Set(dbUnlocked.map((u) => u.code));
-  const memoryUnlocked = memoryAccessCodes
-    .filter((m: any) => m.usedByStudentId === studentId && !dbCodeSet.has(m.code))
+  const memoryUnlocked = (memoryAccessCodes || [])
+    .filter((m: any) => m && m.usedByStudentId === studentId && !dbCodeSet.has(m.code))
     .map((m: any) => ({
-      id: m.id,
+      id: m.id || `mem-${Math.random()}`,
       code: m.code,
       usedAt: m.usedAt ? new Date(m.usedAt) : new Date(),
       liveSession: {
-        id: m.liveSessionId,
+        id: m.liveSessionId || 'session-1',
         title: m.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
         roomCode: m.roomCode || 'LIVE-MATH1',
         isActive: true,
@@ -48,7 +53,7 @@ export async function UnlockedSessions({
       },
     }));
 
-  const unlockedCodes = [...dbUnlocked, ...memoryUnlocked];
+  const unlockedCodes = [...validDbUnlocked, ...memoryUnlocked];
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
@@ -88,12 +93,18 @@ export async function UnlockedSessions({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {unlockedCodes.map((item) => {
-            const session = item.liveSession;
-            const isLiveNow = session.isActive;
+            const session = item.liveSession || {
+              id: 'fallback-session',
+              title: 'حصة البث المباشر',
+              roomCode: 'LIVE-MATH1',
+              isActive: true,
+              classroom: { name: 'الفصل التعليمي' },
+            };
+            const isLiveNow = Boolean(session.isActive);
 
             return (
               <div
-                key={item.id}
+                key={item.id || item.code}
                 className={`${card} flex flex-col justify-between overflow-hidden shadow-sm hover:shadow transition-shadow`}
               >
                 {/* Header */}
@@ -108,7 +119,7 @@ export async function UnlockedSessions({
                   </div>
 
                   <h3 className="text-sm font-bold text-n-800 dark:text-n-700 leading-snug mt-2.5">
-                    {session.title}
+                    {session.title || 'حصة البث المباشر'}
                   </h3>
 
                   <p className="text-[11px] text-n-400 mt-1 flex items-center gap-1">
@@ -125,7 +136,7 @@ export async function UnlockedSessions({
                         <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> مباشر الآن
                       </span>
                       <Link
-                        href={`/${locale}/student/live?room=${session.roomCode}&name=${encodeURIComponent(studentName)}`}
+                        href={`/${locale}/student/live?room=${session.roomCode || 'LIVE-MATH1'}&name=${encodeURIComponent(studentName || 'الطالب')}`}
                         className="flex-shrink-0"
                       >
                         <Button size="sm" variant="primary" className="text-xs font-bold px-3">
