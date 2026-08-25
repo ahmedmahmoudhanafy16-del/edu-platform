@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryAccessCodes } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,22 +34,27 @@ export async function GET(req: NextRequest) {
       whereClause.liveSessionId = sessionId;
     }
 
-    const codes = await prisma.sessionAccessCode.findMany({
-      where: whereClause,
-      include: {
-        liveSession: {
-          select: { id: true, title: true, roomCode: true, isActive: true },
+    let dbCodes: any[] = [];
+    try {
+      dbCodes = await prisma.sessionAccessCode.findMany({
+        where: whereClause,
+        include: {
+          liveSession: {
+            select: { id: true, title: true, roomCode: true, isActive: true },
+          },
+          usedByStudent: {
+            select: { id: true, name: true, studentCode: true, phone: true },
+          },
         },
-        usedByStudent: {
-          select: { id: true, name: true, studentCode: true, phone: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (err) {
+      console.warn('[Get Access Codes] Prisma query error:', err);
+    }
 
     const now = new Date();
 
-    const formatted = codes.map((c) => {
+    const formattedDb = dbCodes.map((c) => {
       let status: 'USED' | 'AVAILABLE' | 'EXPIRED' = 'AVAILABLE';
       if (c.usedByStudentId || c.usedAt) {
         status = 'USED';
@@ -62,8 +67,8 @@ export async function GET(req: NextRequest) {
         code: c.code,
         price: c.price,
         liveSessionId: c.liveSessionId,
-        liveSessionTitle: c.liveSession.title,
-        roomCode: c.liveSession.roomCode,
+        liveSessionTitle: c.liveSession?.title || 'الحصة المباشرة',
+        roomCode: c.liveSession?.roomCode || 'LIVE-ROOM',
         usedByStudentId: c.usedByStudentId,
         studentName: c.usedByStudent?.name || null,
         studentCode: c.usedByStudent?.studentCode || null,
@@ -74,10 +79,18 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Merge in-memory codes (filter out any duplicates already in DB)
+    const existingDbCodes = new Set(formattedDb.map((c) => c.code));
+    const memoryFiltered = memoryAccessCodes
+      .filter((m: any) => !existingDbCodes.has(m.code))
+      .filter((m: any) => !sessionId || sessionId === 'ALL' || m.liveSessionId === sessionId);
+
+    const allCodes = [...formattedDb, ...memoryFiltered];
+
     return NextResponse.json({
       success: true,
-      count: formatted.length,
-      codes: formatted,
+      count: allCodes.length,
+      codes: allCodes,
     });
   } catch (error: any) {
     console.error('[Get Access Codes Error]:', error);

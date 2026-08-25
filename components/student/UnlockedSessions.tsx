@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
-import { Wifi, Ticket, Plus, CheckCircle2, Clock, Video } from 'lucide-react';
+import { prisma, memoryAccessCodes } from '@/lib/prisma';
+import { Wifi, Ticket, Plus, CheckCircle2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface UnlockedSessionsProps {
@@ -15,10 +15,10 @@ export async function UnlockedSessions({
   studentName,
   locale,
 }: UnlockedSessionsProps) {
-  let unlockedCodes: any[] = [];
+  let dbUnlocked: any[] = [];
 
   try {
-    unlockedCodes = await prisma.sessionAccessCode.findMany({
+    dbUnlocked = await prisma.sessionAccessCode.findMany({
       where: { usedByStudentId: studentId },
       include: {
         liveSession: {
@@ -30,6 +30,25 @@ export async function UnlockedSessions({
   } catch (err) {
     console.warn('[UnlockedSessions] DB query skipped:', err);
   }
+
+  // Merge with memory codes
+  const dbCodeSet = new Set(dbUnlocked.map((u) => u.code));
+  const memoryUnlocked = memoryAccessCodes
+    .filter((m: any) => m.usedByStudentId === studentId && !dbCodeSet.has(m.code))
+    .map((m: any) => ({
+      id: m.id,
+      code: m.code,
+      usedAt: m.usedAt ? new Date(m.usedAt) : new Date(),
+      liveSession: {
+        id: m.liveSessionId,
+        title: m.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
+        roomCode: m.roomCode || 'LIVE-MATH1',
+        isActive: true,
+        classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
+      },
+    }));
+
+  const unlockedCodes = [...dbUnlocked, ...memoryUnlocked];
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
