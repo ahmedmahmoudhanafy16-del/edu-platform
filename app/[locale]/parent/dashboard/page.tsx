@@ -2,9 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
+import { Trophy, FileText, ShieldCheck, Video, MessageSquare, Home, ArrowLeft, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
-export default function ParentDashboardPage({ params: { locale } }: { params: { locale: string } }) {
+export default function ParentDashboardPage() {
+  const locale = useLocale();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -12,7 +16,7 @@ export default function ParentDashboardPage({ params: { locale } }: { params: { 
     try {
       const auth = JSON.parse(sessionStorage.getItem('parent_auth') || '{}');
       const code = auth.studentCode || 'STU-001';
-      const phone = auth.phone || '01099998888';
+      const phone = auth.phone || '01012345678';
 
       fetch(`/api/parent/dashboard?code=${code}&phone=${phone}`)
         .then((r) => r.json())
@@ -27,79 +31,83 @@ export default function ParentDashboardPage({ params: { locale } }: { params: { 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-n-50 dark:bg-n-50 flex items-center justify-center p-4">
-        <p className="text-xs text-n-500">جاري تحميل تقرير الطالب...</p>
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-semibold">جاري تحميل تقرير الطالب الشامل...</p>
+        </div>
       </div>
     );
   }
 
+  const navLinks = [
+    { href: `/${locale}/parent/child-progress`, icon: Trophy, title: 'تقرير الدرجات والامتحانات', desc: 'معدل الدرجات والاختبارات المنجزة', color: 'text-amber-500' },
+    { href: `/${locale}/parent/child-homework`, icon: FileText, title: 'الواجبات وملاحظات المعلم', desc: 'تسليمات الواجبات والتقييمات', color: 'text-blue-600' },
+    { href: `/${locale}/parent/child-attendance`, icon: ShieldCheck, title: 'سجل حضور البث المباشر', desc: 'نسبة الحضور ومواظبة الطالب', color: 'text-emerald-600' },
+    { href: `/${locale}/parent/child-live`, icon: Video, title: 'الحصص المباشرة النشطة', desc: 'الغرف التفاعلية المفتوحة الآن', color: 'text-red-500' },
+    { href: `/${locale}/parent/notifications`, icon: MessageSquare, title: 'سجل تنبيهات الواتساب', desc: 'رسائل وإشعارات المنصة المستلمة', color: 'text-emerald-500' },
+  ];
+
   return (
-    <div className="min-h-screen bg-n-50 dark:bg-n-50 p-6 md:p-10 max-w-4xl mx-auto space-y-6" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 md:p-10 max-w-4xl mx-auto space-y-6" dir="rtl">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">تقرير ولي الأمر الأكاديمي</h1>
-          <p className="text-xs text-n-500 mt-0.5">متابعة دقيقة لمستوى الطالب، الواجبات، ونسبة الحضور</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">بوابة ولي الأمر الأكاديمية</h1>
+          <p className="text-xs text-slate-500 mt-1">متابعة شاملة ومباشرة لمستوى الطالب، الواجبات، والحضور</p>
         </div>
         <Link href={`/${locale}`}>
-          <Button variant="secondary" size="sm">الرئيسية</Button>
+          <Button variant="secondary" size="sm">
+            <Home className="h-4 w-4 ml-1.5" />
+            الرئيسية
+          </Button>
         </Link>
       </div>
 
-      <div className="p-6 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 flex flex-wrap items-center justify-between gap-4">
+      {/* Student Profile Card */}
+      <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-xs text-n-400">اسم الطالب</p>
-          <h2 className="text-lg font-bold text-n-800 dark:text-n-700">{data?.name || 'أحمد محمد علي'}</h2>
+          <p className="text-xs text-slate-500">اسم الطالب المتابع</p>
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{data?.name || 'أحمد محمد علي'}</h2>
+          <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-bold text-xs mt-1">
+            {data?.grade || 'الصف الثالث الإعدادي'}
+          </Badge>
         </div>
         <div>
-          <p className="text-xs text-n-400">كود الطالب</p>
-          <code className="text-sm font-mono font-bold text-accent">{data?.studentCode || 'STU-001'}</code>
+          <p className="text-xs text-slate-500">كود الدخول</p>
+          <code className="text-sm font-mono font-bold text-blue-600 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+            {data?.studentCode || 'STU-001'}
+          </code>
         </div>
         <div>
-          <p className="text-xs text-n-400">هاتف ولي الأمر</p>
-          <p className="text-xs font-mono text-n-700">{data?.phone || '01099998888'}</p>
+          <p className="text-xs text-slate-500">رقم ولي الأمر المسجل</p>
+          <p className="text-xs font-mono text-slate-700 dark:text-slate-300 mt-1">{data?.phone || '01012345678'}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="p-5 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100">
-          <p className="text-xs text-n-500">الواجبات المُسلَّمة</p>
-          <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-1">{data?.submissions?.length || 1}</p>
-        </div>
-
-        <div className="p-5 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100">
-          <p className="text-xs text-n-500">الامتحانات المنجزة</p>
-          <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-1">{data?.quizResults?.length || 0}</p>
-        </div>
-
-        <div className="p-5 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100">
-          <p className="text-xs text-n-500">الحصص المحضورة</p>
-          <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-1">{data?.attendance?.length || 1}</p>
-        </div>
-      </div>
-
-      <div className="p-6 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 space-y-3">
-        <h3 className="text-sm font-bold text-n-800 dark:text-n-700">سجل تسليم الواجبات</h3>
-        {!data?.submissions || data.submissions.length === 0 ? (
-          <p className="text-xs text-n-400 py-4 text-center">لا توجد تسليمات مسجلة بعد</p>
-        ) : (
-          <div className="space-y-2">
-            {data.submissions.map((s: any) => (
-              <div key={s.id} className="p-3 bg-n-50 dark:bg-n-200 rounded-lg border border-n-100 dark:border-n-300 flex items-center justify-between text-xs">
-                <div>
-                  <p className="font-semibold text-n-800 dark:text-n-700">{s.assignment?.title || 'واجب دراسي'}</p>
-                  <p className="text-n-400 mt-0.5">تاريخ التسليم: {new Date(s.submittedAt).toLocaleDateString('ar-EG')}</p>
+      {/* Quick Access Sections Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {navLinks.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <Link key={idx} href={item.href} className="group">
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all hover:border-blue-300 dark:hover:border-blue-800 flex items-center justify-between">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                    <Icon className={`h-5 w-5 ${item.color}`} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600 transition-colors">
+                      {item.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+                  </div>
                 </div>
-                <div className="text-end">
-                  {s.grade != null ? (
-                    <span className="font-bold text-ok text-sm">{s.grade} / {s.assignment?.maxScore || 10}</span>
-                  ) : (
-                    <span className="text-warn bg-warn-light px-2 py-0.5 rounded text-[11px]">قيد التصحيح</span>
-                  )}
-                </div>
+                <ArrowLeft className="h-4 w-4 text-slate-400 group-hover:translate-x-[-3px] transition-transform" />
               </div>
-            ))}
-          </div>
-        )}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

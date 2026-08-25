@@ -74,3 +74,44 @@ export async function endLiveSession(sessionId: string) {
   revalidatePath('/[locale]/student');
   return session;
 }
+
+/**
+ * Automatically records student attendance when entering a live room.
+ */
+export async function recordLiveAttendance(roomCode: string, studentId: string, durationMin: number = 45) {
+  try {
+    const session = await prisma.liveSession.findUnique({
+      where: { roomCode },
+      select: { id: true },
+    });
+
+    if (!session || !studentId) return null;
+
+    const record = await prisma.liveAttendance.upsert({
+      where: {
+        sessionId_studentId: {
+          sessionId: session.id,
+          studentId,
+        },
+      },
+      update: {
+        leftAt: new Date(),
+        durationMin,
+      },
+      create: {
+        sessionId: session.id,
+        studentId,
+        joinedAt: new Date(),
+        durationMin,
+      },
+    });
+
+    revalidatePath('/[locale]/student');
+    revalidatePath('/[locale]/student/attendance');
+    revalidatePath('/[locale]/teacher/students');
+    return record;
+  } catch (err) {
+    console.error('Error recording attendance:', err);
+    return null;
+  }
+}
