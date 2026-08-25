@@ -2,38 +2,49 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 
-function getDatabaseUrl(): string {
-  if (process.env.VERCEL) {
-    const tmpDb = '/tmp/dev.db';
+function initDatabase(): string {
+  // On Vercel / AWS Lambda serverless functions
+  if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+    const tmpDir = '/tmp';
+    const tmpDb = path.join(tmpDir, 'dev.db');
+
     try {
       if (!fs.existsSync(tmpDb)) {
         const candidatePaths = [
           path.join(process.cwd(), 'prisma', 'dev.db'),
-          path.join(__dirname, '..', 'prisma', 'dev.db'),
+          path.join(process.cwd(), 'dev.db'),
           path.join('/var/task', 'prisma', 'dev.db'),
+          path.join('/var/task', 'dev.db'),
         ];
 
-        for (const p of candidatePaths) {
-          if (fs.existsSync(p)) {
-            fs.copyFileSync(p, tmpDb);
+        let copied = false;
+        for (const cand of candidatePaths) {
+          if (fs.existsSync(cand)) {
+            fs.copyFileSync(cand, tmpDb);
             try {
               fs.chmodSync(tmpDb, 0o666);
             } catch (e) {}
-            console.log(`[Prisma Vercel] Successfully copied database from ${p} to ${tmpDb}`);
+            copied = true;
+            console.log(`[Vercel DB Init] Successfully copied database from ${cand} to ${tmpDb}`);
             break;
           }
         }
+
+        if (!copied) {
+          console.warn('[Vercel DB Init] No dev.db found to copy, will create new in /tmp');
+        }
       }
-    } catch (err) {
-      console.error('[Prisma Vercel Setup] Error copying db to /tmp:', err);
+
+      return `file:${tmpDb}`;
+    } catch (e) {
+      console.error('[Vercel DB Init Error]', e);
     }
-    return 'file:/tmp/dev.db';
   }
 
   return process.env.DATABASE_URL || 'file:./dev.db';
 }
 
-const dbUrl = getDatabaseUrl();
+const dbUrl = initDatabase();
 process.env.DATABASE_URL = dbUrl;
 
 const globalForPrisma = global as unknown as {
