@@ -1,3 +1,4 @@
+import type { Viewport } from 'next';
 import { Cairo } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, getLocale } from 'next-intl/server';
@@ -6,6 +7,11 @@ import { routing } from '@/i18n/routing';
 import { Providers } from '@/components/providers/Providers';
 import { Toaster } from 'sonner';
 import '@/app/globals.css';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1.0,
+};
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
