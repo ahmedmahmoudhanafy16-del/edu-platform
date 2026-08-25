@@ -6,12 +6,6 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  experimental: {
-    serverComponentsExternalPackages: ['@prisma/client', 'prisma', 'bcryptjs'],
-    outputFileTracingIncludes: {
-      '/**': ['./prisma/dev.db', './prisma/schema.prisma'],
-    },
-  },
 };
 
 export default withNextIntl(nextConfig);

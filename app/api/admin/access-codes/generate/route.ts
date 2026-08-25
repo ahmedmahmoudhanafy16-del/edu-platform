@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         where: { id: liveSessionId },
       });
     } catch (dbErr) {
-      console.warn('[Generate Access Codes] Live session DB lookup error:', dbErr);
+      console.warn('[Generate Access Codes] Live session DB lookup skipped:', dbErr);
     }
 
     if (!liveSession) {
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         });
         createdRecords.push(record);
       } catch (dbInsertErr: any) {
-        console.warn(`[Generate Access Codes] Prisma create skipped (using resilient memory store):`, dbInsertErr?.message);
+        console.warn(`[Generate Access Codes] Prisma create error caught (using memory store fallback):`, dbInsertErr?.message);
         memoryAccessCodes.unshift(newRecord);
         createdRecords.push(newRecord);
       }
