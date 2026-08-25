@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { BookOpen, Users, FileText, ClipboardList, Video, Wifi, Calendar, BarChart3 } from 'lucide-react';
+import { BookOpen, Users, FileText, ClipboardList, Video, Wifi, Calendar, BarChart3, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 
@@ -51,11 +51,19 @@ export default async function TeacherDashboardPage({
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir="rtl">
 
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">لوحة تحكم المعلم</h1>
-        <p className="text-sm text-n-500 dark:text-n-400 mt-1">
-          مرحباً أ/ {teacher?.name ?? 'سارة أحمد'} — إليك ملخص نشاط فصولك اليوم
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">لوحة تحكم المعلم</h1>
+          <p className="text-sm text-n-500 dark:text-n-400 mt-1">
+            مرحباً أ/ {teacher?.name ?? 'سارة أحمد'} — إليك ملخص نشاط فصولك اليوم
+          </p>
+        </div>
+        <Link href={`/${locale}/teacher/access-codes`}>
+          <Button variant="primary" size="sm" className="text-xs flex items-center gap-1.5 shadow-sm">
+            <Ticket className="h-4 w-4" />
+            توليد أكواد الحصص المباشرة
+          </Button>
+        </Link>
       </div>
 
       {/* Live banner */}
@@ -150,12 +158,12 @@ export default async function TeacherDashboardPage({
           </div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {[
-              { href: `/${locale}/teacher/classrooms`, icon: BookOpen,      title: 'إدارة الفصول',           sub: 'إضافة وتعديل الفصول' },
-              { href: `/${locale}/teacher/quizzes`,    icon: ClipboardList,  title: 'بنك الامتحانات',         sub: 'إنشاء وتوليد الاختبارات' },
-              { href: `/${locale}/teacher/students`,   icon: Users,          title: 'قائمة الطلاب',           sub: 'تصدير CSV · واتساب' },
-              { href: `/${locale}/teacher/live`,       icon: Video,          title: 'البث المباشر',           sub: 'بدء وإدارة الحصص' },
-              { href: `/${locale}/teacher/reports`,    icon: BarChart3,      title: 'التقارير الأكاديمية',    sub: 'كشوف الدرجات والحضور' },
-              { href: `/${locale}/teacher/schedule`,   icon: Calendar,       title: 'الجدول الأسبوعي',        sub: 'مواعيد الحصص' },
+              { href: `/${locale}/teacher/access-codes`, icon: Ticket,        title: 'أكواد الحصص',           sub: 'توليد ومتابعة المبيعات' },
+              { href: `/${locale}/teacher/live`,         icon: Video,         title: 'البث المباشر',           sub: 'بدء وإدارة الحصص' },
+              { href: `/${locale}/teacher/classrooms`,   icon: BookOpen,      title: 'إدارة الفصول',           sub: 'إضافة وتعديل الفصول' },
+              { href: `/${locale}/teacher/quizzes`,      icon: ClipboardList, title: 'بنك الامتحانات',         sub: 'إنشاء وتوليد الاختبارات' },
+              { href: `/${locale}/teacher/students`,     icon: Users,         title: 'قائمة الطلاب',           sub: 'تصدير CSV · واتساب' },
+              { href: `/${locale}/teacher/reports`,      icon: BarChart3,     title: 'التقارير الأكاديمية',    sub: 'كشوف الدرجات والحضور' },
             ].map(({ href, icon: Icon, title, sub }) => (
               <Link
                 key={href}

@@ -3,11 +3,12 @@ import { prisma } from '@/lib/prisma';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
-  BarChart3, CalendarCheck,
+  BarChart3, CalendarCheck, Ticket, Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
 import { getAuthenticatedStudent } from '@/lib/auth';
+import { UnlockedSessions } from '@/components/student/UnlockedSessions';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -146,8 +147,14 @@ export default async function StudentDashboardPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href={`/${locale}/student/redeem`}>
+            <Button size="sm" variant="primary" className="text-xs flex items-center gap-1.5 shadow-sm">
+              <Ticket className="h-3.5 w-3.5" />
+              تفعيل كود حصة جديدة
+            </Button>
+          </Link>
           <code className="text-xs font-mono font-bold text-accent bg-accent-light px-3 py-1.5 rounded-lg border border-accent/20">
-            كود الدخول: {student?.studentCode || 'STU-001'}
+            كود الطالب: {student?.studentCode || 'STU-001'}
           </code>
         </div>
       </div>
@@ -171,6 +178,13 @@ export default async function StudentDashboardPage({
           </div>
         ))}
       </div>
+
+      {/* ── Unlocked Live Sessions (جلساتي المفعّلة) ─────────────────── */}
+      <UnlockedSessions
+        studentId={studentId}
+        studentName={student?.name || 'الطالب'}
+        locale={locale}
+      />
 
       {/* ── Live session hero banner ───────────────────────────────────── */}
       {activeLive.length > 0 && (

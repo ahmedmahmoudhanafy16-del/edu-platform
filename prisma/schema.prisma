@@ -26,6 +26,7 @@ model User {
   quizResults         QuizResult[]
   attendance          LiveAttendance[]       @relation("StudentAttendance")
   notifications       NotificationLog[]
+  usedCodes           SessionAccessCode[]    @relation("UsedCodes")
 }
 
 model Classroom {
@@ -157,8 +158,23 @@ model LiveSession {
   startedAt   DateTime  @default(now())
   endedAt     DateTime?
 
-  classroom  Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  attendance LiveAttendance[]
+  classroom   Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  attendance  LiveAttendance[]
+  accessCodes SessionAccessCode[]
+}
+
+model SessionAccessCode {
+  id              String    @id @default(cuid())
+  code            String    @unique // e.g. "EDU-A3X9-2025"
+  liveSessionId   String
+  price           Float     @default(0)
+  usedByStudentId String?
+  usedAt          DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  usedByStudent User?       @relation("UsedCodes", fields: [usedByStudentId], references: [id])
 }
 
 model LiveAttendance {
