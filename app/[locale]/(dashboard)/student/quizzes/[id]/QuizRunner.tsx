@@ -30,10 +30,12 @@ export function QuizRunner({
   quiz,
   studentId,
   locale,
+  initialTimeLeft,
 }: {
   quiz: Quiz;
   studentId: string;
   locale: string;
+  initialTimeLeft?: number;
 }) {
   const router = useRouter();
   const autosaveKey = `quiz_answers_${quiz.id}_${studentId}`;
@@ -52,7 +54,9 @@ export function QuizRunner({
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [timeLeft, setTimeLeft] = useState(quiz.duration * 60);
+  const [timeLeft, setTimeLeft] = useState(
+    typeof initialTimeLeft === 'number' ? initialTimeLeft : quiz.duration * 60
+  );
   const [violations, setViolations] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);

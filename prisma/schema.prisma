@@ -127,6 +127,7 @@ model QuizResult {
   status         String    @default("AUTO_GRADED") // PENDING | AUTO_GRADED | GRADED
   violationCount Int       @default(0)
   autoSubmitted  Boolean   @default(false)
+  startedAt      DateTime  @default(now())
   submittedAt    DateTime  @default(now())
 
   quiz       Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
