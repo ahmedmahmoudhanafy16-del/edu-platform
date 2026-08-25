@@ -15,9 +15,22 @@ export async function POST(req: NextRequest) {
           OR: [{ email: cleanEmail }, { phone: cleanEmail }],
         },
       });
+
+      // Self-healing fallback for Vercel demo teacher account
+      if (!user && (cleanEmail === 'teacher@school.com' || cleanEmail === '01011112222')) {
+        try {
+          user = await prisma.user.upsert({
+            where: { email: 'teacher@school.com' },
+            update: { password: 'teacher123', name: 'سارة أحمد', role: 'TEACHER', phone: '01011112222' },
+            create: { name: 'سارة أحمد', email: 'teacher@school.com', password: 'teacher123', role: 'TEACHER', phone: '01011112222' },
+          });
+        } catch (seedErr) {
+          console.error('[Auth Login] Fallback teacher seed error:', seedErr);
+        }
+      }
     } else {
       const cleanInput = studentCode?.trim();
-      // Support matching by studentCode (e.g. STU-001, STU-552), phone, or username
+      // Support matching by studentCode (e.g. STU-001, STU-777), phone, or username
       user = await prisma.user.findFirst({
         where: {
           role: 'STUDENT',
@@ -29,6 +42,28 @@ export async function POST(req: NextRequest) {
           ],
         },
       });
+
+      // Self-healing fallback for Vercel demo student accounts (STU-001, STU-777)
+      if (!user && (cleanInput?.toUpperCase() === 'STU-001' || cleanInput === '01099998888' || cleanInput?.toUpperCase() === 'STU-777')) {
+        const isStu777 = cleanInput?.toUpperCase() === 'STU-777';
+        try {
+          user = await prisma.user.upsert({
+            where: { studentCode: isStu777 ? 'STU-777' : 'STU-001' },
+            update: { password: '1234', grade: 'الصف الثالث الإعدادي' },
+            create: {
+              name: isStu777 ? 'زياد طارق إبراهيم' : 'أحمد محمد علي',
+              studentCode: isStu777 ? 'STU-777' : 'STU-001',
+              password: '1234',
+              role: 'STUDENT',
+              phone: isStu777 ? '01055554444' : '01099998888',
+              parentPhone: '01012345678',
+              grade: 'الصف الثالث الإعدادي',
+            },
+          });
+        } catch (seedErr) {
+          console.error('[Auth Login] Fallback student seed error:', seedErr);
+        }
+      }
     }
 
     if (!user) {

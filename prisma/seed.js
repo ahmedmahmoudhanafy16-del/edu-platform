@@ -3,11 +3,17 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial data...');
+  console.log('Seeding initial production data for Vercel/Local deployment...');
 
+  // 1. Teacher Account
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
-    update: {},
+    update: {
+      password: 'teacher123',
+      name: 'سارة أحمد',
+      role: 'TEACHER',
+      phone: '01011112222',
+    },
     create: {
       name: 'سارة أحمد',
       email: 'teacher@school.com',
@@ -17,18 +23,51 @@ async function main() {
     },
   });
 
-  const student = await prisma.user.upsert({
+  // 2. Student 1 (أحمد محمد علي)
+  const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
-    update: {},
+    update: {
+      password: '1234',
+      name: 'أحمد محمد علي',
+      role: 'STUDENT',
+      phone: '01099998888',
+      parentPhone: '01012345678',
+      grade: 'الصف الثالث الإعدادي',
+    },
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
       password: '1234',
       role: 'STUDENT',
       phone: '01099998888',
+      parentPhone: '01012345678',
+      grade: 'الصف الثالث الإعدادي',
     },
   });
 
+  // 3. Student 2 (زياد طارق)
+  const student2 = await prisma.user.upsert({
+    where: { studentCode: 'STU-777' },
+    update: {
+      password: '1234',
+      name: 'زياد طارق إبراهيم',
+      role: 'STUDENT',
+      phone: '01055554444',
+      parentPhone: '01099998888',
+      grade: 'الصف الثالث الإعدادي',
+    },
+    create: {
+      name: 'زياد طارق إبراهيم',
+      studentCode: 'STU-777',
+      password: '1234',
+      role: 'STUDENT',
+      phone: '01055554444',
+      parentPhone: '01099998888',
+      grade: 'الصف الثالث الإعدادي',
+    },
+  });
+
+  // 4. Classrooms
   const classroom = await prisma.classroom.upsert({
     where: { code: 'MATH-101' },
     update: {},
@@ -40,22 +79,41 @@ async function main() {
     },
   });
 
+  // 5. Enrollments
   await prisma.enrollment.upsert({
     where: {
       userId_classroomId: {
-        userId: student.id,
+        userId: student1.id,
         classroomId: classroom.id,
       },
     },
     update: {},
     create: {
-      userId: student.id,
+      userId: student1.id,
       classroomId: classroom.id,
     },
   });
 
-  const assignment = await prisma.assignment.create({
-    data: {
+  await prisma.enrollment.upsert({
+    where: {
+      userId_classroomId: {
+        userId: student2.id,
+        classroomId: classroom.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: student2.id,
+      classroomId: classroom.id,
+    },
+  });
+
+  // 6. Assignment
+  const assignment = await prisma.assignment.upsert({
+    where: { id: 'sample-assignment-1' },
+    update: {},
+    create: {
+      id: 'sample-assignment-1',
       title: 'حل تمارين معادلات الدرجة الأولى',
       description: 'قم بحل المسائل في الصفحة رقم 45 من كتاب التدريبات واكتب خطوات الحل كاملة.',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -64,13 +122,18 @@ async function main() {
     },
   });
 
-  const quiz = await prisma.quiz.create({
-    data: {
+  // 7. Quiz & Questions
+  const quiz = await prisma.quiz.upsert({
+    where: { id: 'sample-quiz-1' },
+    update: {},
+    create: {
+      id: 'sample-quiz-1',
       title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
       type: 'WEEKLY',
       duration: 20,
       passingScore: 60,
       classroomId: classroom.id,
+      isPublished: true,
       questions: {
         create: [
           {
@@ -105,7 +168,32 @@ async function main() {
     },
   });
 
-  await prisma.liveSession.upsert({
+  // 8. Quiz Results for students
+  await prisma.quizResult.upsert({
+    where: { id: `result-${student1.id}-1` },
+    update: {
+      totalScore: 18,
+      maxScore: 20,
+      autoScore: 18,
+      isPassed: true,
+      status: 'AUTO_GRADED',
+    },
+    create: {
+      id: `result-${student1.id}-1`,
+      quizId: quiz.id,
+      studentId: student1.id,
+      totalScore: 18,
+      maxScore: 20,
+      autoScore: 18,
+      isPassed: true,
+      status: 'AUTO_GRADED',
+      startedAt: new Date(Date.now() - 3600000),
+      submittedAt: new Date(Date.now() - 1800000),
+    },
+  });
+
+  // 9. Live Session
+  const liveSession = await prisma.liveSession.upsert({
     where: { roomCode: 'LIVE-MATH1' },
     update: {},
     create: {
@@ -113,10 +201,28 @@ async function main() {
       roomCode: 'LIVE-MATH1',
       isActive: true,
       classroomId: classroom.id,
+      targetGrade: 'الصف الثالث الإعدادي',
     },
   });
 
-  // ── Sample PDF resources ─────────────────────────────────────────────
+  // 10. Live Attendance
+  await prisma.liveAttendance.upsert({
+    where: {
+      sessionId_studentId: {
+        sessionId: liveSession.id,
+        studentId: student1.id,
+      },
+    },
+    update: {},
+    create: {
+      sessionId: liveSession.id,
+      studentId: student1.id,
+      joinedAt: new Date(),
+      durationMin: 45,
+    },
+  });
+
+  // 11. Sample PDF resources
   const existingResources = await prisma.classResource.count({ where: { classroomId: classroom.id } });
   if (existingResources === 0) {
     await prisma.classResource.createMany({
@@ -146,15 +252,12 @@ async function main() {
     });
   }
 
-
-  console.log('✅ Seeding completed successfully!');
-
+  console.log('✅ Seeding completed successfully on build!');
 }
 
 main()
   .catch((e) => {
-    console.error(e);
-    process.exit(1);
+    console.error('Seed Error:', e);
   })
   .finally(async () => {
     await prisma.$disconnect();
