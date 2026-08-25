@@ -1,4 +1,4 @@
-import type { Config } from 'tailwindcss'
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: 'class',
@@ -9,11 +9,9 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        // Loaded via next/font CSS variable
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
+        sans: ['var(--font-sans)', 'Cairo', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        // Strict typographic scale per DESIGN_RULES
         'display': ['24px', { lineHeight: '32px', fontWeight: '700' }],
         'title':   ['20px', { lineHeight: '28px', fontWeight: '600' }],
         'body':    ['16px', { lineHeight: '24px', fontWeight: '400' }],
@@ -50,7 +48,6 @@ const config: Config = {
         colors: 'background-color, border-color, color',
       },
       boxShadow: {
-        // Only allowed shadow contexts per DESIGN_RULES
         dropdown: '0 4px 16px 0 rgba(0,0,0,0.08)',
         modal:    '0 8px 32px 0 rgba(0,0,0,0.12)',
         toast:    '0 4px 12px 0 rgba(0,0,0,0.10)',
@@ -62,6 +59,6 @@ const config: Config = {
     },
   },
   plugins: [],
-}
+};
 
-export default config
+export default config;
