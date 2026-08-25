@@ -1,7 +1,17 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherClassroomsClient } from './TeacherClassroomsClient';
 
-export default async function TeacherClassroomsPage({ params: { locale } }: { params: { locale: string } }) {
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+export default async function TeacherClassroomsPage({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}) {
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+
   const teacher = await prisma.user.findFirst({ where: { role: 'TEACHER' } });
   const teacherId = teacher?.id || '';
 
@@ -26,7 +36,7 @@ export default async function TeacherClassroomsPage({ params: { locale } }: { pa
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
       <TeacherClassroomsClient initialClassrooms={formatted} teacherId={teacherId} />
     </div>
   );
