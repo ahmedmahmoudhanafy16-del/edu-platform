@@ -147,21 +147,16 @@ export function TopNav({
 
           {/* User Menu */}
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="hidden sm:flex items-center gap-2 h-8 px-2 rounded-lg"
-              >
-                <Avatar className="h-6 w-6">
-                  <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-xs font-medium text-foreground max-w-[80px] truncate">
-                  {userName}
-                </span>
-                <ChevronDown className="h-3 w-3 text-muted-foreground" />
-              </Button>
+            <DropdownMenuTrigger className="hidden sm:flex items-center gap-2 h-8 px-2 rounded-lg hover:bg-muted text-foreground transition-colors cursor-pointer border border-transparent">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-xs font-medium text-foreground max-w-[80px] truncate">
+                {userName}
+              </span>
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52" dir="rtl">
               <DropdownMenuLabel className="font-normal">
@@ -173,21 +168,17 @@ export function TopNav({
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href={`/${locale}/login`} className="flex items-center gap-2 text-destructive">
-                  <LogOut className="h-3.5 w-3.5" />
-                  تسجيل الخروج
-                </Link>
+              <DropdownMenuItem className="flex items-center gap-2 text-destructive cursor-pointer" onClick={() => window.location.href = `/${locale}/login`}>
+                <LogOut className="h-3.5 w-3.5" />
+                تسجيل الخروج
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {/* Mobile Hamburger */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden h-8 w-8">
-                <Menu className="h-4 w-4" />
-              </Button>
+            <SheetTrigger className="md:hidden inline-flex items-center justify-center h-8 w-8 rounded-lg hover:bg-muted text-foreground transition-colors cursor-pointer border border-transparent">
+              <Menu className="h-4 w-4" />
             </SheetTrigger>
             <SheetContent side="right" className="w-72 p-0" dir="rtl">
               <SheetHeader className="px-5 py-4 border-b border-border/60">
