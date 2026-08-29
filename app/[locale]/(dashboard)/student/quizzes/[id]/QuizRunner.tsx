@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock, ChevronLeft, ChevronRight, Send, Shield, AlertTriangle } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, Shield, AlertTriangle, FileQuestion } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
 import { shuffleArray } from '@/lib/shuffle';
 import { cn } from '@/lib/utils';
@@ -38,24 +38,26 @@ export function QuizRunner({
   initialTimeLeft?: number;
 }) {
   const router = useRouter();
-  const autosaveKey = `quiz_answers_${quiz.id}_${studentId}`;
+  const rawQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
+  const autosaveKey = `quiz_answers_${quiz?.id || 'default'}_${studentId}`;
 
-  const [questions] = useState(() =>
-    quiz.shuffleQuestions
+  const [questions] = useState<Question[]>(() => {
+    if (!rawQuestions || rawQuestions.length === 0) return [];
+    return quiz.shuffleQuestions
       ? shuffleArray(
-          quiz.questions.map((q) => ({
+          rawQuestions.map((q) => ({
             ...q,
-            options: q.type === 'MCQ' ? shuffleArray(q.options, studentId) : q.options,
+            options: q.type === 'MCQ' && Array.isArray(q.options) ? shuffleArray(q.options, studentId) : (q.options || []),
           })),
           studentId
         )
-      : quiz.questions
-  );
+      : rawQuestions;
+  });
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(
-    typeof initialTimeLeft === 'number' ? initialTimeLeft : quiz.duration * 60
+    typeof initialTimeLeft === 'number' ? initialTimeLeft : (quiz?.duration || 20) * 60
   );
   const [violations, setViolations] = useState(0);
   const [submitting, setSubmitting] = useState(false);
@@ -89,11 +91,11 @@ export function QuizRunner({
       if (document.visibilityState === 'hidden' && !submitted && !isSubmitting.current) {
         setViolations((prev) => {
           const next = prev + 1;
-          if (next >= quiz.maxViolations) {
+          if (next >= (quiz?.maxViolations ?? 3)) {
             toast.error('تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!');
             handleSubmit(true);
           } else {
-            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${quiz.maxViolations})`);
+            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${quiz?.maxViolations ?? 3})`);
           }
           return next;
         });
@@ -102,7 +104,7 @@ export function QuizRunner({
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [quiz.maxViolations, submitted]);
+  }, [quiz?.maxViolations, submitted]);
 
   // Timer countdown
   useEffect(() => {
@@ -127,7 +129,7 @@ export function QuizRunner({
           answerText: answers[q.id] || '',
         }));
 
-        const res = await submitQuizAnswers(quiz.id, studentId, list);
+        const res = await submitQuizAnswers(quiz.id, studentId, list, auto);
         try {
           localStorage.removeItem(autosaveKey);
         } catch {}
@@ -140,7 +142,7 @@ export function QuizRunner({
           toast.success('تم تسليم الامتحان بنجاح');
         }
       } catch (e: any) {
-        toast.error(e.message);
+        toast.error(e.message || 'حدث خطأ أثناء تسليم الامتحان');
         isSubmitting.current = false;
       } finally {
         setSubmitting(false);
@@ -149,13 +151,30 @@ export function QuizRunner({
     [questions, answers, quiz.id, studentId, submitted, autosaveKey]
   );
 
-  const mins = Math.floor(timeLeft / 60);
-  const secs = timeLeft % 60;
-  const q = questions[current];
+  const mins = Math.floor(Math.max(0, timeLeft) / 60);
+  const secs = Math.max(0, timeLeft) % 60;
+
+  // Empty questions state guard
+  if (!questions || questions.length === 0) {
+    return (
+      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4 shadow-sm" dir="rtl">
+        <div className="w-16 h-16 rounded-full bg-accent-light text-accent flex items-center justify-center mx-auto">
+          <FileQuestion className="h-8 w-8" />
+        </div>
+        <h1 className="text-xl font-bold text-n-800 dark:text-n-700">{quiz.title}</h1>
+        <p className="text-xs text-n-500">لا توجد أسئلة مضافة في هذا الاختبار حالياً أو الاختبار قيد التجهيز من قبل المعلم.</p>
+        <Button onClick={() => router.push(`/${locale}/student/quizzes`)} className="w-full">
+          العودة لقائمة الامتحانات
+        </Button>
+      </div>
+    );
+  }
+
+  const q = questions[current] || questions[0];
 
   if (submitted && result) {
     return (
-      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4">
+      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4 shadow-sm" dir="rtl">
         <div className="w-16 h-16 rounded-full bg-ok-light text-ok flex items-center justify-center mx-auto text-2xl font-bold">
           ✓
         </div>
@@ -164,7 +183,7 @@ export function QuizRunner({
           <p className="text-xs text-n-500">الأسئلة المقالية قيد التصحيح من قبل المعلم. ستظهر النتيجة فور اكتمالها.</p>
         ) : (
           <div className="py-2">
-            <p className="text-3xl font-bold text-accent">{result.autoScore} / {result.maxScore}</p>
+            <p className="text-3xl font-bold text-accent">{result.autoScore ?? 0} / {result.maxScore ?? 0}</p>
             <p className="text-xs font-semibold mt-1">
               النتيجة: {result.isPassed ? <span className="text-ok">ناجح ✓</span> : <span className="text-bad">راسب ✕</span>}
             </p>
@@ -178,9 +197,9 @@ export function QuizRunner({
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-4">
+    <div className="max-w-3xl mx-auto w-full space-y-4" dir="rtl">
       {/* Top Header */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-5 py-3.5">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-5 py-3.5 shadow-sm">
         <div>
           <p className="text-sm font-bold text-n-800 dark:text-n-700">{quiz.title}</p>
           <p className="text-xs text-n-400 mt-0.5">
@@ -205,22 +224,22 @@ export function QuizRunner({
       <div className="h-1.5 w-full rounded-full bg-n-200 dark:bg-n-300 overflow-hidden">
         <div
           className="h-full bg-accent transition-all duration-300"
-          style={{ width: `${(Object.keys(answers).length / questions.length) * 100}%` }}
+          style={{ width: `${(Object.keys(answers).length / Math.max(1, questions.length)) * 100}%` }}
         />
       </div>
 
       {/* Question Card */}
-      <div className="rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-5">
+      <div className="rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-5 shadow-sm">
         <div className="flex items-start gap-3">
           <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
             {current + 1}
           </span>
-          <p className="text-sm font-medium text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q.text}</p>
+          <p className="text-sm font-medium text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || 'نص السؤال'}</p>
         </div>
 
-        {q.type === 'MCQ' ? (
+        {q?.type === 'MCQ' ? (
           <div className="space-y-2">
-            {q.options.map((opt, i) => {
+            {(Array.isArray(q.options) ? q.options : []).map((opt, i) => {
               const isSelected = answers[q.id] === opt;
               return (
                 <label
@@ -255,11 +274,11 @@ export function QuizRunner({
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-n-400">سؤال مقالي (الدرجة القصوى: {q.maxScore})</p>
+            <p className="text-xs text-n-400">سؤال مقالي (الدرجة القصوى: {q?.maxScore ?? 5})</p>
             <textarea
               rows={5}
               placeholder="اكتب إجابتك بالتفصيل هنا..."
-              value={answers[q.id] || ''}
+              value={answers[q?.id] || ''}
               onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
               className="w-full rounded-lg border border-n-200 dark:border-n-300 bg-white dark:bg-n-200 p-3 text-sm text-n-800 dark:text-n-700 outline-none focus:border-accent"
             />
@@ -279,7 +298,7 @@ export function QuizRunner({
           السابق
         </Button>
 
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap">
           {questions.map((_, i) => (
             <button
               key={i}
@@ -288,7 +307,7 @@ export function QuizRunner({
                 'w-7 h-7 rounded text-xs font-bold border transition-colors',
                 i === current
                   ? 'border-accent bg-accent text-white'
-                  : answers[questions[i].id]
+                  : answers[questions[i]?.id]
                   ? 'border-ok/40 bg-ok-light text-ok'
                   : 'border-n-200 text-n-400 hover:bg-n-100'
               )}
