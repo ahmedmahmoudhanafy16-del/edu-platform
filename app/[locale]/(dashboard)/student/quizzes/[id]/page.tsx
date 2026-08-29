@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { QuizRunner } from './QuizRunner';
 import { getAuthenticatedStudent } from '@/lib/auth';
@@ -92,7 +92,7 @@ export default async function StudentQuizPage({
   }
   const studentId = student?.id || 'demo-student-1';
 
-  // 5. Server-side Timer & Attempt Tracking with read-only SQLite safety
+  // 5. Server-side Timer & Retake Prevention Enforcement
   let attempt: any = null;
   try {
     attempt = await prisma.quizResult.findFirst({
@@ -103,8 +103,15 @@ export default async function StudentQuizPage({
     console.warn('[StudentQuizPage] Failed to fetch existing attempt:', err);
   }
 
-  // If already submitted, redirect to grades
-  if (attempt && (attempt.status === 'AUTO_GRADED' || attempt.status === 'GRADED')) {
+  // Check in-memory completed submissions as well
+  if (!attempt) {
+    attempt = memoryQuizResults.find(
+      (m: any) => m.quizId === id && m.studentId === studentId
+    );
+  }
+
+  // If already submitted (AUTO_GRADED, GRADED, or PENDING), strictly prevent retake & redirect to grades
+  if (attempt && (attempt.status === 'AUTO_GRADED' || attempt.status === 'GRADED' || attempt.status === 'PENDING')) {
     redirect(`/${locale}/student/grades`);
   }
 

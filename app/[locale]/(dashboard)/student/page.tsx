@@ -1,9 +1,9 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
-  BarChart3, CalendarCheck, Ticket, Plus
+  BarChart3, CalendarCheck, Ticket, Plus, Check, Hourglass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
@@ -33,7 +33,7 @@ export default async function StudentDashboardPage({
 
   let activeLive: any[] = [];
   let assignments: any[] = [];
-  let quizResults: any[] = [];
+  let dbQuizResults: any[] = [];
   let quizzes: any[] = [];
   let resources: any[] = [];
   let attendance: any[] = [];
@@ -56,7 +56,7 @@ export default async function StudentDashboardPage({
         where: { studentId },
         include: { quiz: true },
         orderBy: { submittedAt: 'desc' },
-        take: 6,
+        take: 10,
       }),
       prisma.quiz.findMany({
         where: { isPublished: true },
@@ -74,13 +74,35 @@ export default async function StudentDashboardPage({
 
     if (results[0].status === 'fulfilled') activeLive = results[0].value || [];
     if (results[1].status === 'fulfilled') assignments = results[1].value || [];
-    if (results[2].status === 'fulfilled') quizResults = results[2].value || [];
+    if (results[2].status === 'fulfilled') dbQuizResults = results[2].value || [];
     if (results[3].status === 'fulfilled') quizzes = results[3].value || [];
     if (results[4].status === 'fulfilled') resources = results[4].value || [];
     if (results[5].status === 'fulfilled') attendance = results[5].value || [];
   } catch (err) {
     console.warn('[Student Dashboard] Database queries skipped:', err);
   }
+
+  // Merge database quiz results with in-memory store for instant reflection
+  const dbResultIds = new Set(dbQuizResults.map((r) => r.quizId));
+  const memoryStudentResults = (memoryQuizResults || [])
+    .filter((m: any) => m.studentId === studentId && !dbResultIds.has(m.quizId))
+    .map((m: any) => ({
+      id: m.id || `mem-${Math.random()}`,
+      quizId: m.quizId,
+      totalScore: m.totalScore,
+      autoScore: m.autoScore,
+      maxScore: m.maxScore,
+      isPassed: m.isPassed,
+      status: m.status || 'AUTO_GRADED',
+      submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
+      quiz: {
+        id: m.quizId,
+        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        type: 'WEEKLY',
+      },
+    }));
+
+  const quizResults = [...dbQuizResults, ...memoryStudentResults];
 
   /* ── Fallback Sample Data if DB is cold on Vercel ─────────────────── */
   if (!quizzes || quizzes.length === 0) {
@@ -127,7 +149,7 @@ export default async function StudentDashboardPage({
   const avgScore =
     quizResults && quizResults.length > 0
       ? Math.round(
-          quizResults.reduce((s, r) => s + calculatePercentage(r.totalScore ?? 0, r.maxScore || 100), 0) /
+          quizResults.reduce((s, r) => s + calculatePercentage(r.totalScore ?? r.autoScore ?? 0, r.maxScore || 100), 0) /
             quizResults.length,
         )
       : 90;
@@ -227,7 +249,7 @@ export default async function StudentDashboardPage({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          SECTION 1 — الاختبارات المتاحة
+          SECTION 1 — الاختبارات المتاحة مع تحديث فوري للحالة
       ═══════════════════════════════════════════════════════════════ */}
       <div className={section}>
         <div className={sectionTitle}>
@@ -240,7 +262,11 @@ export default async function StudentDashboardPage({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(quizzes || []).map((q) => {
-            const alreadyDone = (quizResults || []).some((r) => r.quizId === q.id);
+            const submission = (quizResults || []).find(
+              (r) => r.quizId === q.id && (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+            );
+            const isCompleted = Boolean(submission);
+
             return (
               <div key={q.id} className={`${card} flex flex-col justify-between`}>
                 {/* Card header strip */}
@@ -266,10 +292,17 @@ export default async function StudentDashboardPage({
                       نجاح {q.passingScore}%
                     </span>
                   </div>
-                  {alreadyDone ? (
-                    <span className="text-xs text-ok bg-ok-light px-2.5 py-1 rounded font-medium flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> مكتمل
-                    </span>
+                  {isCompleted ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-ok bg-ok-light px-2.5 py-1 rounded font-medium flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> تم التسليم
+                      </span>
+                      <Link href={`/${locale}/student/grades`}>
+                        <Button size="sm" variant="secondary" className="text-xs h-7 px-2">
+                          الدرجات
+                        </Button>
+                      </Link>
+                    </div>
                   ) : (
                     <Link href={`/${locale}/student/quizzes/${q.id}`}>
                       <Button size="sm" variant="primary">ابدأ الاختبار</Button>

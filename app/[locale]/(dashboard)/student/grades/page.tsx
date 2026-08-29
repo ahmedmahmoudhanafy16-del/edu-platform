@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { Trophy, Award, Calendar, CheckCircle2, XCircle } from 'lucide-react';
 import { calculatePercentage } from '@/lib/utils';
 import { getAuthenticatedStudent } from '@/lib/auth';
@@ -22,9 +22,9 @@ export default async function StudentGradesPage({
   const studentId = student?.id || 'demo-student-1';
   const studentName = student?.name || 'أحمد محمد علي';
 
-  let results: any[] = [];
+  let dbResults: any[] = [];
   try {
-    results = await prisma.quizResult.findMany({
+    dbResults = await prisma.quizResult.findMany({
       where: { studentId },
       include: { quiz: { include: { classroom: true } } },
       orderBy: { submittedAt: 'desc' },
@@ -32,6 +32,28 @@ export default async function StudentGradesPage({
   } catch (err) {
     console.warn('[Student Grades] DB query skipped:', err);
   }
+
+  // Merge database quiz results with in-memory store
+  const dbResultIds = new Set(dbResults.map((r) => r.id || r.quizId));
+  const memoryStudentResults = (memoryQuizResults || [])
+    .filter((m: any) => m.studentId === studentId && !dbResultIds.has(m.id) && !dbResultIds.has(m.quizId))
+    .map((m: any) => ({
+      id: m.id,
+      quizId: m.quizId,
+      totalScore: m.totalScore,
+      autoScore: m.autoScore,
+      maxScore: m.maxScore,
+      isPassed: m.isPassed,
+      status: m.status || 'AUTO_GRADED',
+      submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
+      quiz: {
+        id: m.quizId,
+        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        type: 'WEEKLY',
+      },
+    }));
+
+  let results = [...dbResults, ...memoryStudentResults];
 
   if (!results || results.length === 0) {
     results = [
@@ -54,7 +76,7 @@ export default async function StudentGradesPage({
   const avgScore =
     totalExams > 0
       ? Math.round(
-          results.reduce((acc, r) => acc + calculatePercentage(r.totalScore || 0, r.maxScore || 100), 0) /
+          results.reduce((acc, r) => acc + calculatePercentage(r.totalScore ?? r.autoScore ?? 0, r.maxScore || 100), 0) /
             totalExams
         )
       : 90;
@@ -115,7 +137,9 @@ export default async function StudentGradesPage({
         ) : (
           <div className="divide-y divide-n-100 dark:divide-n-200">
             {results.map((r) => {
-              const pct = calculatePercentage(r.totalScore || 0, r.maxScore || 100);
+              const score = r.totalScore ?? r.autoScore ?? 0;
+              const max = r.maxScore || 100;
+              const pct = calculatePercentage(score, max);
               return (
                 <div key={r.id} className="p-5 flex flex-wrap items-center justify-between gap-4">
                   <div>
@@ -132,7 +156,7 @@ export default async function StudentGradesPage({
                     <div className="text-end">
                       <p className="text-xs text-n-400">الدرجة</p>
                       <p className="text-sm font-bold text-n-800 dark:text-n-700">
-                        {r.totalScore} / {r.maxScore}
+                        {score} / {max}
                       </p>
                     </div>
 

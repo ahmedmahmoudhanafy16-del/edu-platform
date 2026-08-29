@@ -189,9 +189,28 @@ export function QuizRunner({
             </p>
           </div>
         )}
-        <Button onClick={() => router.push(`/${locale}/student`)} className="w-full">
-          العودة للوحة الطالب
-        </Button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <Button
+            onClick={() => {
+              router.refresh();
+              router.push(`/${locale}/student`);
+            }}
+            variant="primary"
+            className="w-full sm:flex-1"
+          >
+            العودة للوحة الطالب
+          </Button>
+          <Button
+            onClick={() => {
+              router.refresh();
+              router.push(`/${locale}/student/grades`);
+            }}
+            variant="secondary"
+            className="w-full sm:flex-1"
+          >
+            عرض سجل الدرجات
+          </Button>
+        </div>
       </div>
     );
   }

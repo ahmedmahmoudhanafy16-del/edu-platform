@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 const globalForPrisma = global as unknown as {
   prisma: PrismaClient;
   memoryCodes?: any[];
+  memoryQuizResults?: any[];
 };
 
 export const prisma =
@@ -20,3 +21,9 @@ if (!globalForPrisma.memoryCodes) {
   globalForPrisma.memoryCodes = [];
 }
 export const memoryAccessCodes = globalForPrisma.memoryCodes;
+
+// Global In-Memory Quiz Results Store for 100% resilient fallback on Vercel
+if (!globalForPrisma.memoryQuizResults) {
+  globalForPrisma.memoryQuizResults = [];
+}
+export const memoryQuizResults = globalForPrisma.memoryQuizResults;

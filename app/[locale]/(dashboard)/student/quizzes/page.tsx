@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { ClipboardList, Clock, BarChart3, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedStudent } from '@/lib/auth';
@@ -24,7 +24,7 @@ export default async function StudentQuizzesPage({
   const studentName = student?.name || 'أحمد محمد علي';
 
   let quizzes: any[] = [];
-  let results: any[] = [];
+  let dbResults: any[] = [];
 
   try {
     const res = await Promise.allSettled([
@@ -39,10 +39,27 @@ export default async function StudentQuizzesPage({
     ]);
 
     if (res[0].status === 'fulfilled') quizzes = res[0].value || [];
-    if (res[1].status === 'fulfilled') results = res[1].value || [];
+    if (res[1].status === 'fulfilled') dbResults = res[1].value || [];
   } catch (err) {
     console.warn('[Student Quizzes] DB query skipped:', err);
   }
+
+  // Merge database quiz results with in-memory store
+  const dbResultIds = new Set(dbResults.map((r) => r.quizId));
+  const memoryStudentResults = (memoryQuizResults || [])
+    .filter((m: any) => m.studentId === studentId && !dbResultIds.has(m.quizId))
+    .map((m: any) => ({
+      id: m.id,
+      quizId: m.quizId,
+      totalScore: m.totalScore,
+      autoScore: m.autoScore,
+      maxScore: m.maxScore,
+      isPassed: m.isPassed,
+      status: m.status || 'AUTO_GRADED',
+      submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
+    }));
+
+  const allResults = [...dbResults, ...memoryStudentResults];
 
   if (!quizzes || quizzes.length === 0) {
     quizzes = [
@@ -57,7 +74,12 @@ export default async function StudentQuizzesPage({
     ];
   }
 
-  const completedMap = new Set((results || []).map((r) => r.quizId));
+  const completedMap = new Set(
+    allResults
+      .filter((r) => r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+      .map((r) => r.quizId)
+  );
+
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
 
   return (
@@ -121,7 +143,7 @@ export default async function StudentQuizzesPage({
                   <div className="w-full flex items-center gap-2">
                     <div className="flex-1 py-2 px-3 rounded-lg bg-ok-light border border-ok/20 text-ok text-xs font-bold flex items-center justify-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" />
-                      مكتمل
+                      تم التسليم
                     </div>
                     <Link href={`/${locale}/student/grades`}>
                       <Button variant="secondary" size="sm" className="font-semibold text-xs h-9 px-3">

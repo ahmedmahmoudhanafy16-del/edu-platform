@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireStudentOwnership } from '@/lib/auth';
 import { notifyParentQuizCompleted } from '@/lib/whatsapp';
@@ -58,7 +58,7 @@ export async function submitQuizAnswers(
     }
   }
 
-  // 3. Server-side Timer Enforcement
+  // 3. Server-side Timer & Duplicate Submission Enforcement
   let existingAttempt: any = null;
   try {
     existingAttempt = await prisma.quizResult.findFirst({
@@ -69,15 +69,22 @@ export async function submitQuizAnswers(
     console.warn('[submitQuizAnswers] Failed to query existing attempt:', err);
   }
 
+  // Check in-memory completed submissions as well
+  if (!existingAttempt) {
+    existingAttempt = memoryQuizResults.find(
+      (m: any) => m.quizId === quizId && m.studentId === studentId
+    );
+  }
+
   const now = Date.now();
   if (existingAttempt) {
     const startedAtMs = new Date(existingAttempt.startedAt || now).getTime();
     const elapsedSeconds = Math.floor((now - startedAtMs) / 1000);
     const maxAllowedSeconds = (quiz.duration || 20) * 60 + 60; // 60s network tolerance
 
-    // If already finalized/graded
+    // If already finalized/graded, prevent retake
     if (existingAttempt.status === 'AUTO_GRADED' || existingAttempt.status === 'GRADED') {
-      throw new Error('تم تسليم هذا الاختبار مسبقاً وتوثيق الدرجة');
+      throw new Error('تم تسليم هذا الاختبار مسبقاً وتوثيق الدرجة، لا يمكن إعادة الاختبار.');
     }
 
     // Reject late submissions unless auto-submitted by the system at expiration
@@ -117,7 +124,7 @@ export async function submitQuizAnswers(
   const status = hasEssay ? 'PENDING' : 'AUTO_GRADED';
 
   let result: any = {
-    id: `res-${Date.now()}`,
+    id: existingAttempt?.id || `res-${Date.now()}`,
     quizId,
     studentId,
     autoScore,
@@ -126,11 +133,12 @@ export async function submitQuizAnswers(
     isPassed,
     status,
     autoSubmitted: isAutoSubmitted,
+    startedAt: existingAttempt?.startedAt || new Date(),
     submittedAt: new Date(),
   };
 
   try {
-    if (existingAttempt && existingAttempt.id) {
+    if (existingAttempt && existingAttempt.id && !existingAttempt.id.startsWith('res-')) {
       result = await prisma.quizResult.update({
         where: { id: existingAttempt.id },
         data: {
@@ -163,6 +171,16 @@ export async function submitQuizAnswers(
     console.warn('[submitQuizAnswers] DB save fallback:', dbSaveErr?.message);
   }
 
+  // Always update global memory store for resilient instant status reflection
+  const memIndex = memoryQuizResults.findIndex(
+    (m: any) => m.quizId === quizId && m.studentId === studentId
+  );
+  if (memIndex >= 0) {
+    memoryQuizResults[memIndex] = { ...memoryQuizResults[memIndex], ...result };
+  } else {
+    memoryQuizResults.push(result);
+  }
+
   // 5. Automated WhatsApp Notification Trigger to Parent
   try {
     const studentUser = await prisma.user.findUnique({
@@ -191,10 +209,20 @@ export async function submitQuizAnswers(
     console.warn('[submitQuizAnswers] Parent notify skipped:', notifyErr);
   }
 
+  // 6. Comprehensive Cache Revalidation across all locales and dashboard routes
   try {
-    revalidatePath('/[locale]/student/grades');
-    revalidatePath('/[locale]/student/quizzes');
-    revalidatePath('/[locale]/student');
+    revalidatePath('/[locale]/(dashboard)/student', 'page');
+    revalidatePath('/[locale]/(dashboard)/student/quizzes', 'page');
+    revalidatePath('/[locale]/(dashboard)/student/grades', 'page');
+    revalidatePath('/ar/student', 'page');
+    revalidatePath('/en/student', 'page');
+    revalidatePath('/ar/student/quizzes', 'page');
+    revalidatePath('/en/student/quizzes', 'page');
+    revalidatePath('/ar/student/grades', 'page');
+    revalidatePath('/en/student/grades', 'page');
+    revalidatePath('/student', 'page');
+    revalidatePath('/student/quizzes', 'page');
+    revalidatePath('/student/grades', 'page');
   } catch (e) {}
 
   return { ...result, autoScore, maxScore: totalMaxScore, isPassed, status };
