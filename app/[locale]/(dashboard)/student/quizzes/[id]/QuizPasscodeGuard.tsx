@@ -14,6 +14,7 @@ interface QuizPasscodeGuardProps {
   quizTitle: string;
   studentId: string;
   locale: string;
+  onUnlocked?: () => void;
 }
 
 export function QuizPasscodeGuard({
@@ -21,6 +22,7 @@ export function QuizPasscodeGuard({
   quizTitle,
   studentId,
   locale,
+  onUnlocked,
 }: QuizPasscodeGuardProps) {
   const router = useRouter();
   const [code, setCode] = useState('');
@@ -79,7 +81,11 @@ export function QuizPasscodeGuard({
       if (res.success || clientMatched) {
         unlockClientLocally(res?.quizId || quizId);
         toast.success('تم التحقق من كود الامتحان بنجاح!');
-        router.refresh();
+        if (onUnlocked) {
+          onUnlocked();
+        } else {
+          router.refresh();
+        }
       } else {
         setErrorMsg(res.error || 'الكود غير صحيح أو منتهي الصلاحية');
       }
@@ -87,7 +93,11 @@ export function QuizPasscodeGuard({
       if (clientMatched) {
         unlockClientLocally(quizId);
         toast.success('تم التحقق من كود الامتحان بنجاح!');
-        router.refresh();
+        if (onUnlocked) {
+          onUnlocked();
+        } else {
+          router.refresh();
+        }
         return;
       }
       setErrorMsg('حدث خطأ أثناء التحقق من الكود، يرجى المحاولة ثانية');
