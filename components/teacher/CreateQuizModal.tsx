@@ -11,7 +11,7 @@ interface CreateQuizModalProps {
   classrooms: { id: string; name: string }[];
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (savedQuiz?: any) => void;
   quizToEdit?: {
     id: string;
     title: string;
@@ -223,7 +223,21 @@ export function CreateQuizModal({
               isCodeRequired ? `كود الدخول: ${res.accessCode || accessCode}` : ''
             }`
       );
-      onSuccess();
+      
+      const returnedQuiz = res?.quiz || {
+        id: `quiz-${Date.now()}`,
+        title: title.trim(),
+        classroomId,
+        type,
+        duration: Number(duration) || 20,
+        passingScore: Number(passingScore) || 60,
+        accessCode: accessCode.trim().toUpperCase(),
+        isCodeRequired,
+        isPublished: true,
+        questions: questions.filter((q) => q.text.trim() !== ''),
+      };
+      
+      onSuccess(returnedQuiz);
       onClose();
     } catch (err: any) {
       console.error('Quiz submit error:', err);

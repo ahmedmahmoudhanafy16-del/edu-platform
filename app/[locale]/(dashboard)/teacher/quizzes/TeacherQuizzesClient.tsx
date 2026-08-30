@@ -72,6 +72,58 @@ export function TeacherQuizzesClient({
     router.refresh();
   }
 
+  function handleQuizSaved(savedQuiz?: any) {
+    if (savedQuiz && savedQuiz.id) {
+      const clsName =
+        classrooms.find((c) => c.id === savedQuiz.classroomId)?.name ||
+        classrooms[0]?.name ||
+        'فصل الرياضيات';
+
+      const formattedQuestions = (savedQuiz.questions || []).map((qn: any, idx: number) => {
+        let stringifiedOpts = '[]';
+        if (Array.isArray(qn.options)) {
+          stringifiedOpts = JSON.stringify(qn.options);
+        } else if (typeof qn.options === 'string') {
+          stringifiedOpts = qn.options;
+        }
+        return {
+          id: qn.id || `qn-${Date.now()}-${idx}`,
+          text: qn.text || '',
+          type: qn.type || 'MCQ',
+          options: stringifiedOpts,
+          correctAnswer: qn.correctAnswer || null,
+        };
+      });
+
+      const formatted: QuizItem = {
+        id: savedQuiz.id,
+        title: savedQuiz.title || 'اختبار جديد',
+        type: savedQuiz.type || 'WEEKLY',
+        duration: Number(savedQuiz.duration) || 20,
+        passingScore: Number(savedQuiz.passingScore) || 60,
+        accessCode: savedQuiz.accessCode || 'QUIZ-MATH-2026',
+        isCodeRequired: savedQuiz.isCodeRequired !== false,
+        isPublished: savedQuiz.isPublished !== false,
+        classroomName: clsName,
+        classroomId: savedQuiz.classroomId || classrooms[0]?.id || 'class-1',
+        questionsCount: formattedQuestions.length,
+        resultsCount: savedQuiz.results?.length || 0,
+        questions: formattedQuestions,
+      };
+
+      setQuizzes((prev) => {
+        const existingIndex = prev.findIndex((q) => q.id === formatted.id);
+        if (existingIndex !== -1) {
+          const updated = [...prev];
+          updated[existingIndex] = { ...updated[existingIndex], ...formatted };
+          return updated;
+        }
+        return [formatted, ...prev];
+      });
+    }
+    router.refresh();
+  }
+
   function handleCreateNew() {
     setQuizToEdit(null);
     setModalOpen(true);
@@ -416,7 +468,7 @@ export function TeacherQuizzesClient({
           setModalOpen(false);
           setQuizToEdit(null);
         }}
-        onSuccess={refresh}
+        onSuccess={handleQuizSaved}
         quizToEdit={quizToEdit}
       />
     </>

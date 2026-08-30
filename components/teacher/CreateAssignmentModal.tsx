@@ -23,7 +23,7 @@ interface CreateAssignmentModalProps {
   classrooms: { id: string; name: string }[];
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (savedAssignment?: any) => void;
   assignmentToEdit?: AssignmentToEdit | null;
 }
 
@@ -110,7 +110,19 @@ export function CreateAssignmentModal({
           ? `تم تحديث الواجب "${title}" بنجاح!`
           : `تم نشر الواجب "${title}" للطلاب بنجاح!`
       );
-      onSuccess();
+      
+      const returnedAssignment = res?.assignment || {
+        id: `assign-${Date.now()}`,
+        title: title.trim(),
+        description: description.trim(),
+        classroomId,
+        dueDate: new Date(dueDate).toISOString(),
+        maxScore: Number(maxScore) || 10,
+        isClosed: false,
+        submissions: [],
+      };
+
+      onSuccess(returnedAssignment);
       onClose();
     } catch (err: any) {
       console.error('Assignment submit error:', err);

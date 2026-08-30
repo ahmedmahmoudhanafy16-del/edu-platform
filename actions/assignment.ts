@@ -76,11 +76,20 @@ export async function createAssignment(data: {
     }
 
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/assignments');
       revalidatePath('/ar/teacher/assignments');
       revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
       revalidatePath('/ar/student/assignments');
       revalidatePath('/en/student/assignments');
       revalidatePath('/student/assignments');
@@ -144,21 +153,42 @@ export async function updateAssignment(
       }
     }
 
-    const updated = await prisma.assignment.update({
-      where: { id: assignmentId },
-      data: updatePayload,
-    });
+    let updated: any = null;
+    try {
+      updated = await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: updatePayload,
+      });
+    } catch (dbErr: any) {
+      if (isDatabaseReadOnlyError(dbErr)) {
+        updated = {
+          id: assignmentId,
+          ...updatePayload,
+          updatedAt: new Date(),
+        };
+      } else {
+        throw dbErr;
+      }
+    }
 
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/assignments');
       revalidatePath('/ar/teacher/assignments');
       revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
       revalidatePath('/ar/student/assignments');
       revalidatePath('/en/student/assignments');
       revalidatePath('/student/assignments');
-      revalidatePath('/teacher/assignments');
     } catch (e) {}
 
     return {

@@ -71,6 +71,52 @@ export function TeacherAssignmentsClient({
     router.refresh();
   }
 
+  function handleAssignmentSaved(savedAssign?: any) {
+    if (savedAssign && savedAssign.id) {
+      const clsName =
+        classrooms.find((c) => c.id === savedAssign.classroomId)?.name ||
+        classrooms[0]?.name ||
+        'فصل الرياضيات';
+
+      const formatted: AssignmentItem = {
+        id: savedAssign.id,
+        title: savedAssign.title || 'واجب دراسي',
+        description: savedAssign.description || '',
+        dueDate: savedAssign.dueDate
+          ? new Date(savedAssign.dueDate).toISOString()
+          : new Date().toISOString(),
+        maxScore: Number(savedAssign.maxScore) || 10,
+        isClosed: Boolean(savedAssign.isClosed),
+        classroomName: clsName,
+        classroomId: savedAssign.classroomId || classrooms[0]?.id || 'class-1',
+        submissions: (savedAssign.submissions || []).map((s: any) => ({
+          id: s.id || `sub-${Date.now()}`,
+          studentName: s.studentName || s.student?.name || 'طالب',
+          studentCode: s.studentCode || s.student?.studentCode || '—',
+          answerText: s.answerText || '',
+          fileUrl: s.fileUrl || null,
+          grade: s.grade ?? null,
+          teacherNote: s.teacherNote || '',
+          status: s.status || 'SUBMITTED',
+          submittedAt: s.submittedAt
+            ? new Date(s.submittedAt).toISOString()
+            : new Date().toISOString(),
+        })),
+      };
+
+      setAssignments((prev) => {
+        const existingIndex = prev.findIndex((a) => a.id === formatted.id);
+        if (existingIndex !== -1) {
+          const updated = [...prev];
+          updated[existingIndex] = { ...updated[existingIndex], ...formatted };
+          return updated;
+        }
+        return [formatted, ...prev];
+      });
+    }
+    router.refresh();
+  }
+
   function handleCreateNew() {
     setAssignmentToEdit(null);
     setModalOpen(true);
@@ -333,7 +379,7 @@ export function TeacherAssignmentsClient({
           setModalOpen(false);
           setAssignmentToEdit(null);
         }}
-        onSuccess={refresh}
+        onSuccess={handleAssignmentSaved}
         assignmentToEdit={assignmentToEdit}
       />
 

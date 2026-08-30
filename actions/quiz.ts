@@ -473,15 +473,26 @@ export async function createQuiz(data: {
       }
     }
 
-    // 6. Revalidate cache across dashboard pages
+    // 6. Revalidate cache across dashboard pages and layouts
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
       revalidatePath('/ar/student');
       revalidatePath('/en/student');
+      revalidatePath('/ar/student/quizzes');
+      revalidatePath('/en/student/quizzes');
+      revalidatePath('/teacher/quizzes');
+      revalidatePath('/student/quizzes');
     } catch (e) {}
 
     return {
@@ -613,18 +624,27 @@ export async function updateQuiz(
       }
     }
 
-    // 6. Cache revalidation
+    // 6. Cache revalidation across all routes and layouts
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath(`/[locale]/(dashboard)/student/quizzes/${quizId}`);
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
       revalidatePath('/ar/student');
       revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/teacher/quizzes');
+      revalidatePath('/student/quizzes');
     } catch (e) {}
 
     return {
