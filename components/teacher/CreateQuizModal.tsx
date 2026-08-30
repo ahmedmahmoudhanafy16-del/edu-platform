@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, ClipboardList, Plus, Trash2, KeyRound, Sparkles, ShieldCheck } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ClipboardList, Plus, Trash2, KeyRound, Sparkles, ShieldCheck, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { createQuiz, updateQuiz } from '@/actions/quiz';
 import { toast } from 'sonner';
 
 interface CreateQuizModalProps {
@@ -11,11 +12,37 @@ interface CreateQuizModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  quizToEdit?: {
+    id: string;
+    title: string;
+    classroomId?: string;
+    type?: string;
+    duration: number;
+    passingScore: number;
+    accessCode?: string;
+    isCodeRequired?: boolean;
+    questions?: {
+      id?: string;
+      text: string;
+      type: string;
+      options: string | string[];
+      correctAnswer?: string | null;
+      maxScore?: number;
+    }[];
+  } | null;
 }
 
-export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: CreateQuizModalProps) {
+export function CreateQuizModal({
+  classrooms,
+  isOpen,
+  onClose,
+  onSuccess,
+  quizToEdit,
+}: CreateQuizModalProps) {
+  const isEditing = Boolean(quizToEdit && quizToEdit.id);
+
   const [title, setTitle] = useState('');
-  const [classroomId, setClassroomId] = useState(classrooms[0]?.id || '');
+  const [classroomId, setClassroomId] = useState('');
   const [type, setType] = useState('WEEKLY');
   const [duration, setDuration] = useState(20);
   const [passingScore, setPassingScore] = useState(60);
@@ -23,7 +50,6 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
   const [isCodeRequired, setIsCodeRequired] = useState(true);
   const [loading, setLoading] = useState(false);
 
-  // Quick initial MCQ questions
   const [questions, setQuestions] = useState([
     {
       text: '',
@@ -33,6 +59,72 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
       maxScore: 5,
     },
   ]);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (quizToEdit) {
+        setTitle(quizToEdit.title || '');
+        setClassroomId(quizToEdit.classroomId || classrooms[0]?.id || '');
+        setType(quizToEdit.type || 'WEEKLY');
+        setDuration(quizToEdit.duration || 20);
+        setPassingScore(quizToEdit.passingScore || 60);
+        setAccessCode(quizToEdit.accessCode || 'QUIZ-MATH-2026');
+        setIsCodeRequired(quizToEdit.isCodeRequired !== false);
+
+        if (quizToEdit.questions && quizToEdit.questions.length > 0) {
+          const parsedQuestions = quizToEdit.questions.map((q) => {
+            let opts: string[] = ['', '', '', ''];
+            if (Array.isArray(q.options)) {
+              opts = q.options;
+            } else if (typeof q.options === 'string') {
+              try {
+                opts = JSON.parse(q.options);
+              } catch (e) {
+                opts = ['', '', '', ''];
+              }
+            }
+            return {
+              text: q.text || '',
+              type: q.type || 'MCQ',
+              options: opts.length >= 2 ? opts : ['', '', '', ''],
+              correctAnswer: q.correctAnswer || '',
+              maxScore: q.maxScore || 5,
+            };
+          });
+          setQuestions(parsedQuestions);
+        } else {
+          setQuestions([
+            {
+              text: '',
+              type: 'MCQ',
+              options: ['', '', '', ''],
+              correctAnswer: '',
+              maxScore: 5,
+            },
+          ]);
+        }
+      } else {
+        // Reset defaults for new quiz
+        setTitle('');
+        setClassroomId(classrooms[0]?.id || '');
+        setType('WEEKLY');
+        setDuration(20);
+        setPassingScore(60);
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        setAccessCode(`QUIZ-MATH-${randomNum}`);
+        setIsCodeRequired(true);
+        setQuestions([
+          {
+            text: '',
+            type: 'MCQ',
+            options: ['', '', '', ''],
+            correctAnswer: '',
+            maxScore: 5,
+          },
+        ]);
+      }
+    }
+  }, [isOpen, quizToEdit, classrooms]);
 
   if (!isOpen) return null;
 
@@ -80,10 +172,18 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
     ]);
   }
 
+  function removeQuestion(idx: number) {
+    if (questions.length <= 1) {
+      toast.error('يجب أن يحتوي الامتحان على سؤال واحد على الأقل');
+      return;
+    }
+    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !classroomId) {
-      toast.error('يرجى كتابة عنوان الامتحان واختيار الفصل');
+    if (!title.trim()) {
+      toast.error('يرجى كتابة عنوان الامتحان');
       return;
     }
 
@@ -94,37 +194,40 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
 
     setLoading(true);
     try {
-      const res = await fetch('/api/teacher/quizzes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: (title || '').trim() || 'اختبار جديد',
-          classroomId,
-          type,
-          duration: Number(duration) || 20,
-          passingScore: Number(passingScore) || 60,
-          accessCode: accessCode ? accessCode.trim().toUpperCase() : 'QUIZ-MATH-2026',
-          isCodeRequired,
-          questions: questions.filter((q) => q.text.trim() !== ''),
-        }),
-      });
+      const payload = {
+        title: title.trim(),
+        classroomId: classroomId || undefined,
+        type,
+        duration: Number(duration) || 20,
+        passingScore: Number(passingScore) || 60,
+        accessCode: accessCode ? accessCode.trim().toUpperCase() : 'QUIZ-MATH-2026',
+        isCodeRequired,
+        questions: questions.filter((q) => q.text.trim() !== ''),
+      };
 
-      const data = await res.json();
+      let res: any = null;
+      if (isEditing && quizToEdit?.id) {
+        res = await updateQuiz(quizToEdit.id, payload);
+      } else {
+        res = await createQuiz(payload);
+      }
 
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'حدث خطأ أثناء إنشاء الامتحان');
+      if (!res || !res.success) {
+        throw new Error(res?.error || 'حدث خطأ أثناء حفظ الامتحان');
       }
 
       toast.success(
-        `تم إنشاء ونشر امتحان "${title || 'الجديد'}" بنجاح! ${
-          isCodeRequired ? `كود الدخول: ${data.accessCode || accessCode}` : ''
-        }`
+        isEditing
+          ? `تم تحديث امتحان "${title}" بنجاح!`
+          : `تم إنشاء ونشر امتحان "${title}" بنجاح! ${
+              isCodeRequired ? `كود الدخول: ${res.accessCode || accessCode}` : ''
+            }`
       );
       onSuccess();
       onClose();
     } catch (err: any) {
-      console.error('Quiz creation error:', err);
-      toast.error(err?.message || 'حدث خطأ أثناء نشر الامتحان');
+      console.error('Quiz submit error:', err);
+      toast.error(err?.message || 'حدث خطأ أثناء معالجة الامتحان');
     } finally {
       setLoading(false);
     }
@@ -140,8 +243,14 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
               <ClipboardList className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-n-800 dark:text-n-700">إنشاء اختبار أو امتحان جديد</h3>
-              <p className="text-xs text-n-400">حماية برمز مرور وتصحيح فوري ومنع الغش المدمج</p>
+              <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                {isEditing ? 'تعديل بيانات الامتحان' : 'إنشاء اختبار أو امتحان جديد'}
+              </h3>
+              <p className="text-xs text-n-400">
+                {isEditing
+                  ? 'تحديث الأسئلة ورمز المرور وإعدادات التصحيح'
+                  : 'حماية برمز مرور وتصحيح فوري ومنع الغش المدمج'}
+              </p>
             </div>
           </div>
           <button
@@ -255,69 +364,109 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
               </div>
             )}
             <p className="text-[11px] text-n-500">
-              💡 لن يتمكن الطالب من فتح واجهة الأسئلة إلا بعد إدخال هذا الكود الذي تحدده له.
+              عند التفعيل، لن يتمكن الطالب من فتح شاشة الامتحان وبدء العد التنازلي إلا بعد كتابة هذا الكود.
             </p>
           </div>
 
-          {/* Question Builder */}
-          <div className="pt-3 border-t border-n-100 dark:border-n-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-n-800 dark:text-n-700">أسئلة الامتحان:</h4>
-              <Button type="button" size="sm" variant="secondary" onClick={addQuestion}>
-                <Plus className="h-3 w-3 me-1" />
+          {/* Questions Editor */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center justify-between border-b border-n-100 pb-2">
+              <h4 className="text-xs font-bold text-n-800 dark:text-n-700">
+                بنك الأسئلة والخيارات ({questions.length})
+              </h4>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={addQuestion}
+                className="text-xs flex items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5" />
                 إضافة سؤال
               </Button>
             </div>
 
-            {questions.map((q, qIdx) => (
-              <div key={qIdx} className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-accent">السؤال #{qIdx + 1} (اختيار من متعدد)</span>
-                </div>
-                <Input
-                  type="text"
-                  required
-                  value={q.text}
-                  onChange={(e) => updateQuestionText(qIdx, e.target.value)}
-                  placeholder="اكتب نص السؤال هنا..."
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  {q.options.map((opt, optIdx) => (
-                    <div key={optIdx} className="flex items-center gap-1.5">
-                      <input
-                        type="radio"
-                        name={`correct-${qIdx}`}
-                        required
-                        checked={q.correctAnswer === opt && opt !== ''}
-                        onChange={() => setCorrectAnswer(qIdx, opt)}
-                        title="حدد كإجابة صحيحة"
-                      />
-                      <Input
-                        type="text"
-                        required
-                        value={opt}
-                        onChange={(e) => {
-                          updateOption(qIdx, optIdx, e.target.value);
-                          if (q.correctAnswer === opt) setCorrectAnswer(qIdx, e.target.value);
-                        }}
-                        placeholder={`الخيار ${optIdx + 1}`}
-                        className="h-8 text-xs"
-                      />
+            <div className="space-y-4">
+              {questions.map((q, qIdx) => (
+                <div
+                  key={qIdx}
+                  className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50/50 dark:bg-n-200/50 space-y-3 relative group"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-bold text-accent">السؤال رقم {qIdx + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeQuestion(qIdx)}
+                      className="text-bad hover:text-bad/80 p-1 rounded-md hover:bg-bad-light transition-colors"
+                      title="حذف هذا السؤال"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <div>
+                    <Input
+                      type="text"
+                      required
+                      value={q.text}
+                      onChange={(e) => updateQuestionText(qIdx, e.target.value)}
+                      placeholder="اكتب نص السؤال هنا (مثال: ما قيمة س إذا كان 2س = 10؟)"
+                      className="text-xs font-medium"
+                    />
+                  </div>
+
+                  {/* Options */}
+                  <div className="space-y-2 pt-1">
+                    <label className="block text-[11px] font-semibold text-n-500">
+                      الخيارات (اختر الإجابة الصحيحة بالنقر على الدائرة):
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {q.options.map((opt, optIdx) => (
+                        <div
+                          key={optIdx}
+                          className={`flex items-center gap-2 p-1.5 rounded-lg border transition-colors ${
+                            q.correctAnswer === opt && opt.trim() !== ''
+                              ? 'border-ok bg-ok-light/50'
+                              : 'border-n-200 dark:border-n-300 bg-white dark:bg-n-100'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`correct-${qIdx}`}
+                            checked={q.correctAnswer === opt && opt.trim() !== ''}
+                            onChange={() => setCorrectAnswer(qIdx, opt)}
+                            className="text-ok focus:ring-ok"
+                            required
+                          />
+                          <input
+                            type="text"
+                            required
+                            value={opt}
+                            onChange={(e) => {
+                              updateOption(qIdx, optIdx, e.target.value);
+                              if (q.correctAnswer === opt) {
+                                setCorrectAnswer(qIdx, e.target.value);
+                              }
+                            }}
+                            placeholder={`الخيار ${optIdx + 1}`}
+                            className="w-full bg-transparent text-xs outline-none"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-                <p className="text-[10px] text-n-400">💡 اختر الدائرة بجانب الخيار الذي يمثل الإجابة الصحيحة للتصحيح التلقائي.</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-100 dark:border-n-200">
-            <Button type="button" variant="secondary" size="md" onClick={onClose}>
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-200 dark:border-n-300">
+            <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={loading}>
               إلغاء
             </Button>
-            <Button type="submit" loading={loading} size="md" variant="primary">
-              <ClipboardList className="h-4 w-4 me-1" />
-              نشر الامتحان فوراً
+            <Button type="submit" variant="primary" size="md" loading={loading} className="font-semibold">
+              {isEditing ? 'حفظ التعديلات' : 'نشر الاختبار للطلاب'}
             </Button>
           </div>
         </form>

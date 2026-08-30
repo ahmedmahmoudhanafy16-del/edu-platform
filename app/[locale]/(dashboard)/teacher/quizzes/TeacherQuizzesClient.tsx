@@ -1,13 +1,27 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, ClipboardList, Printer, CheckSquare, Clock, Users, KeyRound, Copy, Check } from 'lucide-react';
+import {
+  Plus,
+  ClipboardList,
+  Printer,
+  KeyRound,
+  Copy,
+  Check,
+  Edit,
+  Trash2,
+  Eye,
+  EyeOff,
+  AlertTriangle,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
+import { deleteQuiz, toggleQuizPublish } from '@/actions/quiz';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-interface QuizItem {
+export interface QuizItem {
   id: string;
   title: string;
   type: string;
@@ -15,6 +29,7 @@ interface QuizItem {
   passingScore: number;
   accessCode: string;
   isCodeRequired: boolean;
+  isPublished: boolean;
   classroomName: string;
   classroomId: string;
   questionsCount: number;
@@ -36,12 +51,35 @@ export function TeacherQuizzesClient({
   classrooms: { id: string; name: string }[];
 }) {
   const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(false);
+  const [quizzes, setQuizzes] = useState<QuizItem[]>(initialQuizzes);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [quizToEdit, setQuizToEdit] = useState<QuizItem | null>(null);
+
+  // Delete dialog state
+  const [quizToDelete, setQuizToDelete] = useState<QuizItem | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Print state
   const [printableQuiz, setPrintableQuiz] = useState<QuizItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Sync when initialQuizzes change
+  React.useEffect(() => {
+    setQuizzes(initialQuizzes);
+  }, [initialQuizzes]);
+
   function refresh() {
     router.refresh();
+  }
+
+  function handleCreateNew() {
+    setQuizToEdit(null);
+    setModalOpen(true);
+  }
+
+  function handleEdit(quiz: QuizItem) {
+    setQuizToEdit(quiz);
+    setModalOpen(true);
   }
 
   function handleCopyCode(quiz: QuizItem) {
@@ -50,6 +88,53 @@ export function TeacherQuizzesClient({
     setCopiedId(quiz.id);
     toast.success(`تم نسخ كود الامتحان: ${quiz.accessCode}`);
     setTimeout(() => setCopiedId(null), 2000);
+  }
+
+  async function handleTogglePublish(quiz: QuizItem) {
+    const nextState = !quiz.isPublished;
+    // Optimistic update
+    setQuizzes((prev) =>
+      prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: nextState } : q))
+    );
+
+    try {
+      const res = await toggleQuizPublish(quiz.id, nextState);
+      if (res.success) {
+        toast.success(res.message);
+      } else {
+        // Revert
+        setQuizzes((prev) =>
+          prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q))
+        );
+        toast.error(res.error || 'فشل تغيير حالة الامتحان');
+      }
+    } catch (err: any) {
+      setQuizzes((prev) =>
+        prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q))
+      );
+      toast.error('حدث خطأ أثناء تعديل ظهور الامتحان');
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!quizToDelete) return;
+    setDeleteLoading(true);
+
+    try {
+      const res = await deleteQuiz(quizToDelete.id);
+      if (res.success) {
+        setQuizzes((prev) => prev.filter((q) => q.id !== quizToDelete.id));
+        toast.success(res.message || 'تم حذف الامتحان بنجاح');
+        setQuizToDelete(null);
+        refresh();
+      } else {
+        toast.error(res.error || 'فشل حذف الامتحان');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'حدث خطأ أثناء حذف الامتحان');
+    } finally {
+      setDeleteLoading(false);
+    }
   }
 
   function handlePrint(quiz: QuizItem) {
@@ -61,39 +146,90 @@ export function TeacherQuizzesClient({
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-4 no-print">
+      {/* Page Header */}
+      <div className="flex flex-wrap items-center justify-between gap-4 no-print" dir="rtl">
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">بنك الامتحانات والطباعة</h1>
+          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">بنك الامتحانات والتقييمات</h1>
           <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-            إنشاء الاختبارات الإلكترونية المحمية برمز مرور وتوليد نسخ الطباعة الورقية A4
+            إدارة وتعديل الاختبارات، التحكم برمز المرور، وحذف ونشر الامتحانات للطلاب
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="md" onClick={() => setCreateOpen(true)}>
+          <Button size="md" variant="primary" onClick={handleCreateNew}>
             <Plus className="h-4 w-4 me-1.5" />
             إنشاء امتحان جديد
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
-        {initialQuizzes.map((q) => (
-          <div key={q.id} className="p-6 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 space-y-4 shadow-sm">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
-                  {q.classroomName}
-                </span>
-                <h2 className="text-base font-bold text-n-800 dark:text-n-700 mt-2">{q.title}</h2>
+      {/* Quizzes List Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir="rtl">
+        {quizzes.map((q) => (
+          <div
+            key={q.id}
+            className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-n-100 space-y-4 shadow-sm ${
+              q.isPublished
+                ? 'border-n-200 dark:border-n-300'
+                : 'border-warn/40 bg-warn-light/20 opacity-90'
+            }`}
+          >
+            {/* Card Header & Actions */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
+                    {q.classroomName}
+                  </span>
+                  <span className="text-[11px] font-medium text-n-400">
+                    {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
+                  </span>
+                  {!q.isPublished && (
+                    <span className="text-[10px] font-bold text-warn bg-warn-light px-2 py-0.5 rounded border border-warn/30">
+                      مخفي عن الطلاب
+                    </span>
+                  )}
+                </div>
+                <h2 className="text-base font-bold text-n-800 dark:text-n-700 leading-snug">{q.title}</h2>
               </div>
-              <span className="text-[11px] font-medium text-n-400">
-                {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
-              </span>
+
+              {/* Action Buttons: Edit, Toggle, Delete */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => handleTogglePublish(q)}
+                  className={`p-1.5 rounded-lg border transition-colors ${
+                    q.isPublished
+                      ? 'text-ok bg-ok-light border-ok/30 hover:bg-ok/20'
+                      : 'text-warn bg-warn-light border-warn/30 hover:bg-warn/20'
+                  }`}
+                  title={q.isPublished ? 'إخفاء الامتحان عن الطلاب' : 'إتاحة الامتحان للطلاب'}
+                >
+                  {q.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleEdit(q)}
+                  className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
+                  title="تعديل بيانات الامتحان والأسئلة"
+                >
+                  <Edit className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setQuizToDelete(q)}
+                  className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
+                  title="حذف هذا الامتحان نهائياً"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Access Code Banner for Teacher */}
             {q.isCodeRequired && q.accessCode && (
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent-light/50 border border-accent/20 text-xs">
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent-light/50 border border-accent/20 text-xs">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-accent" />
                   <span className="text-n-600 font-medium">كود دخول الامتحان:</span>
@@ -123,6 +259,7 @@ export function TeacherQuizzesClient({
               </div>
             )}
 
+            {/* Stats Metrics Strip */}
             <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
               <div>
                 <p className="text-n-400">الأسئلة</p>
@@ -138,23 +275,78 @@ export function TeacherQuizzesClient({
               </div>
             </div>
 
+            {/* Bottom Actions */}
             <div className="flex items-center justify-between gap-2">
-              <Button variant="secondary" size="sm" className="flex-1" onClick={() => handlePrint(q)}>
+              <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
                 <Printer className="h-3.5 w-3.5 me-1" />
                 طباعة ورقة الامتحان A4
               </Button>
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
-                className="flex-1"
-                onClick={() => toast.info(`الامتحان منشور بالفعل وجاهز للطلاب للحل الإلكتروني`)}
+                className="flex-1 text-xs font-semibold"
+                onClick={() => handleEdit(q)}
               >
-                حالة الاختبار (نشط)
+                <Edit className="h-3.5 w-3.5 me-1 text-accent" />
+                تعديل الأسئلة
               </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Delete Confirmation Modal (AlertDialog) */}
+      {quizToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+          dir="rtl"
+        >
+          <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-md overflow-hidden shadow-modal space-y-0">
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-bad-light text-bad flex items-center justify-center border border-bad/20 shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">تأكيد حذف الامتحان</h3>
+                  <p className="text-xs text-n-500">إجراء لا يمكن التراجع عنه</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-n-50 dark:bg-n-200 rounded-xl text-xs text-n-600 space-y-1">
+                <p>
+                  أنت على وشك حذف: <strong className="text-bad">{quizToDelete.title}</strong>
+                </p>
+                <p className="text-n-400">
+                  هل أنت متأكد من حذف هذا الامتحان؟ لن يتمكن الطلاب من الوصول إليه أو تقديم إجاباتهم بعد الحذف.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setQuizToDelete(null)}
+                  disabled={deleteLoading}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="md"
+                  loading={deleteLoading}
+                  onClick={handleConfirmDelete}
+                  className="bg-bad text-white hover:bg-bad/90 font-semibold"
+                >
+                  تأكيد الحذف
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Printable Paper Exam View (Visible only during window.print()) */}
       {printableQuiz && (
@@ -204,11 +396,16 @@ export function TeacherQuizzesClient({
         </div>
       )}
 
+      {/* Create / Edit Quiz Modal */}
       <CreateQuizModal
         classrooms={classrooms}
-        isOpen={createOpen}
-        onClose={() => setCreateOpen(false)}
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setQuizToEdit(null);
+        }}
         onSuccess={refresh}
+        quizToEdit={quizToEdit}
       />
     </>
   );

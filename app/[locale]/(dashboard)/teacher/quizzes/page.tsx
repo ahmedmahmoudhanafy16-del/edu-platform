@@ -75,6 +75,7 @@ export default async function TeacherQuizzesPage({
     passingScore: q.passingScore ?? 60,
     accessCode: q.accessCode || 'QUIZ-MATH-2026',
     isCodeRequired: q.isCodeRequired !== false,
+    isPublished: q.isPublished !== false,
     classroomName: q.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
     classroomId: q.classroomId || classrooms[0]?.id || 'class-1',
     questionsCount: q.questions?.length ?? 0,
