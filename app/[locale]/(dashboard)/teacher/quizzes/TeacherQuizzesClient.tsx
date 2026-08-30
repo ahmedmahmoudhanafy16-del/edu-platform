@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   ClipboardList,
@@ -43,6 +43,8 @@ export interface QuizItem {
   }[];
 }
 
+const STORAGE_KEY = 'edu_quizzes';
+
 export function TeacherQuizzesClient({
   initialQuizzes,
   classrooms,
@@ -63,10 +65,39 @@ export function TeacherQuizzesClient({
   const [printableQuiz, setPrintableQuiz] = useState<QuizItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Sync when initialQuizzes change
-  React.useEffect(() => {
+  // 1. Unified Local Storage & Server Sync on Mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed: QuizItem[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Merge server items and local storage items by ID
+          const localMap = new Map(parsed.map((item) => [item.id, item]));
+          initialQuizzes.forEach((sq) => {
+            if (!localMap.has(sq.id)) {
+              localMap.set(sq.id, sq);
+            }
+          });
+          const merged = Array.from(localMap.values());
+          setQuizzes(merged);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[TeacherQuizzes] LocalStorage read failed:', e);
+    }
     setQuizzes(initialQuizzes);
   }, [initialQuizzes]);
+
+  // Helper to persist quizzes to localStorage
+  function persistQuizzes(updatedList: QuizItem[]) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('[TeacherQuizzes] LocalStorage write failed:', e);
+    }
+  }
 
   function refresh() {
     router.refresh();
@@ -113,12 +144,15 @@ export function TeacherQuizzesClient({
 
       setQuizzes((prev) => {
         const existingIndex = prev.findIndex((q) => q.id === formatted.id);
+        let nextList: QuizItem[];
         if (existingIndex !== -1) {
-          const updated = [...prev];
-          updated[existingIndex] = { ...updated[existingIndex], ...formatted };
-          return updated;
+          nextList = [...prev];
+          nextList[existingIndex] = { ...nextList[existingIndex], ...formatted };
+        } else {
+          nextList = [formatted, ...prev];
         }
-        return [formatted, ...prev];
+        persistQuizzes(nextList);
+        return nextList;
       });
     }
     router.refresh();
@@ -145,9 +179,11 @@ export function TeacherQuizzesClient({
   async function handleTogglePublish(quiz: QuizItem) {
     const nextState = !quiz.isPublished;
     // Optimistic update
-    setQuizzes((prev) =>
-      prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: nextState } : q))
-    );
+    setQuizzes((prev) => {
+      const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: nextState } : q));
+      persistQuizzes(nextList);
+      return nextList;
+    });
 
     try {
       const res = await toggleQuizPublish(quiz.id, nextState);
@@ -155,15 +191,19 @@ export function TeacherQuizzesClient({
         toast.success(res.message);
       } else {
         // Revert
-        setQuizzes((prev) =>
-          prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q))
-        );
+        setQuizzes((prev) => {
+          const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q));
+          persistQuizzes(nextList);
+          return nextList;
+        });
         toast.error(res.error || 'فشل تغيير حالة الامتحان');
       }
     } catch (err: any) {
-      setQuizzes((prev) =>
-        prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q))
-      );
+      setQuizzes((prev) => {
+        const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q));
+        persistQuizzes(nextList);
+        return nextList;
+      });
       toast.error('حدث خطأ أثناء تعديل ظهور الامتحان');
     }
   }
@@ -173,8 +213,12 @@ export function TeacherQuizzesClient({
     const targetId = quizToDelete.id;
     setDeleteLoading(true);
 
-    // 1. Immediate Optimistic UI State Update
-    setQuizzes((prev) => prev.filter((q) => q.id !== targetId));
+    // 1. Immediate Optimistic UI & LocalStorage Update
+    setQuizzes((prev) => {
+      const nextList = prev.filter((q) => q.id !== targetId);
+      persistQuizzes(nextList);
+      return nextList;
+    });
     setQuizToDelete(null);
 
     try {
@@ -182,7 +226,7 @@ export function TeacherQuizzesClient({
       if (res.success) {
         toast.success(res.message || 'تم حذف الامتحان بنجاح');
       } else {
-        toast.error(res.error || 'فشل حذف الامتحان');
+        toast.error(res.error || 'فشل حذف الامتحان من الخادم');
       }
       router.refresh();
     } catch (err: any) {

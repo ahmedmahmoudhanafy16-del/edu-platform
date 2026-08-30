@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { ClipboardList } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
-import { StudentQuizCard } from '@/components/student/StudentQuizCard';
+import { StudentQuizzesListClient } from '@/components/student/StudentQuizzesListClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -61,26 +61,19 @@ export default async function StudentQuizzesPage({
 
   const allResults = [...dbResults, ...memoryStudentResults];
 
-  if (!quizzes || quizzes.length === 0) {
-    quizzes = [
-      {
-        id: 'sample-q1',
-        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-        type: 'WEEKLY',
-        duration: 20,
-        passingScore: 60,
-        isCodeRequired: true,
-        accessCode: 'QUIZ-MATH-2026',
-        classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
-      },
-    ];
-  }
+  const formattedQuizzes = (quizzes || []).map((q) => ({
+    id: q.id,
+    title: q.title || 'اختبار تقييمي',
+    type: q.type || 'WEEKLY',
+    duration: q.duration ?? 20,
+    passingScore: q.passingScore ?? 60,
+    isCodeRequired: q.isCodeRequired !== false,
+    classroomName: q.classroom?.name || 'الصف الثالث الإعدادي - رياضيات',
+  }));
 
-  const completedMap = new Set(
-    allResults
-      .filter((r) => r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
-      .map((r) => r.quizId)
-  );
+  const completedQuizIds = allResults
+    .filter((r) => r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+    .map((r) => r.quizId);
 
   return (
     <div dir="rtl" className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -94,28 +87,12 @@ export default async function StudentQuizzesPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(quizzes || []).map((q) => {
-          const isDone = completedMap.has(q.id);
-          return (
-            <StudentQuizCard
-              key={q.id}
-              quiz={{
-                id: q.id,
-                title: q.title,
-                type: q.type,
-                duration: q.duration ?? 20,
-                passingScore: q.passingScore ?? 60,
-                isCodeRequired: q.isCodeRequired !== false,
-                classroomName: q.classroom?.name || 'فصل الرياضيات',
-              }}
-              isCompleted={isDone}
-              studentId={studentId}
-              locale={locale}
-            />
-          );
-        })}
-      </div>
+      <StudentQuizzesListClient
+        initialQuizzes={formattedQuizzes}
+        completedQuizIds={completedQuizIds}
+        studentId={studentId}
+        locale={locale}
+      />
     </div>
   );
 }

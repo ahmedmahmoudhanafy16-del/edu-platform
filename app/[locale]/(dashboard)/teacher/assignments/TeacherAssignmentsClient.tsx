@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Users,
@@ -43,6 +43,8 @@ export interface AssignmentItem {
   }[];
 }
 
+const STORAGE_KEY = 'edu_assignments';
+
 export function TeacherAssignmentsClient({
   initialAssignments,
   classrooms,
@@ -62,10 +64,38 @@ export function TeacherAssignmentsClient({
   // Grading modal state
   const [gradingAssignment, setGradingAssignment] = useState<AssignmentItem | null>(null);
 
-  // Sync state with props
-  React.useEffect(() => {
+  // 1. Unified Local Storage & Server Sync on Mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed: AssignmentItem[] = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const localMap = new Map(parsed.map((item) => [item.id, item]));
+          initialAssignments.forEach((sa) => {
+            if (!localMap.has(sa.id)) {
+              localMap.set(sa.id, sa);
+            }
+          });
+          const merged = Array.from(localMap.values());
+          setAssignments(merged);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[TeacherAssignments] LocalStorage read failed:', e);
+    }
     setAssignments(initialAssignments);
   }, [initialAssignments]);
+
+  // Helper to persist assignments to localStorage
+  function persistAssignments(updatedList: AssignmentItem[]) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn('[TeacherAssignments] LocalStorage write failed:', e);
+    }
+  }
 
   function refresh() {
     router.refresh();
@@ -106,12 +136,15 @@ export function TeacherAssignmentsClient({
 
       setAssignments((prev) => {
         const existingIndex = prev.findIndex((a) => a.id === formatted.id);
+        let nextList: AssignmentItem[];
         if (existingIndex !== -1) {
-          const updated = [...prev];
-          updated[existingIndex] = { ...updated[existingIndex], ...formatted };
-          return updated;
+          nextList = [...prev];
+          nextList[existingIndex] = { ...nextList[existingIndex], ...formatted };
+        } else {
+          nextList = [formatted, ...prev];
         }
-        return [formatted, ...prev];
+        persistAssignments(nextList);
+        return nextList;
       });
     }
     router.refresh();
@@ -131,9 +164,11 @@ export function TeacherAssignmentsClient({
     const nextLocked = !item.isClosed;
 
     // Optimistic update
-    setAssignments((prev) =>
-      prev.map((a) => (a.id === item.id ? { ...a, isClosed: nextLocked } : a))
-    );
+    setAssignments((prev) => {
+      const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: nextLocked } : a));
+      persistAssignments(nextList);
+      return nextList;
+    });
 
     try {
       const res = await toggleAssignmentLock(item.id, nextLocked);
@@ -141,15 +176,19 @@ export function TeacherAssignmentsClient({
         toast.success(res.message);
       } else {
         // Revert
-        setAssignments((prev) =>
-          prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a))
-        );
+        setAssignments((prev) => {
+          const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a));
+          persistAssignments(nextList);
+          return nextList;
+        });
         toast.error(res.error || 'فشل تغيير حالة تسليم الواجب');
       }
     } catch (err: any) {
-      setAssignments((prev) =>
-        prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a))
-      );
+      setAssignments((prev) => {
+        const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a));
+        persistAssignments(nextList);
+        return nextList;
+      });
       toast.error('حدث خطأ أثناء تعديل حالة الواجب');
     }
   }
@@ -159,8 +198,12 @@ export function TeacherAssignmentsClient({
     const targetId = assignmentToDelete.id;
     setDeleteLoading(true);
 
-    // 1. Immediate Optimistic UI State Update
-    setAssignments((prev) => prev.filter((a) => a.id !== targetId));
+    // 1. Immediate Optimistic UI & LocalStorage Update
+    setAssignments((prev) => {
+      const nextList = prev.filter((a) => a.id !== targetId);
+      persistAssignments(nextList);
+      return nextList;
+    });
     setAssignmentToDelete(null);
 
     try {
@@ -168,7 +211,7 @@ export function TeacherAssignmentsClient({
       if (res.success) {
         toast.success(res.message || 'تم حذف الواجب بنجاح');
       } else {
-        toast.error(res.error || 'فشل حذف الواجب');
+        toast.error(res.error || 'فشل حذف الواجب من الخادم');
       }
       router.refresh();
     } catch (err: any) {
