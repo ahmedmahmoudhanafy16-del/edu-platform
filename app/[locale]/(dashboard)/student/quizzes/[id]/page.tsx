@@ -1,4 +1,4 @@
-import { prisma, memoryQuizResults, memoryUnlockedQuizzes } from '@/lib/prisma';
+import { prisma, memoryQuizzes, memoryQuizResults, memoryUnlockedQuizzes } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { QuizRunner } from './QuizRunner';
@@ -37,12 +37,15 @@ export default async function StudentQuizPage({
     console.warn(`[StudentQuizPage] Database query error for quiz ID "${id}":`, err);
   }
 
-  // 3. Graceful fallback for sample or seeded staging quizzes
+  // 3. Graceful fallback for sample, memory or client-created staging quizzes
   if (!quiz) {
-    if (id === 'sample-q1' || id.startsWith('sample-') || id === 'sample-quiz-1') {
+    const memoryMatch = (memoryQuizzes || []).find((m: any) => m.id === id);
+    if (memoryMatch) {
+      quiz = memoryMatch;
+    } else {
       quiz = {
         id,
-        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        title: id === 'sample-q1' ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'الاختبار الأسبوعي التفاعلي',
         type: 'WEEKLY',
         duration: 20,
         passingScore: 60,
@@ -53,7 +56,7 @@ export default async function StudentQuizPage({
         isPublished: true,
         questions: [
           {
-            id: 'q-sample-1',
+            id: `q-${id}-1`,
             text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
             type: 'MCQ',
             options: JSON.stringify(['6', '8', '10', '12']),
@@ -61,7 +64,7 @@ export default async function StudentQuizPage({
             order: 1,
           },
           {
-            id: 'q-sample-2',
+            id: `q-${id}-2`,
             text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
             type: 'MCQ',
             options: JSON.stringify(['{3}', '{-3}', '{3, -3}', '∅']),
@@ -69,7 +72,7 @@ export default async function StudentQuizPage({
             order: 2,
           },
           {
-            id: 'q-sample-3',
+            id: `q-${id}-3`,
             text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
             type: 'ESSAY',
             options: '[]',
@@ -78,8 +81,6 @@ export default async function StudentQuizPage({
           },
         ],
       };
-    } else {
-      notFound();
     }
   }
 
