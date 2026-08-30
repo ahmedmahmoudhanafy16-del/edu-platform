@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ClipboardList, Plus, Trash2 } from 'lucide-react';
+import { X, ClipboardList, Plus, Trash2, KeyRound, Sparkles, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { prisma } from '@/lib/prisma';
 import { toast } from 'sonner';
 
 interface CreateQuizModalProps {
@@ -20,6 +19,8 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
   const [type, setType] = useState('WEEKLY');
   const [duration, setDuration] = useState(20);
   const [passingScore, setPassingScore] = useState(60);
+  const [accessCode, setAccessCode] = useState('QUIZ-MATH-2026');
+  const [isCodeRequired, setIsCodeRequired] = useState(true);
   const [loading, setLoading] = useState(false);
 
   // Quick initial MCQ questions
@@ -34,6 +35,13 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
   ]);
 
   if (!isOpen) return null;
+
+  function generateRandomCode() {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const code = `QUIZ-MATH-${randomNum}`;
+    setAccessCode(code);
+    toast.info(`تم توليد كود جديد: ${code}`);
+  }
 
   function updateQuestionText(idx: number, text: string) {
     setQuestions((prev) => {
@@ -79,6 +87,11 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
       return;
     }
 
+    if (isCodeRequired && !accessCode.trim()) {
+      toast.error('يرجى كتابة أو توليد كود دخول الامتحان');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/teacher/quizzes', {
@@ -90,6 +103,8 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
           type,
           duration: Number(duration) || 20,
           passingScore: Number(passingScore) || 60,
+          accessCode: accessCode.trim().toUpperCase(),
+          isCodeRequired,
           questions: questions.filter((q) => q.text.trim() !== ''),
         }),
       });
@@ -98,7 +113,7 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
         throw new Error('حدث خطأ أثناء إنشاء الامتحان');
       }
 
-      toast.success(`تم إنشاء ونشر امتحان "${title}" بنجاح!`);
+      toast.success(`تم إنشاء ونشر امتحان "${title}" بنجاح! كود الدخول: ${accessCode}`);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -119,7 +134,7 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
             </div>
             <div>
               <h3 className="text-base font-bold text-n-800 dark:text-n-700">إنشاء اختبار أو امتحان جديد</h3>
-              <p className="text-xs text-n-400">تصحيح فوري وميزات منع الغش المدمجة</p>
+              <p className="text-xs text-n-400">حماية برمز مرور وتصحيح فوري ومنع الغش المدمج</p>
             </div>
           </div>
           <button
@@ -188,6 +203,53 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
                 onChange={(e) => setPassingScore(Number(e.target.value))}
               />
             </div>
+          </div>
+
+          {/* Exam Passcode Protection Box */}
+          <div className="p-4 rounded-xl border border-accent/30 bg-accent-light/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-accent-text flex items-center gap-1.5">
+                <KeyRound className="h-4 w-4 text-accent" />
+                كود دخول الامتحان (Passcode Protection)
+              </span>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-accent-text">
+                <input
+                  type="checkbox"
+                  checked={isCodeRequired}
+                  onChange={(e) => setIsCodeRequired(e.target.checked)}
+                  className="rounded text-accent focus:ring-accent"
+                />
+                طلب الكود للدخول
+              </label>
+            </div>
+
+            {isCodeRequired && (
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <Input
+                    type="text"
+                    required={isCodeRequired}
+                    value={accessCode}
+                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                    placeholder="مثال: QUIZ-MATH-2026"
+                    className="font-mono font-bold tracking-wider text-xs uppercase"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={generateRandomCode}
+                  className="shrink-0 text-xs flex items-center gap-1"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-accent" />
+                  توليد كود تلقائي
+                </Button>
+              </div>
+            )}
+            <p className="text-[11px] text-n-500">
+              💡 لن يتمكن الطالب من فتح واجهة الأسئلة إلا بعد إدخال هذا الكود الذي تحدده له.
+            </p>
           </div>
 
           {/* Question Builder */}

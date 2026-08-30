@@ -70,7 +70,7 @@ export async function submitAssignment(
       },
     },
     update: {
-      answerText,
+      textAnswer: answerText,
       fileUrl: sanitizedFileUrl,
       submittedAt: new Date(),
       status: 'SUBMITTED',
@@ -78,7 +78,7 @@ export async function submitAssignment(
     create: {
       assignmentId,
       studentId,
-      answerText,
+      textAnswer: answerText,
       fileUrl: sanitizedFileUrl,
       status: 'SUBMITTED',
     },

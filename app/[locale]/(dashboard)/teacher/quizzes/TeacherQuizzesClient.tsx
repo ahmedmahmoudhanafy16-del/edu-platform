@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, ClipboardList, Printer, CheckSquare, Clock, Users } from 'lucide-react';
+import { Plus, ClipboardList, Printer, CheckSquare, Clock, Users, KeyRound, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface QuizItem {
   id: string;
@@ -12,6 +13,8 @@ interface QuizItem {
   type: string;
   duration: number;
   passingScore: number;
+  accessCode: string;
+  isCodeRequired: boolean;
   classroomName: string;
   classroomId: string;
   questionsCount: number;
@@ -35,9 +38,18 @@ export function TeacherQuizzesClient({
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
   const [printableQuiz, setPrintableQuiz] = useState<QuizItem | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function refresh() {
     router.refresh();
+  }
+
+  function handleCopyCode(quiz: QuizItem) {
+    if (!quiz.accessCode) return;
+    navigator.clipboard.writeText(quiz.accessCode);
+    setCopiedId(quiz.id);
+    toast.success(`تم نسخ كود الامتحان: ${quiz.accessCode}`);
+    setTimeout(() => setCopiedId(null), 2000);
   }
 
   function handlePrint(quiz: QuizItem) {
@@ -53,7 +65,7 @@ export function TeacherQuizzesClient({
         <div>
           <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">بنك الامتحانات والطباعة</h1>
           <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-            إنشاء الاختبارات الإلكترونية وتوليد نسخ الطباعة الورقية A4 للفصول والسناتر
+            إنشاء الاختبارات الإلكترونية المحمية برمز مرور وتوليد نسخ الطباعة الورقية A4
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -66,7 +78,7 @@ export function TeacherQuizzesClient({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print">
         {initialQuizzes.map((q) => (
-          <div key={q.id} className="p-6 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 space-y-4">
+          <div key={q.id} className="p-6 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 space-y-4 shadow-sm">
             <div className="flex items-start justify-between">
               <div>
                 <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
@@ -78,6 +90,38 @@ export function TeacherQuizzesClient({
                 {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
               </span>
             </div>
+
+            {/* Access Code Banner for Teacher */}
+            {q.isCodeRequired && q.accessCode && (
+              <div className="flex items-center justify-between p-2.5 rounded-lg bg-accent-light/50 border border-accent/20 text-xs">
+                <div className="flex items-center gap-2">
+                  <KeyRound className="h-4 w-4 text-accent" />
+                  <span className="text-n-600 font-medium">كود دخول الامتحان:</span>
+                  <code className="font-mono font-bold text-accent text-sm tracking-wider">
+                    {q.accessCode}
+                  </code>
+                </div>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleCopyCode(q)}
+                  className="h-7 px-2 text-xs flex items-center gap-1"
+                  title="نسخ كود الامتحان"
+                >
+                  {copiedId === q.id ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-ok" />
+                      <span className="text-ok">تم النسخ</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5" />
+                      <span>نسخ الكود</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
               <div>
@@ -103,7 +147,7 @@ export function TeacherQuizzesClient({
                 variant="primary"
                 size="sm"
                 className="flex-1"
-                onClick={() => alert(`الامتحان منشور بالفعل وجاهز للطلاب للحل الإلكتروني`)}
+                onClick={() => toast.info(`الامتحان منشور بالفعل وجاهز للطلاب للحل الإلكتروني`)}
               >
                 حالة الاختبار (نشط)
               </Button>

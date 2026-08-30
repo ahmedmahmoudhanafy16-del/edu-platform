@@ -89,17 +89,16 @@ export async function recordLiveAttendance(roomCode: string, studentId: string, 
 
     const record = await prisma.liveAttendance.upsert({
       where: {
-        sessionId_studentId: {
-          sessionId: session.id,
+        liveSessionId_studentId: {
+          liveSessionId: session.id,
           studentId,
         },
       },
       update: {
-        leftAt: new Date(),
         durationMin,
       },
       create: {
-        sessionId: session.id,
+        liveSessionId: session.id,
         studentId,
         joinedAt: new Date(),
         durationMin,

@@ -4,6 +4,7 @@ const globalForPrisma = global as unknown as {
   prisma: PrismaClient;
   memoryCodes?: any[];
   memoryQuizResults?: any[];
+  memoryUnlockedQuizzes?: any[];
 };
 
 export const prisma =
@@ -27,3 +28,9 @@ if (!globalForPrisma.memoryQuizResults) {
   globalForPrisma.memoryQuizResults = [];
 }
 export const memoryQuizResults = globalForPrisma.memoryQuizResults;
+
+// Global In-Memory Unlocked Quizzes Store for Passcode Protection
+if (!globalForPrisma.memoryUnlockedQuizzes) {
+  globalForPrisma.memoryUnlockedQuizzes = [];
+}
+export const memoryUnlockedQuizzes = globalForPrisma.memoryUnlockedQuizzes;

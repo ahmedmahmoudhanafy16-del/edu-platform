@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { UnlockedSessions } from '@/components/student/UnlockedSessions';
+import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -113,6 +114,8 @@ export default async function StudentDashboardPage({
         type: 'WEEKLY',
         duration: 20,
         passingScore: 60,
+        isCodeRequired: true,
+        accessCode: 'QUIZ-MATH-2026',
       },
     ];
   }
@@ -160,10 +163,6 @@ export default async function StudentDashboardPage({
   const h2 = 'text-base font-bold text-n-800 dark:text-n-700 flex items-center gap-2';
   const seeAll = 'text-xs text-accent hover:underline font-medium';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
-  const quizTypeBadge: Record<string, string> = {
-    WEEKLY:  'text-[11px] bg-accent-light text-accent-text px-2 py-0.5 rounded-full font-medium',
-    MONTHLY: 'text-[11px] bg-warn-light text-warn px-2 py-0.5 rounded-full font-medium',
-  };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-10" dir="rtl">
@@ -249,7 +248,7 @@ export default async function StudentDashboardPage({
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          SECTION 1 — الاختبارات المتاحة مع تحديث فوري للحالة
+          SECTION 1 — الاختبارات المتاحة المحمية برمز مرور
       ═══════════════════════════════════════════════════════════════ */}
       <div className={section}>
         <div className={sectionTitle}>
@@ -268,48 +267,20 @@ export default async function StudentDashboardPage({
             const isCompleted = Boolean(submission);
 
             return (
-              <div key={q.id} className={`${card} flex flex-col justify-between`}>
-                {/* Card header strip */}
-                <div className="px-5 pt-5 pb-4 border-b border-n-100 dark:border-n-200">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-bold text-n-800 dark:text-n-700 leading-snug">
-                      {q.title}
-                    </h3>
-                    <span className={quizTypeBadge[q.type] ?? quizTypeBadge.WEEKLY}>
-                      {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
-                    </span>
-                  </div>
-                </div>
-                {/* Card body */}
-                <div className="px-5 py-4 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 text-xs text-n-500">
-                    <span className="flex items-center gap-1">
-                      <Timer className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      {q.duration} دقيقة
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <BarChart3 className="h-3.5 w-3.5" strokeWidth={1.75} />
-                      نجاح {q.passingScore}%
-                    </span>
-                  </div>
-                  {isCompleted ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-ok bg-ok-light px-2.5 py-1 rounded font-medium flex items-center gap-1">
-                        <CheckCircle2 className="h-3.5 w-3.5" /> تم التسليم
-                      </span>
-                      <Link href={`/${locale}/student/grades`}>
-                        <Button size="sm" variant="secondary" className="text-xs h-7 px-2">
-                          الدرجات
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <Link href={`/${locale}/student/quizzes/${q.id}`}>
-                      <Button size="sm" variant="primary">ابدأ الاختبار</Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
+              <StudentQuizCard
+                key={q.id}
+                quiz={{
+                  id: q.id,
+                  title: q.title,
+                  type: q.type,
+                  duration: q.duration,
+                  passingScore: q.passingScore,
+                  isCodeRequired: q.isCodeRequired !== false,
+                }}
+                isCompleted={isCompleted}
+                studentId={studentId}
+                locale={locale}
+              />
             );
           })}
         </div>
@@ -403,7 +374,7 @@ export default async function StudentDashboardPage({
                   <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || 'فصل الرياضيات'}</p>
                 </div>
               </div>
-              <a href={r.url || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">
+              <a href={r.fileUrl || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">
                 <Button size="sm" variant="secondary">
                   <Download className="h-3.5 w-3.5" />
                   تحميل

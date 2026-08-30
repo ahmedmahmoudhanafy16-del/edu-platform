@@ -1,6 +1,8 @@
-import { prisma, memoryQuizResults } from '@/lib/prisma';
+import { prisma, memoryQuizResults, memoryUnlockedQuizzes } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { QuizRunner } from './QuizRunner';
+import { QuizPasscodeGuard } from './QuizPasscodeGuard';
 import { getAuthenticatedStudent } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
@@ -37,7 +39,7 @@ export default async function StudentQuizPage({
 
   // 3. Graceful fallback for sample or seeded staging quizzes
   if (!quiz) {
-    if (id === 'sample-q1' || id.startsWith('sample-')) {
+    if (id === 'sample-q1' || id.startsWith('sample-') || id === 'sample-quiz-1') {
       quiz = {
         id,
         title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
@@ -46,6 +48,8 @@ export default async function StudentQuizPage({
         passingScore: 60,
         shuffleQuestions: false,
         maxViolations: 3,
+        accessCode: 'QUIZ-MATH-2026',
+        isCodeRequired: true,
         isPublished: true,
         questions: [
           {
@@ -92,7 +96,53 @@ export default async function StudentQuizPage({
   }
   const studentId = student?.id || 'demo-student-1';
 
-  // 5. Server-side Timer & Retake Prevention Enforcement
+  // 5. Server-Side Guard: Check if quiz is passcode-protected and if student unlocked it
+  if (quiz.isCodeRequired !== false) {
+    let isUnlocked = false;
+
+    // Check cookie
+    try {
+      const cookieStore = cookies();
+      if (cookieStore.get(`unlocked_quiz_${id}`)?.value === 'true') {
+        isUnlocked = true;
+      }
+    } catch (e) {}
+
+    // Check memory store
+    if (!isUnlocked) {
+      isUnlocked = memoryUnlockedQuizzes.some(
+        (u: any) => u.quizId === id && u.studentId === studentId
+      );
+    }
+
+    // Check existing attempt in DB
+    let existingAttemptCheck: any = null;
+    try {
+      existingAttemptCheck = await prisma.quizResult.findFirst({
+        where: { quizId: id, studentId },
+      });
+    } catch (e) {}
+
+    if (existingAttemptCheck) {
+      isUnlocked = true;
+    }
+
+    // If still not unlocked, render server-side passcode guard
+    if (!isUnlocked) {
+      return (
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 flex flex-col justify-center" dir="rtl">
+          <QuizPasscodeGuard
+            quizId={id}
+            quizTitle={quiz.title || 'الاختبار الأكاديمي'}
+            studentId={studentId}
+            locale={locale}
+          />
+        </div>
+      );
+    }
+  }
+
+  // 6. Server-side Timer & Retake Prevention Enforcement
   let attempt: any = null;
   try {
     attempt = await prisma.quizResult.findFirst({
@@ -141,7 +191,7 @@ export default async function StudentQuizPage({
   const totalDurationSec = (quiz.duration || 20) * 60;
   const remainingSec = Math.max(0, totalDurationSec - Math.max(0, elapsedSec));
 
-  // 6. CRITICAL SECURITY & NULL SAFETY: Sanitize questions
+  // 7. CRITICAL SECURITY & NULL SAFETY: Sanitize questions
   const sanitizedQuestions = (quiz.questions || []).map((q: any) => {
     let parsedOptions: string[] = [];
     try {

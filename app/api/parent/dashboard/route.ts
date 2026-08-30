@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         orderBy: { submittedAt: 'desc' },
       },
       attendance: {
-        include: { session: true },
+        include: { liveSession: true },
         orderBy: { joinedAt: 'desc' },
       },
     },

@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults } from '@/lib/prisma';
-import { ClipboardList, Clock, BarChart3, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ClipboardList } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
+import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -69,6 +69,8 @@ export default async function StudentQuizzesPage({
         type: 'WEEKLY',
         duration: 20,
         passingScore: 60,
+        isCodeRequired: true,
+        accessCode: 'QUIZ-MATH-2026',
         classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
       },
     ];
@@ -79,8 +81,6 @@ export default async function StudentQuizzesPage({
       .filter((r) => r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
       .map((r) => r.quizId)
   );
-
-  const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
 
   return (
     <div dir="rtl" className="max-w-6xl mx-auto px-4 py-8 space-y-6">
@@ -98,72 +98,21 @@ export default async function StudentQuizzesPage({
         {(quizzes || []).map((q) => {
           const isDone = completedMap.has(q.id);
           return (
-            <div
+            <StudentQuizCard
               key={q.id}
-              className={`${card} flex flex-col justify-between overflow-hidden`}
-            >
-              {/* Header */}
-              <div className="p-5 pb-3">
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs font-semibold text-accent-text bg-accent-light px-2.5 py-0.5 rounded-md border border-accent/20">
-                    {q.classroom?.name || 'فصل الرياضيات'}
-                  </span>
-                  <span
-                    className={`text-xs px-2 py-0.5 font-bold rounded-full ${
-                      q.type === 'MONTHLY'
-                        ? 'border border-warn/30 text-warn bg-warn-light'
-                        : 'bg-n-100 text-n-700 dark:bg-n-200 dark:text-n-400'
-                    }`}
-                  >
-                    {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
-                  </span>
-                </div>
-                <h3 className="text-base font-bold text-n-800 dark:text-n-700 leading-snug mt-2">
-                  {q.title}
-                </h3>
-              </div>
-
-              {/* Details */}
-              <div className="px-5 py-2">
-                <div className="flex items-center gap-4 text-xs font-medium text-n-500 bg-n-50 dark:bg-n-200 p-3 rounded-lg border border-n-100 dark:border-n-300">
-                  <span className="flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 text-n-400" />
-                    المدة: <strong>{q.duration ?? 20} دقيقة</strong>
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <BarChart3 className="h-4 w-4 text-n-400" />
-                    نسبة النجاح: <strong>{q.passingScore ?? 60}%</strong>
-                  </span>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="p-5 pt-3">
-                {isDone ? (
-                  <div className="w-full flex items-center gap-2">
-                    <div className="flex-1 py-2 px-3 rounded-lg bg-ok-light border border-ok/20 text-ok text-xs font-bold flex items-center justify-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" />
-                      تم التسليم
-                    </div>
-                    <Link href={`/${locale}/student/grades`}>
-                      <Button variant="secondary" size="sm" className="font-semibold text-xs h-9 px-3">
-                        عرض النتيجة
-                      </Button>
-                    </Link>
-                  </div>
-                ) : (
-                  <Link href={`/${locale}/student/quizzes/${q.id}`} className="w-full">
-                    <Button
-                      variant="primary"
-                      className="w-full"
-                      size="md"
-                    >
-                      ابدأ الاختبار الآن
-                    </Button>
-                  </Link>
-                )}
-              </div>
-            </div>
+              quiz={{
+                id: q.id,
+                title: q.title,
+                type: q.type,
+                duration: q.duration ?? 20,
+                passingScore: q.passingScore ?? 60,
+                isCodeRequired: q.isCodeRequired !== false,
+                classroomName: q.classroom?.name || 'فصل الرياضيات',
+              }}
+              isCompleted={isDone}
+              studentId={studentId}
+              locale={locale}
+            />
           );
         })}
       </div>

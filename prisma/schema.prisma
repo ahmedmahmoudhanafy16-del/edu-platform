@@ -1,48 +1,63 @@
-generator client {
-  provider = "prisma-client-js"
-}
+// Prisma Schema for EduPlatform
+// SQLite for Local Development & Vercel Preview (dev.db)
 
 datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
 
-model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String?  @unique
-  phone       String?
-  parentPhone String?  // WhatsApp notifications for guardian/parent
-  grade       String?  // Academic Grade / Cohort (e.g. "الصف الأول الإعدادي")
-  studentCode String?  @unique
-  password    String
-  role        String   @default("STUDENT") // TEACHER | STUDENT
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  classroomsAsTeacher Classroom[]            @relation("TeacherClassrooms")
-  enrollments         Enrollment[]
-  submissions         AssignmentSubmission[]
-  quizResults         QuizResult[]
-  attendance          LiveAttendance[]       @relation("StudentAttendance")
-  notifications       NotificationLog[]
-  usedCodes           SessionAccessCode[]    @relation("UsedCodes")
+generator client {
+  provider = "prisma-client-js"
 }
 
+// -------------------------------------------------------------
+// 1. Core Users & RBAC
+// -------------------------------------------------------------
+model User {
+  id            String   @id @default(cuid())
+  email         String?  @unique
+  studentCode   String?  @unique // e.g. STU-001
+  password      String?
+  passwordHash  String   @default("")
+  name          String
+  role          String   @default("STUDENT") // STUDENT | TEACHER | PARENT | ADMIN
+  phone         String?
+  parentPhone   String?
+  governorate   String?  @default("Cairo")
+  grade         String?  @default("الصف الثالث الإعدادي")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  teacherClassrooms Classroom[]     @relation("TeacherClassrooms")
+  enrollments       Enrollment[]
+  quizResults       QuizResult[]
+  submissions       AssignmentSubmission[]
+  attendance        LiveAttendance[]
+  sentMessages      ChatMessage[]
+  notifications     ParentNotification[]
+  redeemedCodes     SessionAccessCode[] @relation("UsedByRelation")
+  studentCodes      SessionAccessCode[] @relation("UsedByStudentRelation")
+}
+
+// -------------------------------------------------------------
+// 2. Classrooms & Academic Structure
+// -------------------------------------------------------------
 model Classroom {
   id          String   @id @default(cuid())
-  name        String
-  subject     String
-  code        String   @unique
+  name        String   // e.g. "الصف الثالث الإعدادي - رياضيات"
+  code        String?  // e.g. "MATH-101"
+  grade       String   @default("PREP_3")
+  subject     String   @default("Math")
   teacherId   String
   createdAt   DateTime @default(now())
 
-  teacher      User            @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher      User             @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
   enrollments  Enrollment[]
   assignments  Assignment[]
   quizzes      Quiz[]
-  liveSessions LiveSession[]
   resources    ClassResource[]
+  liveSessions LiveSession[]
 }
 
 model Enrollment {
@@ -57,13 +72,16 @@ model Enrollment {
   @@unique([userId, classroomId])
 }
 
+// -------------------------------------------------------------
+// 3. Assignments & Homework
+// -------------------------------------------------------------
 model Assignment {
   id          String   @id @default(cuid())
   title       String
-  description String
+  description String?
+  type        String   @default("HOMEWORK")
   dueDate     DateTime
-  maxScore    Int      @default(10)
-  type        String   @default("ESSAY") // ESSAY | PDF
+  maxScore    Float    @default(10)
   classroomId String
   createdAt   DateTime @default(now())
 
@@ -75,8 +93,8 @@ model AssignmentSubmission {
   id           String    @id @default(cuid())
   assignmentId String
   studentId    String
-  answerText   String?
   fileUrl      String?
+  textAnswer   String?
   grade        Float?
   teacherNote  String?
   status       String    @default("SUBMITTED") // SUBMITTED | GRADED
@@ -89,6 +107,9 @@ model AssignmentSubmission {
   @@unique([assignmentId, studentId])
 }
 
+// -------------------------------------------------------------
+// 4. Quizzes & Examination Engine (with Passcode Protection)
+// -------------------------------------------------------------
 model Quiz {
   id               String   @id @default(cuid())
   title            String
@@ -98,6 +119,8 @@ model Quiz {
   maxViolations    Int      @default(2)
   shuffleQuestions Boolean  @default(true)
   isPublished      Boolean  @default(true)
+  accessCode       String?  @default("QUIZ-MATH-2026") // Passcode to unlock the quiz
+  isCodeRequired   Boolean  @default(true)
   classroomId      String
   createdAt        DateTime @default(now())
 
@@ -140,87 +163,114 @@ model QuizResult {
 }
 
 model QuizViolation {
-  id            String   @id @default(cuid())
-  resultId      String
-  violationType String   // TAB_SWITCH | WINDOW_BLUR | COPY_PASTE
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  quizResultId String
+  reason       String   // TAB_SWITCH | FULLSCREEN_EXIT | RIGHT_CLICK | DEV_TOOLS
+  occurredAt   DateTime @default(now())
 
-  result QuizResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  quizResult QuizResult @relation(fields: [quizResultId], references: [id], onDelete: Cascade)
 }
 
-model LiveSession {
-  id          String    @id @default(cuid())
-  title       String
-  roomCode    String    @unique
-  targetGrade String?   // Targeted Academic Grade / Cohort for targeted broadcasts
-  isActive    Boolean   @default(true)
-  classroomId String
-  startedAt   DateTime  @default(now())
-  endedAt     DateTime?
-
-  classroom   Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  attendance  LiveAttendance[]
-  accessCodes SessionAccessCode[]
-}
-
-model SessionAccessCode {
-  id              String    @id @default(cuid())
-  code            String    @unique // e.g. "EDU-A3X9-2025"
-  liveSessionId   String
-  price           Float     @default(0)
-  usedByStudentId String?
-  usedAt          DateTime?
-  expiresAt       DateTime?
-  createdAt       DateTime  @default(now())
-
-  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
-  usedByStudent User?       @relation("UsedCodes", fields: [usedByStudentId], references: [id])
-}
-
-model LiveAttendance {
-  id          String    @id @default(cuid())
-  sessionId   String
-  studentId   String
-  joinedAt    DateTime  @default(now())
-  leftAt      DateTime?
-  durationMin Int?
-
-  session LiveSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student User        @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([sessionId, studentId])
-}
-
-model Announcement {
-  id         String    @id @default(cuid())
-  message    String
-  targetRole String?   // TEACHER | STUDENT | null (all)
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime?
-}
-
+// -------------------------------------------------------------
+// 5. Educational Resources & PDFs
+// -------------------------------------------------------------
 model ClassResource {
   id          String   @id @default(cuid())
   title       String
-  type        String   @default("PDF") // RECORDING | PDF | HOMEWORK_SOLUTION | SUMMARY
-  url         String
   description String?
+  type        String   @default("PDF") // PDF | SUMMARY | HOMEWORK_SOLUTION
+  fileUrl     String   @default("")
+  url         String?
   classroomId String
   createdAt   DateTime @default(now())
 
   classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 }
 
+// -------------------------------------------------------------
+// 6. Live Interactive Classroom & Access Codes
+// -------------------------------------------------------------
+model LiveSession {
+  id          String   @id @default(cuid())
+  title       String
+  roomCode    String   @unique // e.g. LIVE-MATH1
+  targetGrade String?
+  classroomId String
+  isActive    Boolean  @default(false)
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  classroom   Classroom           @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  attendance  LiveAttendance[]
+  messages    ChatMessage[]
+  accessCodes SessionAccessCode[]
+}
+
+model SessionAccessCode {
+  id              String       @id @default(cuid())
+  code            String       @unique // e.g. EDU-A8B9-2026
+  liveSessionId   String
+  isUsed          Boolean      @default(false)
+  usedById        String?
+  usedByStudentId String?
+  usedAt          DateTime?
+  expiresAt       DateTime?
+  price           Float        @default(50.0)
+  createdAt       DateTime     @default(now())
+
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  usedBy        User?       @relation("UsedByRelation", fields: [usedById], references: [id], onDelete: SetNull)
+  usedByStudent User?       @relation("UsedByStudentRelation", fields: [usedByStudentId], references: [id], onDelete: SetNull)
+}
+
+model LiveAttendance {
+  id            String   @id @default(cuid())
+  liveSessionId String   @default("")
+  sessionId     String?
+  studentId     String
+  joinedAt      DateTime @default(now())
+  durationMin   Int      @default(0)
+
+  liveSession LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([liveSessionId, studentId])
+}
+
+model ChatMessage {
+  id            String   @id @default(cuid())
+  liveSessionId String
+  senderId      String
+  message       String
+  createdAt     DateTime @default(now())
+
+  liveSession LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+  sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+// -------------------------------------------------------------
+// 7. Parent Notification & WhatsApp Tracking
+// -------------------------------------------------------------
+model ParentNotification {
+  id          String   @id @default(cuid())
+  parentId    String
+  title       String
+  body        String
+  type        String   @default("WHATSAPP") // WHATSAPP | SMS | IN_APP
+  status      String   @default("DELIVERED") // SENT | DELIVERED | FAILED
+  metadata    String?  // JSON string
+  sentAt      DateTime @default(now())
+
+  parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
+}
+
 model NotificationLog {
   id           String   @id @default(cuid())
-  recipient    String   // phone number
+  type         String   @default("QUIZ_RESULT")
+  recipient    String   @default("")
   studentId    String?
-  type         String   // QUIZ_RESULT | HOMEWORK_GRADED | LIVE_SESSION_ALERT | GENERAL
-  status       String   @default("SENT") // SENT | FAILED | DELIVERED
-  content      String
+  content      String   @default("")
+  status       String   @default("DELIVERED")
   errorMessage String?
   createdAt    DateTime @default(now())
-
-  student User? @relation(fields: [studentId], references: [id], onDelete: SetNull)
 }

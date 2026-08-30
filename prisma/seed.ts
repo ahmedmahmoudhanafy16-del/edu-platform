@@ -33,12 +33,13 @@ async function main() {
 
   // 3. Classroom
   const classroom = await prisma.classroom.upsert({
-    where: { code: 'MATH-101' },
+    where: { id: 'class-math-3' },
     update: {},
     create: {
+      id: 'class-math-3',
       name: 'الصف الثالث الإعدادي - رياضيات',
       subject: 'الرياضيات والجبر',
-      code: 'MATH-101',
+      grade: 'PREP_3',
       teacherId: teacher.id,
     },
   });
@@ -59,8 +60,11 @@ async function main() {
   });
 
   // 5. Assignment
-  const assignment = await prisma.assignment.create({
-    data: {
+  await prisma.assignment.upsert({
+    where: { id: 'sample-assignment-1' },
+    update: {},
+    create: {
+      id: 'sample-assignment-1',
       title: 'حل تمارين معادلات الدرجة الأولى',
       description: 'قم بحل المسائل في الصفحة رقم 45 من كتاب التدريبات واكتب خطوات الحل كاملة.',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -70,12 +74,20 @@ async function main() {
   });
 
   // 6. Quiz with MCQ + Essay Questions
-  const quiz = await prisma.quiz.create({
-    data: {
+  await prisma.quiz.upsert({
+    where: { id: 'sample-quiz-1' },
+    update: {
+      accessCode: 'QUIZ-MATH-2026',
+      isCodeRequired: true,
+    },
+    create: {
+      id: 'sample-quiz-1',
       title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
       type: 'WEEKLY',
       duration: 20,
       passingScore: 60,
+      accessCode: 'QUIZ-MATH-2026',
+      isCodeRequired: true,
       classroomId: classroom.id,
       questions: {
         create: [

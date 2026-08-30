@@ -1,23 +1,27 @@
 const { PrismaClient } = require('@prisma/client');
+const bcrypt = require('bcryptjs');
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding initial production data for Vercel/Local deployment...');
 
+  const teacherHash = bcrypt.hashSync('teacher123', 10);
+  const studentHash = bcrypt.hashSync('1234', 10);
+
   // 1. Teacher Account
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
     update: {
-      password: 'teacher123',
-      name: 'سارة أحمد',
+      passwordHash: teacherHash,
+      name: 'أ/ سارة أحمد',
       role: 'TEACHER',
       phone: '01011112222',
     },
     create: {
-      name: 'سارة أحمد',
+      name: 'أ/ سارة أحمد',
       email: 'teacher@school.com',
-      password: 'teacher123',
+      passwordHash: teacherHash,
       role: 'TEACHER',
       phone: '01011112222',
     },
@@ -27,7 +31,7 @@ async function main() {
   const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
-      password: '1234',
+      passwordHash: studentHash,
       name: 'أحمد محمد علي',
       role: 'STUDENT',
       phone: '01099998888',
@@ -37,7 +41,7 @@ async function main() {
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
-      password: '1234',
+      passwordHash: studentHash,
       role: 'STUDENT',
       phone: '01099998888',
       parentPhone: '01012345678',
@@ -49,7 +53,7 @@ async function main() {
   const student2 = await prisma.user.upsert({
     where: { studentCode: 'STU-777' },
     update: {
-      password: '1234',
+      passwordHash: studentHash,
       name: 'زياد طارق إبراهيم',
       role: 'STUDENT',
       phone: '01055554444',
@@ -59,7 +63,7 @@ async function main() {
     create: {
       name: 'زياد طارق إبراهيم',
       studentCode: 'STU-777',
-      password: '1234',
+      passwordHash: studentHash,
       role: 'STUDENT',
       phone: '01055554444',
       parentPhone: '01099998888',
@@ -68,16 +72,19 @@ async function main() {
   });
 
   // 4. Classrooms
-  const classroom = await prisma.classroom.upsert({
-    where: { code: 'MATH-101' },
-    update: {},
-    create: {
-      name: 'الصف الثالث الإعدادي - رياضيات',
-      subject: 'الرياضيات والجبر',
-      code: 'MATH-101',
-      teacherId: teacher.id,
-    },
-  });
+  const classroomsList = await prisma.classroom.findMany({ take: 1 });
+  let classroom = classroomsList[0];
+  if (!classroom) {
+    classroom = await prisma.classroom.create({
+      data: {
+        id: 'class-math-3',
+        name: 'الصف الثالث الإعدادي - رياضيات',
+        subject: 'الرياضيات والجبر',
+        grade: 'PREP_3',
+        teacherId: teacher.id,
+      },
+    });
+  }
 
   // 5. Enrollments
   await prisma.enrollment.upsert({
@@ -109,7 +116,7 @@ async function main() {
   });
 
   // 6. Assignment
-  const assignment = await prisma.assignment.upsert({
+  await prisma.assignment.upsert({
     where: { id: 'sample-assignment-1' },
     update: {},
     create: {
@@ -122,10 +129,13 @@ async function main() {
     },
   });
 
-  // 7. Quiz & Questions
-  const quiz = await prisma.quiz.upsert({
+  // 7. Quiz & Questions (Passcode Protected)
+  await prisma.quiz.upsert({
     where: { id: 'sample-quiz-1' },
-    update: {},
+    update: {
+      accessCode: 'QUIZ-MATH-2026',
+      isCodeRequired: true,
+    },
     create: {
       id: 'sample-quiz-1',
       title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
@@ -134,6 +144,8 @@ async function main() {
       passingScore: 60,
       classroomId: classroom.id,
       isPublished: true,
+      accessCode: 'QUIZ-MATH-2026',
+      isCodeRequired: true,
       questions: {
         create: [
           {
@@ -168,31 +180,7 @@ async function main() {
     },
   });
 
-  // 8. Quiz Results for students
-  await prisma.quizResult.upsert({
-    where: { id: `result-${student1.id}-1` },
-    update: {
-      totalScore: 18,
-      maxScore: 20,
-      autoScore: 18,
-      isPassed: true,
-      status: 'AUTO_GRADED',
-    },
-    create: {
-      id: `result-${student1.id}-1`,
-      quizId: quiz.id,
-      studentId: student1.id,
-      totalScore: 18,
-      maxScore: 20,
-      autoScore: 18,
-      isPassed: true,
-      status: 'AUTO_GRADED',
-      startedAt: new Date(Date.now() - 3600000),
-      submittedAt: new Date(Date.now() - 1800000),
-    },
-  });
-
-  // 9. Live Session
+  // 8. Live Session
   const liveSession = await prisma.liveSession.upsert({
     where: { roomCode: 'LIVE-MATH1' },
     update: {},
@@ -201,28 +189,10 @@ async function main() {
       roomCode: 'LIVE-MATH1',
       isActive: true,
       classroomId: classroom.id,
-      targetGrade: 'الصف الثالث الإعدادي',
     },
   });
 
-  // 10. Live Attendance
-  await prisma.liveAttendance.upsert({
-    where: {
-      sessionId_studentId: {
-        sessionId: liveSession.id,
-        studentId: student1.id,
-      },
-    },
-    update: {},
-    create: {
-      sessionId: liveSession.id,
-      studentId: student1.id,
-      joinedAt: new Date(),
-      durationMin: 45,
-    },
-  });
-
-  // 11. Sample PDF resources
+  // 9. Class Resource
   const existingResources = await prisma.classResource.count({ where: { classroomId: classroom.id } });
   if (existingResources === 0) {
     await prisma.classResource.createMany({
@@ -230,22 +200,13 @@ async function main() {
         {
           title: 'ملخص الوحدة الأولى – المعادلات الخطية',
           type: 'SUMMARY',
-          url: '#',
-          description: 'ملخص شامل لأسلوب الحل ونماذج الأسئلة',
+          fileUrl: '#',
           classroomId: classroom.id,
         },
         {
           title: 'نموذج اختبار أسبوعي – الجبر',
           type: 'PDF',
-          url: '#',
-          description: 'نموذج امتحان بالإجابات النموذجية',
-          classroomId: classroom.id,
-        },
-        {
-          title: 'حل واجب معادلات الدرجة الأولى',
-          type: 'HOMEWORK_SOLUTION',
-          url: '#',
-          description: 'الحل التفصيلي لتمارين صفحة 45',
+          fileUrl: '#',
           classroomId: classroom.id,
         },
       ],
