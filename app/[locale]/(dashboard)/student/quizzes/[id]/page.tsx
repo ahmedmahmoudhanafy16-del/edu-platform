@@ -25,8 +25,13 @@ export default async function StudentQuizPage({
   // 2. Fetch Quiz from database with safe try/catch
   let quiz: any = null;
   try {
-    quiz = await prisma.quiz.findUnique({
-      where: { id },
+    quiz = await prisma.quiz.findFirst({
+      where: {
+        OR: [
+          { id },
+          { accessCode: id },
+        ],
+      },
       include: {
         questions: {
           orderBy: { order: 'asc' },
@@ -219,6 +224,7 @@ export default async function StudentQuizPage({
     id: quiz.id,
     title: quiz.title || 'الاختبار الأكاديمي',
     duration: quiz.duration || 20,
+    accessCode: quiz.accessCode || undefined,
     shuffleQuestions: Boolean(quiz.shuffleQuestions),
     maxViolations: quiz.maxViolations ?? 3,
     questions: sanitizedQuestions,

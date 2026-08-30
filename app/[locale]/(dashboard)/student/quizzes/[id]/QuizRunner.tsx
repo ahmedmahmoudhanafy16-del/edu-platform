@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock, ChevronLeft, ChevronRight, Send, Shield, AlertTriangle, FileQuestion } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
 import { shuffleArray } from '@/lib/shuffle';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,50 @@ interface Quiz {
   duration: number;
   shuffleQuestions: boolean;
   maxViolations: number;
+  accessCode?: string;
   questions: Question[];
+}
+
+function normalizeQuestions(raw: any[], studentId: string, shuffle: boolean): Question[] {
+  if (!Array.isArray(raw) || raw.length === 0) return [];
+
+  const parsed: Question[] = raw.map((q, idx) => {
+    let opts: string[] = [];
+    if (Array.isArray(q.options)) {
+      opts = q.options.filter((o: any) => typeof o === 'string' && o.trim() !== '');
+    } else if (typeof q.options === 'string') {
+      try {
+        const json = JSON.parse(q.options);
+        if (Array.isArray(json)) {
+          opts = json.filter((o: any) => typeof o === 'string' && o.trim() !== '');
+        } else {
+          opts = [q.options];
+        }
+      } catch {
+        opts = q.options.includes(',')
+          ? q.options.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : [q.options];
+      }
+    }
+
+    return {
+      id: q.id || `q-${idx + 1}`,
+      text: q.text || `السؤال ${idx + 1}`,
+      type: q.type || 'MCQ',
+      options: opts,
+      maxScore: Number(q.maxScore) || 5,
+    };
+  });
+
+  return shuffle
+    ? shuffleArray(
+        parsed.map((q) => ({
+          ...q,
+          options: q.type === 'MCQ' ? shuffleArray(q.options, studentId) : q.options,
+        })),
+        studentId
+      )
+    : parsed;
 }
 
 export function QuizRunner({
@@ -38,21 +81,11 @@ export function QuizRunner({
   initialTimeLeft?: number;
 }) {
   const router = useRouter();
-  const rawQuestions = Array.isArray(quiz?.questions) ? quiz.questions : [];
-  const autosaveKey = `quiz_answers_${quiz?.id || 'default'}_${studentId}`;
+  const [activeQuiz, setActiveQuiz] = useState<Quiz>(quiz);
 
-  const [questions] = useState<Question[]>(() => {
-    if (!rawQuestions || rawQuestions.length === 0) return [];
-    return quiz.shuffleQuestions
-      ? shuffleArray(
-          rawQuestions.map((q) => ({
-            ...q,
-            options: q.type === 'MCQ' && Array.isArray(q.options) ? shuffleArray(q.options, studentId) : (q.options || []),
-          })),
-          studentId
-        )
-      : rawQuestions;
-  });
+  const [questions, setQuestions] = useState<Question[]>(() =>
+    normalizeQuestions(quiz?.questions || [], studentId, quiz?.shuffleQuestions || false)
+  );
 
   const [current, setCurrent] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -64,6 +97,45 @@ export function QuizRunner({
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult] = useState<any>(null);
   const isSubmitting = useRef(false);
+
+  const autosaveKey = `quiz_answers_${activeQuiz?.id || quiz?.id || 'default'}_${studentId}`;
+
+  // 1. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('edu_quizzes');
+      if (stored) {
+        const parsedQuizzes: any[] = JSON.parse(stored);
+        if (Array.isArray(parsedQuizzes) && parsedQuizzes.length > 0) {
+          const match = parsedQuizzes.find(
+            (q) =>
+              q.id === quiz.id ||
+              q.accessCode === quiz.id ||
+              (quiz.accessCode && q.accessCode?.trim().toUpperCase() === quiz.accessCode.trim().toUpperCase())
+          );
+
+          if (match) {
+            setActiveQuiz((prev) => ({
+              ...prev,
+              title: match.title || prev.title,
+              duration: Number(match.duration) || prev.duration,
+            }));
+
+            if (Array.isArray(match.questions) && match.questions.length > 0) {
+              const syncedQuestions = normalizeQuestions(
+                match.questions,
+                studentId,
+                match.shuffleQuestions || false
+              );
+              setQuestions(syncedQuestions);
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[QuizRunner] Local storage sync error:', err);
+    }
+  }, [quiz.id, quiz.accessCode, studentId]);
 
   // Restore autosaved answers
   useEffect(() => {
@@ -91,11 +163,11 @@ export function QuizRunner({
       if (document.visibilityState === 'hidden' && !submitted && !isSubmitting.current) {
         setViolations((prev) => {
           const next = prev + 1;
-          if (next >= (quiz?.maxViolations ?? 3)) {
+          if (next >= (activeQuiz?.maxViolations ?? 3)) {
             toast.error('تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!');
             handleSubmit(true);
           } else {
-            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${quiz?.maxViolations ?? 3})`);
+            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${activeQuiz?.maxViolations ?? 3})`);
           }
           return next;
         });
@@ -104,7 +176,7 @@ export function QuizRunner({
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [quiz?.maxViolations, submitted]);
+  }, [activeQuiz?.maxViolations, submitted]);
 
   // Timer countdown
   useEffect(() => {
@@ -129,7 +201,7 @@ export function QuizRunner({
           answerText: answers[q.id] || '',
         }));
 
-        const res = await submitQuizAnswers(quiz.id, studentId, list, auto);
+        const res = await submitQuizAnswers(activeQuiz.id || quiz.id, studentId, list, auto);
         try {
           localStorage.removeItem(autosaveKey);
         } catch {}
@@ -148,7 +220,7 @@ export function QuizRunner({
         setSubmitting(false);
       }
     },
-    [questions, answers, quiz.id, studentId, submitted, autosaveKey]
+    [questions, answers, activeQuiz.id, quiz.id, studentId, submitted, autosaveKey]
   );
 
   const mins = Math.floor(Math.max(0, timeLeft) / 60);
@@ -161,7 +233,7 @@ export function QuizRunner({
         <div className="w-16 h-16 rounded-full bg-accent-light text-accent flex items-center justify-center mx-auto">
           <FileQuestion className="h-8 w-8" />
         </div>
-        <h1 className="text-xl font-bold text-n-800 dark:text-n-700">{quiz.title}</h1>
+        <h1 className="text-xl font-bold text-n-800 dark:text-n-700">{activeQuiz.title}</h1>
         <p className="text-xs text-n-500">لا توجد أسئلة مضافة في هذا الاختبار حالياً أو الاختبار قيد التجهيز من قبل المعلم.</p>
         <Button onClick={() => router.push(`/${locale}/student/quizzes`)} className="w-full">
           العودة لقائمة الامتحانات
@@ -220,7 +292,7 @@ export function QuizRunner({
       {/* Top Header */}
       <div className="flex items-center justify-between gap-4 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-5 py-3.5 shadow-sm">
         <div>
-          <p className="text-sm font-bold text-n-800 dark:text-n-700">{quiz.title}</p>
+          <p className="text-sm font-bold text-n-800 dark:text-n-700">{activeQuiz.title}</p>
           <p className="text-xs text-n-400 mt-0.5">
             السؤال {current + 1} من {questions.length}
           </p>
@@ -253,7 +325,7 @@ export function QuizRunner({
           <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
             {current + 1}
           </span>
-          <p className="text-sm font-medium text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || 'نص السؤال'}</p>
+          <p className="text-sm font-semibold text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || 'نص السؤال'}</p>
         </div>
 
         {q?.type === 'MCQ' ? (
@@ -266,7 +338,7 @@ export function QuizRunner({
                   className={cn(
                     'flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer text-sm font-medium transition-colors',
                     isSelected
-                      ? 'border-accent bg-accent-light text-accent-text'
+                      ? 'border-accent bg-accent-light text-accent-text font-bold'
                       : 'border-n-200 dark:border-n-300 hover:bg-n-50 dark:hover:bg-n-200 text-n-700 dark:text-n-600'
                   )}
                 >
@@ -286,7 +358,7 @@ export function QuizRunner({
                   >
                     {i + 1}
                   </span>
-                  {opt}
+                  <span>{opt}</span>
                 </label>
               );
             })}
@@ -317,7 +389,8 @@ export function QuizRunner({
           السابق
         </Button>
 
-        <div className="flex gap-1 flex-wrap">
+        {/* Dynamic Question Pagination Index Numbers */}
+        <div className="flex gap-1 flex-wrap justify-center max-w-[60%]">
           {questions.map((_, i) => (
             <button
               key={i}
@@ -325,7 +398,7 @@ export function QuizRunner({
               className={cn(
                 'w-7 h-7 rounded text-xs font-bold border transition-colors',
                 i === current
-                  ? 'border-accent bg-accent text-white'
+                  ? 'border-accent bg-accent text-white shadow-sm'
                   : answers[questions[i]?.id]
                   ? 'border-ok/40 bg-ok-light text-ok'
                   : 'border-n-200 text-n-400 hover:bg-n-100'
