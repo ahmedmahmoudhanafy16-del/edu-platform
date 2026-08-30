@@ -8,15 +8,21 @@ import { getAuthenticatedStudent } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function StudentQuizPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string; locale: string }> | { id: string; locale: string };
-}) {
-  // 1. Await params safely for Next.js 15+ App Router compatibility
-  const resolvedParams = await params;
-  const id = resolvedParams?.id?.trim();
-  const locale = resolvedParams?.locale || 'ar';
+}
+
+export default async function StudentQuizPage({ params }: PageProps) {
+  // 1. Asynchronous Params Handling (Next.js 14/15 App Router)
+  let id = '';
+  let locale = 'ar';
+  try {
+    const resolvedParams = await params;
+    id = (resolvedParams?.id || '').trim();
+    locale = resolvedParams?.locale || 'ar';
+  } catch (err) {
+    console.warn('[StudentQuizPage] Params resolution error:', err);
+  }
 
   if (!id) {
     notFound();
@@ -44,7 +50,7 @@ export default async function StudentQuizPage({
 
   // 3. Graceful fallback for sample, memory or client-created staging quizzes
   if (!quiz) {
-    const memoryMatch = (memoryQuizzes || []).find((m: any) => m.id === id);
+    const memoryMatch = (memoryQuizzes || []).find((m: any) => m.id === id || m.accessCode === id);
     if (memoryMatch) {
       quiz = memoryMatch;
     } else {
@@ -87,10 +93,6 @@ export default async function StudentQuizPage({
         ],
       };
     }
-  }
-
-  if (!quiz.isPublished) {
-    notFound();
   }
 
   // 4. Resolve logged in student safely
@@ -148,7 +150,7 @@ export default async function StudentQuizPage({
     }
   }
 
-  // 6. Server-side Timer & Retake Prevention Enforcement
+  // 6. Server-side Retake Prevention & Status Check (Read-Only)
   let attempt: any = null;
   try {
     attempt = await prisma.quizResult.findFirst({
@@ -171,33 +173,13 @@ export default async function StudentQuizPage({
     redirect(`/${locale}/student/grades`);
   }
 
-  // If no active attempt, initialize startedAt on server (with safe try-catch for Vercel)
-  if (!attempt) {
-    try {
-      attempt = await prisma.quizResult.create({
-        data: {
-          quizId: id,
-          studentId,
-          status: 'IN_PROGRESS',
-          startedAt: new Date(),
-        },
-      });
-    } catch (dbErr) {
-      console.warn('[StudentQuizPage] Fallback in-memory attempt initialized:', dbErr);
-      attempt = {
-        startedAt: new Date(),
-        status: 'IN_PROGRESS',
-      };
-    }
-  }
-
-  // Compute exact remaining time from server startedAt
+  // Compute exact remaining time safely without mutating database during render
   const startedTime = attempt?.startedAt ? new Date(attempt.startedAt).getTime() : Date.now();
   const elapsedSec = Math.floor((Date.now() - startedTime) / 1000);
   const totalDurationSec = (quiz.duration || 20) * 60;
   const remainingSec = Math.max(0, totalDurationSec - Math.max(0, elapsedSec));
 
-  // 7. CRITICAL SECURITY & NULL SAFETY: Sanitize questions
+  // 7. CRITICAL SECURITY & NULL SAFETY: Sanitize questions for Client Component
   const sanitizedQuestions = (quiz.questions || []).map((q: any) => {
     let parsedOptions: string[] = [];
     try {

@@ -81,6 +81,7 @@ export function QuizRunner({
   initialTimeLeft?: number;
 }) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<Quiz>(quiz);
 
   const [questions, setQuestions] = useState<Question[]>(() =>
@@ -100,8 +101,14 @@ export function QuizRunner({
 
   const autosaveKey = `quiz_answers_${activeQuiz?.id || quiz?.id || 'default'}_${studentId}`;
 
-  // 1. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
+  // 1. Client Mount Flag to guarantee zero SSR hydration mismatches
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 2. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
+  useEffect(() => {
+    if (!mounted) return;
     try {
       const stored = localStorage.getItem('edu_quizzes');
       if (stored) {
@@ -135,10 +142,11 @@ export function QuizRunner({
     } catch (err) {
       console.warn('[QuizRunner] Local storage sync error:', err);
     }
-  }, [quiz.id, quiz.accessCode, studentId]);
+  }, [mounted, quiz.id, quiz.accessCode, studentId]);
 
   // Restore autosaved answers
   useEffect(() => {
+    if (!mounted) return;
     try {
       const saved = localStorage.getItem(autosaveKey);
       if (saved) {
@@ -146,48 +154,17 @@ export function QuizRunner({
         toast.info('تم استعادة إجاباتك المحفوظة تلقائياً');
       }
     } catch {}
-  }, [autosaveKey]);
+  }, [mounted, autosaveKey]);
 
   // Autosave answers to localStorage
   useEffect(() => {
+    if (!mounted) return;
     try {
       if (Object.keys(answers).length > 0) {
         localStorage.setItem(autosaveKey, JSON.stringify(answers));
       }
     } catch {}
-  }, [answers, autosaveKey]);
-
-  // Anti-cheat: tab switch detection
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden' && !submitted && !isSubmitting.current) {
-        setViolations((prev) => {
-          const next = prev + 1;
-          if (next >= (activeQuiz?.maxViolations ?? 3)) {
-            toast.error('تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!');
-            handleSubmit(true);
-          } else {
-            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${activeQuiz?.maxViolations ?? 3})`);
-          }
-          return next;
-        });
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [activeQuiz?.maxViolations, submitted]);
-
-  // Timer countdown
-  useEffect(() => {
-    if (submitted) return;
-    if (timeLeft <= 0) {
-      handleSubmit(true);
-      return;
-    }
-    const t = setTimeout(() => setTimeLeft((p) => p - 1), 1000);
-    return () => clearTimeout(t);
-  }, [timeLeft, submitted]);
+  }, [mounted, answers, autosaveKey]);
 
   const handleSubmit = useCallback(
     async (auto = false) => {
@@ -222,6 +199,39 @@ export function QuizRunner({
     },
     [questions, answers, activeQuiz.id, quiz.id, studentId, submitted, autosaveKey]
   );
+
+  // Anti-cheat: tab switch detection (client only)
+  useEffect(() => {
+    if (!mounted || submitted) return;
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden' && !submitted && !isSubmitting.current) {
+        setViolations((prev) => {
+          const next = prev + 1;
+          if (next >= (activeQuiz?.maxViolations ?? 3)) {
+            toast.error('تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!');
+            handleSubmit(true);
+          } else {
+            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${activeQuiz?.maxViolations ?? 3})`);
+          }
+          return next;
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [mounted, activeQuiz?.maxViolations, submitted, handleSubmit]);
+
+  // Timer countdown (client only)
+  useEffect(() => {
+    if (!mounted || submitted) return;
+    if (timeLeft <= 0) {
+      handleSubmit(true);
+      return;
+    }
+    const t = setTimeout(() => setTimeLeft((p) => p - 1), 1000);
+    return () => clearTimeout(t);
+  }, [mounted, timeLeft, submitted, handleSubmit]);
 
   const mins = Math.floor(Math.max(0, timeLeft) / 60);
   const secs = Math.max(0, timeLeft) % 60;
@@ -306,7 +316,11 @@ export function QuizRunner({
           )}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-n-100 dark:bg-n-200 text-n-800 font-mono text-sm font-bold border border-n-200">
             <Clock className="h-3.5 w-3.5 text-n-400" />
-            {String(mins).padStart(2, '0')}:{String(secs).padStart(2, '0')}
+            <span>
+              {mounted
+                ? `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+                : `${String(activeQuiz?.duration || quiz?.duration || 20).padStart(2, '0')}:00`}
+            </span>
           </div>
         </div>
       </div>
