@@ -73,19 +73,22 @@ model Enrollment {
 }
 
 // -------------------------------------------------------------
-// 3. Assignments & Homework
+// 3. Assignments & Homework (with Edit, Lock & Grade Support)
 // -------------------------------------------------------------
 model Assignment {
-  id          String   @id @default(cuid())
+  id          String                 @id @default(cuid())
   title       String
   description String?
-  type        String   @default("HOMEWORK")
+  type        String                 @default("HOMEWORK")
   dueDate     DateTime
-  maxScore    Float    @default(10)
-  classroomId String
-  createdAt   DateTime @default(now())
+  maxScore    Float                  @default(10)
+  fileUrl     String?
+  grade       String?                @default("الصف الثالث الإعدادي")
+  isClosed    Boolean                @default(false)
+  classroomId String?
+  createdAt   DateTime               @default(now())
 
-  classroom   Classroom              @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  classroom   Classroom?             @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   submissions AssignmentSubmission[]
 }
 

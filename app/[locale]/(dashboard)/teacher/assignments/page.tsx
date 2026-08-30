@@ -80,6 +80,7 @@ export default async function TeacherAssignmentsPage({
     description: a.description || '',
     dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
     maxScore: a.maxScore ?? 10,
+    isClosed: Boolean(a.isClosed),
     classroomName: a.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
     classroomId: a.classroomId || classrooms[0]?.id || 'class-1',
     submissions: (a.submissions || []).map((s: any) => ({

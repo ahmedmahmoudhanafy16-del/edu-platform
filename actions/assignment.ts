@@ -8,29 +8,243 @@ import { notifyParentHomeworkGraded } from '@/lib/whatsapp';
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 
+/**
+ * Creates a new Assignment with teacher authorization and path revalidation.
+ */
 export async function createAssignment(data: {
   title: string;
-  description: string;
+  description?: string;
   dueDate: string;
-  maxScore: number;
-  classroomId: string;
+  maxScore?: number | string;
+  classroomId?: string;
+  grade?: string;
+  fileUrl?: string;
 }) {
   // Enforce Teacher/Admin RBAC
   await requireRole(['TEACHER', 'ADMIN']);
 
-  const assignment = await prisma.assignment.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      dueDate: new Date(data.dueDate),
-      maxScore: data.maxScore,
-      classroomId: data.classroomId,
-    },
-  });
-  revalidatePath('/[locale]/teacher/assignments');
-  return assignment;
+  try {
+    const title = (data.title || '').trim() || 'واجب دراسي جديد';
+    const description = (data.description || '').trim();
+    const maxScore = Math.max(1, Number(data.maxScore) || 10);
+    const dueDate = data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 86400000);
+    const grade = data.grade || 'الصف الثالث الإعدادي';
+
+    let validClassroomId: string | null = null;
+    if (data.classroomId) {
+      const cls = await prisma.classroom.findUnique({
+        where: { id: data.classroomId },
+        select: { id: true },
+      }).catch(() => null);
+      validClassroomId = cls?.id || null;
+    }
+
+    const assignment = await prisma.assignment.create({
+      data: {
+        title,
+        description,
+        dueDate,
+        maxScore,
+        grade,
+        fileUrl: data.fileUrl || null,
+        classroomId: validClassroomId,
+        isClosed: false,
+      },
+    });
+
+    try {
+      revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/student');
+      revalidatePath('/[locale]/(dashboard)/student/assignments');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/student/assignments');
+      revalidatePath('/teacher/assignments');
+    } catch (e) {}
+
+    return {
+      success: true,
+      assignment,
+      message: 'تم إضافة الواجب بنجاح',
+    };
+  } catch (error: any) {
+    console.error('[createAssignment Error]:', error);
+    return {
+      success: false,
+      error: error?.message || 'حدث خطأ أثناء إنشاء الواجب',
+    };
+  }
 }
 
+/**
+ * Updates an existing Assignment (title, description, maxScore, dueDate, grade, classroomId).
+ */
+export async function updateAssignment(
+  assignmentId: string,
+  data: {
+    title?: string;
+    description?: string;
+    dueDate?: string;
+    maxScore?: number | string;
+    classroomId?: string;
+    grade?: string;
+    fileUrl?: string;
+    isClosed?: boolean;
+  }
+) {
+  // Enforce Teacher/Admin RBAC
+  await requireRole(['TEACHER', 'ADMIN']);
+
+  try {
+    if (!assignmentId || typeof assignmentId !== 'string') {
+      return { success: false, error: 'معرف الواجب غير صالح' };
+    }
+
+    const updatePayload: any = {};
+    if (data.title !== undefined) updatePayload.title = data.title.trim() || 'واجب دراسي';
+    if (data.description !== undefined) updatePayload.description = data.description.trim();
+    if (data.maxScore !== undefined) updatePayload.maxScore = Math.max(1, Number(data.maxScore) || 10);
+    if (data.dueDate !== undefined) updatePayload.dueDate = new Date(data.dueDate);
+    if (data.grade !== undefined) updatePayload.grade = data.grade;
+    if (data.fileUrl !== undefined) updatePayload.fileUrl = data.fileUrl;
+    if (typeof data.isClosed === 'boolean') updatePayload.isClosed = data.isClosed;
+
+    if (data.classroomId) {
+      const cls = await prisma.classroom.findUnique({
+        where: { id: data.classroomId },
+        select: { id: true },
+      }).catch(() => null);
+      if (cls) {
+        updatePayload.classroomId = cls.id;
+      }
+    }
+
+    const updated = await prisma.assignment.update({
+      where: { id: assignmentId },
+      data: updatePayload,
+    });
+
+    try {
+      revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/student');
+      revalidatePath('/[locale]/(dashboard)/student/assignments');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/student/assignments');
+      revalidatePath('/teacher/assignments');
+    } catch (e) {}
+
+    return {
+      success: true,
+      assignment: updated,
+      message: 'تم تحديث بيانات الواجب بنجاح',
+    };
+  } catch (error: any) {
+    console.error('[updateAssignment Error]:', error);
+    return {
+      success: false,
+      error: error?.message || 'حدث خطأ أثناء تعديل الواجب',
+    };
+  }
+}
+
+/**
+ * Deletes an Assignment and cascade cleans related student submissions.
+ */
+export async function deleteAssignment(assignmentId: string) {
+  // Enforce Teacher/Admin RBAC
+  await requireRole(['TEACHER', 'ADMIN']);
+
+  try {
+    if (!assignmentId || typeof assignmentId !== 'string') {
+      return { success: false, error: 'معرف الواجب غير صالح' };
+    }
+
+    // Cascade delete submissions
+    await prisma.assignmentSubmission.deleteMany({
+      where: { assignmentId },
+    }).catch(() => null);
+
+    // Delete assignment record
+    await prisma.assignment.delete({
+      where: { id: assignmentId },
+    });
+
+    try {
+      revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/student');
+      revalidatePath('/[locale]/(dashboard)/student/assignments');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/student/assignments');
+      revalidatePath('/teacher/assignments');
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: 'تم حذف الواجب بنجاح',
+    };
+  } catch (error: any) {
+    console.error('[deleteAssignment Error]:', error);
+    return {
+      success: false,
+      error: error?.message || 'حدث خطأ أثناء حذف الواجب',
+    };
+  }
+}
+
+/**
+ * Toggles Assignment lock status to open/close accepting student submissions.
+ */
+export async function toggleAssignmentLock(assignmentId: string, isClosed: boolean) {
+  // Enforce Teacher/Admin RBAC
+  await requireRole(['TEACHER', 'ADMIN']);
+
+  try {
+    if (!assignmentId || typeof assignmentId !== 'string') {
+      return { success: false, error: 'معرف الواجب غير صالح' };
+    }
+
+    const updated = await prisma.assignment.update({
+      where: { id: assignmentId },
+      data: { isClosed },
+    });
+
+    try {
+      revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/student');
+      revalidatePath('/[locale]/(dashboard)/student/assignments');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+    } catch (e) {}
+
+    return {
+      success: true,
+      isClosed: updated.isClosed,
+      message: isClosed
+        ? 'تم قفل تسليم الواجب (لن يتم قبول تسليمات جديدة)'
+        : 'تم فتح تسليم الواجب للطلاب بنجاح',
+    };
+  } catch (error: any) {
+    console.error('[toggleAssignmentLock Error]:', error);
+    return {
+      success: false,
+      error: error?.message || 'حدث خطأ أثناء تغيير حالة تسليم الواجب',
+    };
+  }
+}
+
+/**
+ * Submits an assignment solution for a student.
+ */
 export async function submitAssignment(
   assignmentId: string,
   studentId: string,
@@ -39,6 +253,16 @@ export async function submitAssignment(
 ) {
   // Enforce IDOR Protection: Student can only submit for themselves
   await requireStudentOwnership(studentId);
+
+  // Check if assignment is closed
+  const assignment = await prisma.assignment.findUnique({
+    where: { id: assignmentId },
+    select: { isClosed: true },
+  }).catch(() => null);
+
+  if (assignment?.isClosed) {
+    throw new Error('تم إغلاق باب التسليم لهذا الواجب من قبل المعلم.');
+  }
 
   // File Upload Sanitization & Security Validation
   let sanitizedFileUrl: string | undefined = undefined;
@@ -89,6 +313,9 @@ export async function submitAssignment(
   return submission;
 }
 
+/**
+ * Grades an assignment submission with optional teacher note and WhatsApp parent notification.
+ */
 export async function gradeSubmission(submissionId: string, grade: number, teacherNote?: string) {
   // Enforce Teacher/Admin RBAC
   await requireRole(['TEACHER', 'ADMIN']);
