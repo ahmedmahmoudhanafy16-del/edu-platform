@@ -1,6 +1,12 @@
 'use server';
 
-import { prisma, memoryQuizResults, memoryUnlockedQuizzes } from '@/lib/prisma';
+import {
+  prisma,
+  memoryQuizResults,
+  memoryUnlockedQuizzes,
+  memoryQuizzes,
+  isDatabaseReadOnlyError,
+} from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { requireStudentOwnership, requireRole } from '@/lib/auth';
@@ -437,7 +443,33 @@ export async function createQuiz(data: {
         });
       } catch (retryErr: any) {
         console.error('[createQuiz] Fatal database error:', retryErr);
-        throw new Error(`فشل حفظ الاختبار في قاعدة البيانات: ${retryErr.message}`);
+        if (isDatabaseReadOnlyError(retryErr)) {
+          const fallbackQuiz = {
+            id: `quiz-${Date.now()}`,
+            title,
+            type,
+            duration,
+            passingScore,
+            accessCode,
+            isCodeRequired,
+            grade,
+            isPublished: true,
+            classroomId: validClassroomId || 'class-math-3',
+            questions: formattedQuestions.map((fq: any, idx: number) => ({
+              id: `q-${Date.now()}-${idx}`,
+              text: fq.text,
+              type: fq.type,
+              options: fq.options,
+              correctAnswer: fq.correctAnswer,
+              maxScore: fq.maxScore,
+            })),
+            createdAt: new Date(),
+          };
+          memoryQuizzes.unshift(fallbackQuiz);
+          quiz = fallbackQuiz;
+        } else {
+          throw new Error(`فشل حفظ الاختبار في قاعدة البيانات: ${retryErr.message}`);
+        }
       }
     }
 

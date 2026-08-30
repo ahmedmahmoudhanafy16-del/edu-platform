@@ -1,6 +1,6 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryAssignments, isDatabaseReadOnlyError } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole, requireStudentOwnership } from '@/lib/auth';
 import { notifyParentHomeworkGraded } from '@/lib/whatsapp';
@@ -39,18 +39,41 @@ export async function createAssignment(data: {
       validClassroomId = cls?.id || null;
     }
 
-    const assignment = await prisma.assignment.create({
-      data: {
-        title,
-        description,
-        dueDate,
-        maxScore,
-        grade,
-        fileUrl: data.fileUrl || null,
-        classroomId: validClassroomId,
-        isClosed: false,
-      },
-    });
+    let assignment: any = null;
+    try {
+      assignment = await prisma.assignment.create({
+        data: {
+          title,
+          description,
+          dueDate,
+          maxScore,
+          grade,
+          fileUrl: data.fileUrl || null,
+          classroomId: validClassroomId,
+          isClosed: false,
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn('[createAssignment] DB write error:', dbErr?.message);
+      if (isDatabaseReadOnlyError(dbErr)) {
+        assignment = {
+          id: `assign-${Date.now()}`,
+          title,
+          description,
+          dueDate,
+          maxScore,
+          grade,
+          fileUrl: data.fileUrl || null,
+          classroomId: validClassroomId || 'class-math-3',
+          isClosed: false,
+          createdAt: new Date(),
+          submissions: [],
+        };
+        memoryAssignments.unshift(assignment);
+      } else {
+        throw dbErr;
+      }
+    }
 
     try {
       revalidatePath('/[locale]/(dashboard)/teacher/assignments');
