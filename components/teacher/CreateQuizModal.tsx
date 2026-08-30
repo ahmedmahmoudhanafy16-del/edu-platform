@@ -98,25 +98,32 @@ export function CreateQuizModal({ classrooms, isOpen, onClose, onSuccess }: Crea
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: title.trim(),
+          title: (title || '').trim() || 'اختبار جديد',
           classroomId,
           type,
           duration: Number(duration) || 20,
           passingScore: Number(passingScore) || 60,
-          accessCode: accessCode.trim().toUpperCase(),
+          accessCode: accessCode ? accessCode.trim().toUpperCase() : 'QUIZ-MATH-2026',
           isCodeRequired,
           questions: questions.filter((q) => q.text.trim() !== ''),
         }),
       });
 
-      if (!res.ok) {
-        throw new Error('حدث خطأ أثناء إنشاء الامتحان');
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'حدث خطأ أثناء إنشاء الامتحان');
       }
 
-      toast.success(`تم إنشاء ونشر امتحان "${title}" بنجاح! كود الدخول: ${accessCode}`);
+      toast.success(
+        `تم إنشاء ونشر امتحان "${title || 'الجديد'}" بنجاح! ${
+          isCodeRequired ? `كود الدخول: ${data.accessCode || accessCode}` : ''
+        }`
+      );
       onSuccess();
       onClose();
     } catch (err: any) {
+      console.error('Quiz creation error:', err);
       toast.error(err?.message || 'حدث خطأ أثناء نشر الامتحان');
     } finally {
       setLoading(false);

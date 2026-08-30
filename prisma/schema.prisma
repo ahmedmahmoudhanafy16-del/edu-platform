@@ -108,25 +108,26 @@ model AssignmentSubmission {
 }
 
 // -------------------------------------------------------------
-// 4. Quizzes & Examination Engine (with Passcode Protection)
+// 4. Quizzes & Examination Engine (with Passcode Protection & Grade)
 // -------------------------------------------------------------
 model Quiz {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   title            String
-  type             String   @default("WEEKLY") // WEEKLY | MONTHLY
-  duration         Int      @default(30) // in minutes
-  passingScore     Int      @default(50) // percentage
-  maxViolations    Int      @default(2)
-  shuffleQuestions Boolean  @default(true)
-  isPublished      Boolean  @default(true)
-  accessCode       String?  @default("QUIZ-MATH-2026") // Passcode to unlock the quiz
-  isCodeRequired   Boolean  @default(true)
-  classroomId      String
-  createdAt        DateTime @default(now())
+  type             String       @default("WEEKLY") // WEEKLY | MONTHLY
+  duration         Int          @default(20) // in minutes
+  passingScore     Int          @default(60) // percentage
+  maxViolations    Int          @default(2)
+  shuffleQuestions Boolean      @default(true)
+  isPublished      Boolean      @default(true)
+  accessCode       String?      @default("QUIZ-MATH-2026") // Passcode to unlock the quiz
+  isCodeRequired   Boolean      @default(false)
+  grade            String?      @default("الصف الثالث الإعدادي")
+  classroomId      String?
+  createdAt        DateTime     @default(now())
 
-  classroom Classroom    @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  questions Question[]
-  results   QuizResult[]
+  classroom        Classroom?   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questions        Question[]
+  results          QuizResult[]
 }
 
 model Question {
@@ -140,7 +141,7 @@ model Question {
   difficulty    String   @default("MEDIUM") // EASY | MEDIUM | HARD
   order         Int      @default(0)
 
-  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
 }
 
 model QuizResult {
