@@ -2,12 +2,19 @@ import { TopNav } from '@/components/shared/TopNav';
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner';
 import { getCurrentUser } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const currentUser = await getCurrentUser();
+  let currentUser = null;
+  try {
+    currentUser = await getCurrentUser();
+  } catch (err) {
+    console.warn('[DashboardLayout] User session lookup warning:', err);
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">

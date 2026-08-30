@@ -1,8 +1,7 @@
 import type { Viewport } from 'next';
 import { Cairo } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, getLocale } from 'next-intl/server';
-import { notFound } from 'next/navigation';
+import { getMessages } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
 import { Providers } from '@/components/providers/Providers';
 import { Toaster } from 'sonner';
@@ -26,30 +25,51 @@ export function generateStaticParams() {
 
 export default async function LocaleLayout({
   children,
-  params: { locale },
+  params,
 }: {
   children: React.ReactNode;
-  params: { locale: string };
+  params: Promise<{ locale: string }> | { locale: string };
 }) {
-  if (!routing.locales.includes(locale as (typeof routing.locales)[number])) {
-    notFound();
+  // 1. Asynchronous Params Handling for Next.js 14/15 App Router
+  let locale = 'ar';
+  try {
+    const resolvedParams = await params;
+    if (resolvedParams?.locale) {
+      locale = resolvedParams.locale;
+    }
+  } catch (e) {
+    locale = 'ar';
   }
 
-  const resolvedLocale = await getLocale();
-  const dir = resolvedLocale === 'ar' ? 'rtl' : 'ltr';
-  const messages = await getMessages();
+  if (!routing.locales.includes(locale as any)) {
+    locale = 'ar';
+  }
+
+  // 2. Safe Translation Messages Loading with Fallbacks
+  let messages = {};
+  try {
+    messages = await getMessages({ locale });
+  } catch (e) {
+    try {
+      messages = await getMessages();
+    } catch (err) {
+      messages = {};
+    }
+  }
+
+  const dir = locale === 'ar' ? 'rtl' : 'ltr';
 
   return (
-    <html lang={resolvedLocale} dir={dir} suppressHydrationWarning className={cairo.variable}>
+    <html lang={locale} dir={dir} suppressHydrationWarning className={cairo.variable}>
       <body className="min-h-screen bg-n-50 dark:bg-n-50 font-sans antialiased">
         <Providers>
-          <NextIntlClientProvider messages={messages} locale={resolvedLocale}>
+          <NextIntlClientProvider messages={messages} locale={locale}>
             {children}
           </NextIntlClientProvider>
         </Providers>
         <Toaster
           richColors={false}
-          position={resolvedLocale === 'ar' ? 'top-right' : 'top-left'}
+          position={locale === 'ar' ? 'top-right' : 'top-left'}
           toastOptions={{
             className: 'font-sans text-sm border border-n-200 bg-white dark:bg-n-100 shadow-toast',
             style: { borderRadius: '8px' },
