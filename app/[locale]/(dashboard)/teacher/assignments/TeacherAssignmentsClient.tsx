@@ -110,20 +110,24 @@ export function TeacherAssignmentsClient({
 
   async function handleConfirmDelete() {
     if (!assignmentToDelete) return;
+    const targetId = assignmentToDelete.id;
     setDeleteLoading(true);
 
+    // 1. Immediate Optimistic UI State Update
+    setAssignments((prev) => prev.filter((a) => a.id !== targetId));
+    setAssignmentToDelete(null);
+
     try {
-      const res = await deleteAssignment(assignmentToDelete.id);
+      const res = await deleteAssignment(targetId);
       if (res.success) {
-        setAssignments((prev) => prev.filter((a) => a.id !== assignmentToDelete.id));
         toast.success(res.message || 'تم حذف الواجب بنجاح');
-        setAssignmentToDelete(null);
-        refresh();
       } else {
         toast.error(res.error || 'فشل حذف الواجب');
       }
+      router.refresh();
     } catch (err: any) {
       toast.error(err?.message || 'حدث خطأ أثناء حذف الواجب');
+      router.refresh();
     } finally {
       setDeleteLoading(false);
     }

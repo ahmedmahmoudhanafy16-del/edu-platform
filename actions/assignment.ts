@@ -175,11 +175,20 @@ export async function deleteAssignment(assignmentId: string) {
     });
 
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/assignments');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/assignments');
       revalidatePath('/ar/teacher/assignments');
       revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
       revalidatePath('/ar/student/assignments');
       revalidatePath('/en/student/assignments');
       revalidatePath('/student/assignments');

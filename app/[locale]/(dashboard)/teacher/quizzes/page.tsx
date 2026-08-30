@@ -49,24 +49,6 @@ export default async function TeacherQuizzesPage({
     classrooms = [{ id: 'class-math-3', name: 'الصف الثالث الإعدادي - رياضيات' }];
   }
 
-  if (!quizzes || quizzes.length === 0) {
-    quizzes = [
-      {
-        id: 'sample-quiz-1',
-        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-        type: 'WEEKLY',
-        duration: 20,
-        passingScore: 60,
-        accessCode: 'QUIZ-MATH-2026',
-        isCodeRequired: true,
-        classroomId: classrooms[0].id,
-        classroom: { name: classrooms[0].name },
-        questions: [],
-        results: [],
-      },
-    ];
-  }
-
   const formatted = (quizzes || []).map((q) => ({
     id: q.id || 'quiz-1',
     title: q.title || 'اختبار تقييمي',

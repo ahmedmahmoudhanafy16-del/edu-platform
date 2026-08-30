@@ -48,32 +48,6 @@ export default async function TeacherAssignmentsPage({
     classrooms = [{ id: 'class-math-3', name: 'الصف الثالث الإعدادي - رياضيات' }];
   }
 
-  if (!assignments || assignments.length === 0) {
-    assignments = [
-      {
-        id: 'sample-assign-1',
-        title: 'حل تمارين معادلات الدرجة الأولى',
-        description: 'حل المسائل من صفحة 15 إلى 18 في كتاب التمارين ورفع صورة الحل.',
-        dueDate: new Date(Date.now() + 86400000 * 3),
-        maxScore: 10,
-        classroomId: classrooms[0].id,
-        classroom: { name: classrooms[0].name },
-        submissions: [
-          {
-            id: 'sub-1',
-            student: { name: 'أحمد محمد علي', studentCode: 'STU-001' },
-            answerText: 'تم حل المسائل كاملة مع خطوات التبسيط.',
-            fileUrl: null,
-            grade: 10,
-            teacherNote: 'ممتاز يا أحمد، استمر!',
-            status: 'GRADED',
-            submittedAt: new Date(),
-          },
-        ],
-      },
-    ];
-  }
-
   const serialized = (assignments || []).map((a) => ({
     id: a.id || 'assign-1',
     title: a.title || 'الواجب المنزلي',

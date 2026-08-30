@@ -118,20 +118,24 @@ export function TeacherQuizzesClient({
 
   async function handleConfirmDelete() {
     if (!quizToDelete) return;
+    const targetId = quizToDelete.id;
     setDeleteLoading(true);
 
+    // 1. Immediate Optimistic UI State Update
+    setQuizzes((prev) => prev.filter((q) => q.id !== targetId));
+    setQuizToDelete(null);
+
     try {
-      const res = await deleteQuiz(quizToDelete.id);
+      const res = await deleteQuiz(targetId);
       if (res.success) {
-        setQuizzes((prev) => prev.filter((q) => q.id !== quizToDelete.id));
         toast.success(res.message || 'تم حذف الامتحان بنجاح');
-        setQuizToDelete(null);
-        refresh();
       } else {
         toast.error(res.error || 'فشل حذف الامتحان');
       }
+      router.refresh();
     } catch (err: any) {
       toast.error(err?.message || 'حدث خطأ أثناء حذف الامتحان');
+      router.refresh();
     } finally {
       setDeleteLoading(false);
     }
@@ -164,135 +168,143 @@ export function TeacherQuizzesClient({
 
       {/* Quizzes List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir="rtl">
-        {quizzes.map((q) => (
-          <div
-            key={q.id}
-            className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-n-100 space-y-4 shadow-sm ${
-              q.isPublished
-                ? 'border-n-200 dark:border-n-300'
-                : 'border-warn/40 bg-warn-light/20 opacity-90'
-            }`}
-          >
-            {/* Card Header & Actions */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
-                    {q.classroomName}
-                  </span>
-                  <span className="text-[11px] font-medium text-n-400">
-                    {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
-                  </span>
-                  {!q.isPublished && (
-                    <span className="text-[10px] font-bold text-warn bg-warn-light px-2 py-0.5 rounded border border-warn/30">
-                      مخفي عن الطلاب
+        {quizzes.length === 0 ? (
+          <div className="col-span-full p-12 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100">
+            <ClipboardList className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-n-800 dark:text-n-700">لا توجد اختبارات مضافة بعد</p>
+            <p className="text-xs text-n-400 mt-1">اضغط على زر "إنشاء امتحان جديد" أعلاه لنشر أول اختبار للطلاب</p>
+          </div>
+        ) : (
+          quizzes.map((q) => (
+            <div
+              key={q.id}
+              className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-n-100 space-y-4 shadow-sm ${
+                q.isPublished
+                  ? 'border-n-200 dark:border-n-300'
+                  : 'border-warn/40 bg-warn-light/20 opacity-90'
+              }`}
+            >
+              {/* Card Header & Actions */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
+                      {q.classroomName}
                     </span>
-                  )}
+                    <span className="text-[11px] font-medium text-n-400">
+                      {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
+                    </span>
+                    {!q.isPublished && (
+                      <span className="text-[10px] font-bold text-warn bg-warn-light px-2 py-0.5 rounded border border-warn/30">
+                        مخفي عن الطلاب
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-base font-bold text-n-800 dark:text-n-700 leading-snug">{q.title}</h2>
                 </div>
-                <h2 className="text-base font-bold text-n-800 dark:text-n-700 leading-snug">{q.title}</h2>
+
+                {/* Action Buttons: Edit, Toggle, Delete */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleTogglePublish(q)}
+                    className={`p-1.5 rounded-lg border transition-colors ${
+                      q.isPublished
+                        ? 'text-ok bg-ok-light border-ok/30 hover:bg-ok/20'
+                        : 'text-warn bg-warn-light border-warn/30 hover:bg-warn/20'
+                    }`}
+                    title={q.isPublished ? 'إخفاء الامتحان عن الطلاب' : 'إتاحة الامتحان للطلاب'}
+                  >
+                    {q.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(q)}
+                    className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
+                    title="تعديل بيانات الامتحان والأسئلة"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setQuizToDelete(q)}
+                    className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
+                    title="حذف هذا الامتحان نهائياً"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Action Buttons: Edit, Toggle, Delete */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => handleTogglePublish(q)}
-                  className={`p-1.5 rounded-lg border transition-colors ${
-                    q.isPublished
-                      ? 'text-ok bg-ok-light border-ok/30 hover:bg-ok/20'
-                      : 'text-warn bg-warn-light border-warn/30 hover:bg-warn/20'
-                  }`}
-                  title={q.isPublished ? 'إخفاء الامتحان عن الطلاب' : 'إتاحة الامتحان للطلاب'}
-                >
-                  {q.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleEdit(q)}
-                  className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
-                  title="تعديل بيانات الامتحان والأسئلة"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setQuizToDelete(q)}
-                  className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
-                  title="حذف هذا الامتحان نهائياً"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Access Code Banner for Teacher */}
-            {q.isCodeRequired && q.accessCode && (
-              <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent-light/50 border border-accent/20 text-xs">
-                <div className="flex items-center gap-2">
-                  <KeyRound className="h-4 w-4 text-accent" />
-                  <span className="text-n-600 font-medium">كود دخول الامتحان:</span>
-                  <code className="font-mono font-bold text-accent text-sm tracking-wider">
-                    {q.accessCode}
-                  </code>
+              {/* Access Code Banner for Teacher */}
+              {q.isCodeRequired && q.accessCode && (
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent-light/50 border border-accent/20 text-xs">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="h-4 w-4 text-accent" />
+                    <span className="text-n-600 font-medium">كود دخول الامتحان:</span>
+                    <code className="font-mono font-bold text-accent text-sm tracking-wider">
+                      {q.accessCode}
+                    </code>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleCopyCode(q)}
+                    className="h-7 px-2 text-xs flex items-center gap-1"
+                    title="نسخ كود الامتحان"
+                  >
+                    {copiedId === q.id ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 text-ok" />
+                        <span className="text-ok">تم النسخ</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5" />
+                        <span>نسخ الكود</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
+              )}
+
+              {/* Stats Metrics Strip */}
+              <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
+                <div>
+                  <p className="text-n-400">الأسئلة</p>
+                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
+                </div>
+                <div>
+                  <p className="text-n-400">المدة</p>
+                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.duration} دقيقة</p>
+                </div>
+                <div>
+                  <p className="text-n-400">الممتحنون</p>
+                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.resultsCount} طالب</p>
+                </div>
+              </div>
+
+              {/* Bottom Actions */}
+              <div className="flex items-center justify-between gap-2">
+                <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
+                  <Printer className="h-3.5 w-3.5 me-1" />
+                  طباعة ورقة الامتحان A4
+                </Button>
                 <Button
-                  size="sm"
                   variant="secondary"
-                  onClick={() => handleCopyCode(q)}
-                  className="h-7 px-2 text-xs flex items-center gap-1"
-                  title="نسخ كود الامتحان"
+                  size="sm"
+                  className="flex-1 text-xs font-semibold"
+                  onClick={() => handleEdit(q)}
                 >
-                  {copiedId === q.id ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 text-ok" />
-                      <span className="text-ok">تم النسخ</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5" />
-                      <span>نسخ الكود</span>
-                    </>
-                  )}
+                  <Edit className="h-3.5 w-3.5 me-1 text-accent" />
+                  تعديل الأسئلة
                 </Button>
               </div>
-            )}
-
-            {/* Stats Metrics Strip */}
-            <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
-              <div>
-                <p className="text-n-400">الأسئلة</p>
-                <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
-              </div>
-              <div>
-                <p className="text-n-400">المدة</p>
-                <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.duration} دقيقة</p>
-              </div>
-              <div>
-                <p className="text-n-400">الممتحنون</p>
-                <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.resultsCount} طالب</p>
-              </div>
             </div>
-
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-between gap-2">
-              <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
-                <Printer className="h-3.5 w-3.5 me-1" />
-                طباعة ورقة الامتحان A4
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="flex-1 text-xs font-semibold"
-                onClick={() => handleEdit(q)}
-              >
-                <Edit className="h-3.5 w-3.5 me-1 text-accent" />
-                تعديل الأسئلة
-              </Button>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Delete Confirmation Modal (AlertDialog) */}

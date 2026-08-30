@@ -653,17 +653,26 @@ export async function deleteQuiz(quizId: string) {
       }
     }
 
-    // 3. Cache revalidation
+    // 3. Cache revalidation across all layouts and routes
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
+      revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
       revalidatePath('/ar/student');
       revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/teacher/quizzes');
+      revalidatePath('/student/quizzes');
     } catch (e) {}
 
     return {
