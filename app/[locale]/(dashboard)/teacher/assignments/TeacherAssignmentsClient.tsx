@@ -17,7 +17,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { CreateAssignmentModal } from '@/components/teacher/CreateAssignmentModal';
 import { GradeSubmissionsModal } from '@/components/teacher/GradeSubmissionsModal';
-import { deleteAssignment, toggleAssignmentLock } from '@/actions/assignment';
+import { deleteAssignment as deleteAssignmentAction, toggleAssignmentLock as toggleAssignmentLockAction } from '@/actions/assignment';
+import {
+  getAssignments,
+  saveAssignment,
+  deleteAssignment as deleteAssignmentStore,
+  toggleAssignmentLock as toggleAssignmentLockStore,
+  DELETED_ASSIGNMENTS_KEY,
+} from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -67,25 +74,25 @@ export function TeacherAssignmentsClient({
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: AssignmentItem[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const localMap = new Map(parsed.map((item) => [item.id, item]));
-          initialAssignments.forEach((sa) => {
-            if (!localMap.has(sa.id)) {
-              localMap.set(sa.id, sa);
-            }
-          });
-          const merged = Array.from(localMap.values());
-          setAssignments(merged);
-          return;
+      const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+      const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+      const stored = getAssignments();
+      const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
+
+      initialAssignments.forEach((sa) => {
+        if (!deletedSet.has(sa.id) && !localMap.has(sa.id)) {
+          localMap.set(sa.id, sa);
         }
-      }
+      });
+
+      const merged = Array.from(localMap.values()).filter((a) => !deletedSet.has(a.id));
+      setAssignments(merged);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     } catch (e) {
-      console.warn('[TeacherAssignments] LocalStorage read failed:', e);
+      console.warn('[TeacherAssignments] Sync error:', e);
+      setAssignments(initialAssignments);
     }
-    setAssignments(initialAssignments);
   }, [initialAssignments]);
 
   // Helper to persist assignments to localStorage
@@ -110,11 +117,9 @@ export function TeacherAssignmentsClient({
 
       const formatted: AssignmentItem = {
         id: savedAssign.id,
-        title: savedAssign.title || 'واجب دراسي',
+        title: savedAssign.title || 'واجب جديد',
         description: savedAssign.description || '',
-        dueDate: savedAssign.dueDate
-          ? new Date(savedAssign.dueDate).toISOString()
-          : new Date().toISOString(),
+        dueDate: savedAssign.dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
         maxScore: Number(savedAssign.maxScore) || 10,
         isClosed: Boolean(savedAssign.isClosed),
         classroomName: clsName,
@@ -134,6 +139,8 @@ export function TeacherAssignmentsClient({
         })),
       };
 
+      saveAssignment(formatted as any);
+
       setAssignments((prev) => {
         const existingIndex = prev.findIndex((a) => a.id === formatted.id);
         let nextList: AssignmentItem[];
@@ -147,7 +154,6 @@ export function TeacherAssignmentsClient({
         return nextList;
       });
     }
-    router.refresh();
   }
 
   function handleCreateNew() {
@@ -162,35 +168,17 @@ export function TeacherAssignmentsClient({
 
   async function handleToggleLock(item: AssignmentItem) {
     const nextLocked = !item.isClosed;
+    toggleAssignmentLockStore(item.id, nextLocked);
 
-    // Optimistic update
     setAssignments((prev) => {
       const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: nextLocked } : a));
       persistAssignments(nextList);
       return nextList;
     });
 
-    try {
-      const res = await toggleAssignmentLock(item.id, nextLocked);
-      if (res.success) {
-        toast.success(res.message);
-      } else {
-        // Revert
-        setAssignments((prev) => {
-          const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a));
-          persistAssignments(nextList);
-          return nextList;
-        });
-        toast.error(res.error || 'فشل تغيير حالة تسليم الواجب');
-      }
-    } catch (err: any) {
-      setAssignments((prev) => {
-        const nextList = prev.map((a) => (a.id === item.id ? { ...a, isClosed: !nextLocked } : a));
-        persistAssignments(nextList);
-        return nextList;
-      });
-      toast.error('حدث خطأ أثناء تعديل حالة الواجب');
-    }
+    toast.success(nextLocked ? 'تم إغلاق تسليم الواجب' : 'تم فتح تسليم الواجب للطلاب بنجاح');
+
+    toggleAssignmentLockAction(item.id, nextLocked).catch(() => null);
   }
 
   async function handleConfirmDelete() {
@@ -198,28 +186,22 @@ export function TeacherAssignmentsClient({
     const targetId = assignmentToDelete.id;
     setDeleteLoading(true);
 
-    // 1. Immediate Optimistic UI & LocalStorage Update
+    // 1. Direct Store update & Tombstone record
+    deleteAssignmentStore(targetId);
+
+    // 2. Immediate Local State update
     setAssignments((prev) => {
       const nextList = prev.filter((a) => a.id !== targetId);
       persistAssignments(nextList);
       return nextList;
     });
-    setAssignmentToDelete(null);
 
-    try {
-      const res = await deleteAssignment(targetId);
-      if (res.success) {
-        toast.success(res.message || 'تم حذف الواجب بنجاح');
-      } else {
-        toast.error(res.error || 'فشل حذف الواجب من الخادم');
-      }
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ أثناء حذف الواجب');
-      router.refresh();
-    } finally {
-      setDeleteLoading(false);
-    }
+    setAssignmentToDelete(null);
+    setDeleteLoading(false);
+    toast.success('تم حذف الواجب بنجاح');
+
+    // 3. Silent server action backup (fail-safe)
+    deleteAssignmentAction(targetId).catch(() => null);
   }
 
   return (

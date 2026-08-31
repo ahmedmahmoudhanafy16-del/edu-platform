@@ -36,20 +36,6 @@ export default async function StudentAssignmentsPage({
     console.warn('[Student Assignments] DB query skipped:', err);
   }
 
-  if (!assignments || assignments.length === 0) {
-    assignments = [
-      {
-        id: 'sample-a1',
-        title: 'حل تمارين معادلات الدرجة الأولى',
-        description: 'حل المسائل من صفحة 15 إلى 18 في كتاب التمارين ورفع الحل.',
-        dueDate: new Date(Date.now() + 86400000 * 3),
-        maxScore: 10,
-        classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
-        submissions: [],
-      },
-    ];
-  }
-
   const serialized = (assignments || []).map((a) => ({
     id: a.id || 'assign-1',
     title: a.title || 'الواجب المنزلي',

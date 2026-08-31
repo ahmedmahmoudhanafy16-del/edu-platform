@@ -11,6 +11,7 @@ import { getAuthenticatedStudent } from '@/lib/auth';
 import { UnlockedSessions } from '@/components/student/UnlockedSessions';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 import { StudentDashboardQuizzesClient } from '@/components/student/StudentDashboardQuizzesClient';
+import { StudentDashboardAssignmentsClient } from '@/components/student/StudentDashboardAssignmentsClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -107,44 +108,6 @@ export default async function StudentDashboardPage({
   const quizResults = [...dbQuizResults, ...memoryStudentResults];
 
   /* ── Fallback Sample Data if DB is cold on Vercel ─────────────────── */
-  if (!quizzes || quizzes.length === 0) {
-    quizzes = [
-      {
-        id: 'sample-q1',
-        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-        type: 'WEEKLY',
-        duration: 20,
-        passingScore: 60,
-        isCodeRequired: true,
-        accessCode: 'QUIZ-MATH-2026',
-      },
-    ];
-  }
-
-  if (!assignments || assignments.length === 0) {
-    assignments = [
-      {
-        id: 'sample-a1',
-        title: 'حل تمارين معادلات الدرجة الأولى',
-        dueDate: new Date(Date.now() + 86400000 * 3),
-        maxScore: 10,
-        submissions: [],
-      },
-    ];
-  }
-
-  if (!resources || resources.length === 0) {
-    resources = [
-      {
-        id: 'res-1',
-        title: 'ملخص الوحدة الأولى – المعادلات الخطية',
-        type: 'SUMMARY',
-        url: '#',
-        classroom: { name: 'الصف الثالث الإعدادي' },
-      },
-    ];
-  }
-
   /* ── Stats ────────────────────────────────────────────────────────── */
   const pendingCount = (assignments || []).filter((a) => !a.submissions || a.submissions.length === 0).length;
   const attendancePct = attendance && attendance.length
@@ -198,11 +161,13 @@ export default async function StudentDashboardPage({
           { label: 'نسبة الحضور',     value: `${attendancePct}%`,                        icon: CalendarCheck, warn: false },
           { label: 'متوسط الدرجات',   value: avgScore != null ? `${avgScore}%` : '90%',   icon: BarChart3, warn: false },
         ].map(({ label, value, icon: Icon, warn }) => (
-          <div key={label} className={`${card} px-4 py-4 flex items-center gap-3`}>
-            <Icon className={`h-8 w-8 flex-shrink-0 ${warn ? 'text-warn' : 'text-n-300 dark:text-n-400'}`} strokeWidth={1.5} />
-            <div className="min-w-0">
-              <p className="text-xs text-n-500 dark:text-n-400 leading-none">{label}</p>
-              <p className={`text-xl font-bold mt-1 leading-none tabular-nums ${warn ? 'text-warn' : 'text-n-800 dark:text-n-700'}`}>
+          <div key={label} className={`${card} p-4 flex items-center gap-3`}>
+            <div className="w-10 h-10 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
+              <Icon className="h-5 w-5 text-accent" strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="text-xs text-n-500">{label}</p>
+              <p className={`text-lg font-bold leading-tight ${warn ? 'text-warn' : 'text-n-800 dark:text-n-700'}`}>
                 {value}
               </p>
             </div>
@@ -210,12 +175,8 @@ export default async function StudentDashboardPage({
         ))}
       </div>
 
-      {/* ── Unlocked Live Sessions (جلساتي المفعّلة) ─────────────────── */}
-      <UnlockedSessions
-        studentId={studentId}
-        studentName={studentName}
-        locale={locale}
-      />
+      {/* ── Unlocked Active Sessions ───────────────────────────────── */}
+      <UnlockedSessions locale={locale} studentId={studentId} studentName={studentName} />
 
       {/* ── Live session hero banner ───────────────────────────────────── */}
       {activeLive && activeLive.length > 0 && activeLive[0] && (
@@ -288,48 +249,19 @@ export default async function StudentDashboardPage({
           <Link href={`/${locale}/student/assignments`} className={seeAll}>عرض الكل</Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(assignments || []).map((a) => {
-            const submitted = a.submissions && a.submissions.length > 0;
-            const due = relativeTimeAr(a.dueDate || new Date());
-            return (
-              <div key={a.id} className={`${card} flex flex-col`}>
-                <div className="px-5 pt-5 pb-4 border-b border-n-100 dark:border-n-200 flex-1">
-                  <h3 className="text-sm font-bold text-n-800 dark:text-n-700 leading-snug">
-                    {a.title}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    <span className="flex items-center gap-1 text-xs text-n-400">
-                      <Clock className="h-3 w-3" strokeWidth={1.75} />
-                      {new Date(a.dueDate || Date.now()).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
-                    </span>
-                    <span className={`text-[11px] px-1.5 py-0.5 rounded font-medium leading-none ${
-                      due.late
-                        ? 'text-bad bg-bad-light'
-                        : due.label === 'اليوم'
-                        ? 'text-warn bg-warn-light'
-                        : 'text-n-500 bg-n-100 dark:bg-n-300'
-                    }`}>
-                      {due.label}
-                    </span>
-                  </div>
-                </div>
-                <div className="px-5 py-3 flex items-center justify-between gap-3">
-                  <span className="text-xs text-n-500">الدرجة القصوى: {a.maxScore ?? 10}</span>
-                  {submitted ? (
-                    <span className="text-xs text-ok bg-ok-light px-2.5 py-1 rounded font-medium flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" /> تم التسليم
-                    </span>
-                  ) : (
-                    <Link href={`/${locale}/student/assignments`}>
-                      <Button size="sm" variant="secondary">تسليم الواجب</Button>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <StudentDashboardAssignmentsClient
+          initialAssignments={(assignments || []).map((a) => ({
+            id: a.id,
+            title: a.title,
+            description: a.description || '',
+            dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
+            maxScore: a.maxScore ?? 10,
+            classroomName: a.classroom?.name || 'فصل الرياضيات',
+            submissions: a.submissions || [],
+          }))}
+          studentId={studentId}
+          locale={locale}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════

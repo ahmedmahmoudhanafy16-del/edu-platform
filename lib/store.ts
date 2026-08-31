@@ -340,3 +340,137 @@ export function usePlatformQuizzes(filterForStudent: boolean = false) {
     toggleQuizVisibility,
   };
 }
+
+/**
+ * 9. Assignment Store Types & Functions
+ */
+export interface AssignmentSubmissionItem {
+  id: string;
+  studentId?: string;
+  studentName?: string;
+  studentCode?: string;
+  answerText?: string | null;
+  fileUrl?: string | null;
+  grade?: number | null;
+  teacherNote?: string | null;
+  status?: string;
+  submittedAt?: string;
+}
+
+export interface AssignmentData {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate: string;
+  maxScore?: number;
+  isClosed?: boolean;
+  classroomName?: string;
+  classroomId?: string;
+  fileUrl?: string | null;
+  submissions?: AssignmentSubmissionItem[];
+}
+
+export const DELETED_ASSIGNMENTS_KEY = 'edu_deleted_assignment_ids';
+
+export function getAssignments(): AssignmentData[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+    const storedRaw = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
+    if (!storedRaw) return [];
+
+    const parsed: AssignmentData[] = JSON.parse(storedRaw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((a) => !deletedSet.has(a.id));
+  } catch (err) {
+    console.warn('[getAssignments] LocalStorage read error:', err);
+    return [];
+  }
+}
+
+export function saveAssignment(assignment: Partial<AssignmentData> & { id: string; title: string }): AssignmentData {
+  if (typeof window === 'undefined') return assignment as AssignmentData;
+
+  const current = getAssignments();
+  const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+  const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+  deletedSet.delete(assignment.id);
+  localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify(Array.from(deletedSet)));
+
+  const existingIndex = current.findIndex((a) => a.id === assignment.id);
+
+  const fullAssignment: AssignmentData = {
+    id: assignment.id,
+    title: assignment.title,
+    description: assignment.description || '',
+    dueDate: assignment.dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
+    maxScore: Number(assignment.maxScore) || 10,
+    isClosed: Boolean(assignment.isClosed),
+    classroomName: assignment.classroomName || 'فصل الرياضيات',
+    classroomId: assignment.classroomId || 'class-1',
+    fileUrl: assignment.fileUrl || null,
+    submissions: assignment.submissions || [],
+  };
+
+  let updatedList: AssignmentData[];
+  if (existingIndex !== -1) {
+    updatedList = [...current];
+    updatedList[existingIndex] = { ...updatedList[existingIndex], ...fullAssignment };
+  } else {
+    updatedList = [fullAssignment, ...current];
+  }
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(updatedList));
+    notifyStoreUpdated();
+  } catch (err) {
+    console.warn('[saveAssignment] LocalStorage write error:', err);
+  }
+
+  return fullAssignment;
+}
+
+export function deleteAssignment(assignmentId: string): boolean {
+  if (typeof window === 'undefined') return false;
+
+  try {
+    const current = getAssignments();
+    const updated = current.filter((a) => a.id !== assignmentId);
+    localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(updated));
+
+    const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+    deletedSet.add(assignmentId);
+    localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify(Array.from(deletedSet)));
+
+    notifyStoreUpdated();
+    return true;
+  } catch (err) {
+    console.warn('[deleteAssignment] LocalStorage delete error:', err);
+    return false;
+  }
+}
+
+export function toggleAssignmentLock(assignmentId: string, isClosed: boolean): boolean {
+  if (typeof window === 'undefined') return false;
+
+  const current = getAssignments();
+  const found = current.find((a) => a.id === assignmentId);
+  if (!found) return false;
+
+  found.isClosed = isClosed;
+
+  try {
+    localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(current));
+    notifyStoreUpdated();
+  } catch (err) {
+    console.warn('[toggleAssignmentLock] LocalStorage write error:', err);
+  }
+
+  return isClosed;
+}
+

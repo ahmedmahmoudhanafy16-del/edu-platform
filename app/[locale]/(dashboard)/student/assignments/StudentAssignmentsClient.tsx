@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, CheckCircle2, Clock, Upload, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubmitAssignmentModal } from '@/components/student/SubmitAssignmentModal';
 import { relativeTimeAr } from '@/lib/utils';
+import { getAssignments, AssignmentData } from '@/lib/store';
 
 interface AssignmentItem {
   id: string;
@@ -25,6 +26,43 @@ interface AssignmentItem {
 export function StudentAssignmentsClient({ initialAssignments }: { initialAssignments: AssignmentItem[] }) {
   const [assignments, setAssignments] = useState(initialAssignments);
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentItem | null>(null);
+
+  useEffect(() => {
+    function syncAssignments() {
+      const stored = getAssignments();
+      const mapped: AssignmentItem[] = stored.map((a) => {
+        const sub = (a.submissions || [])[0];
+        return {
+          id: a.id,
+          title: a.title,
+          description: a.description || '',
+          dueDate: a.dueDate,
+          maxScore: a.maxScore ?? 10,
+          classroomName: a.classroomName || 'فصل الرياضيات',
+          submission: sub
+            ? {
+                id: sub.id,
+                grade: sub.grade ?? null,
+                status: sub.status || 'SUBMITTED',
+                teacherNote: sub.teacherNote || null,
+                submittedAt: sub.submittedAt || new Date().toISOString(),
+              }
+            : null,
+        };
+      });
+      setAssignments(mapped);
+    }
+
+    syncAssignments();
+
+    window.addEventListener('edu_store_updated', syncAssignments);
+    window.addEventListener('storage', syncAssignments);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncAssignments);
+      window.removeEventListener('storage', syncAssignments);
+    };
+  }, []);
 
   function handleSuccess(assignmentId: string) {
     setAssignments((prev) =>

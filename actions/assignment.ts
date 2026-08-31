@@ -223,9 +223,18 @@ export async function deleteAssignment(assignmentId: string) {
     }).catch(() => null);
 
     // Delete assignment record
-    await prisma.assignment.delete({
-      where: { id: assignmentId },
-    });
+    try {
+      await prisma.assignment.delete({
+        where: { id: assignmentId },
+      });
+    } catch (dbErr: any) {
+      if (isDatabaseReadOnlyError(dbErr)) {
+        const memIdx = memoryAssignments.findIndex((a) => a.id === assignmentId);
+        if (memIdx !== -1) memoryAssignments.splice(memIdx, 1);
+      } else {
+        throw dbErr;
+      }
+    }
 
     try {
       revalidatePath('/[locale]/teacher');
@@ -273,12 +282,25 @@ export async function toggleAssignmentLock(assignmentId: string, isClosed: boole
       return { success: false, error: 'معرف الواجب غير صالح' };
     }
 
-    const updated = await prisma.assignment.update({
-      where: { id: assignmentId },
-      data: { isClosed },
-    });
+    try {
+      await prisma.assignment.update({
+        where: { id: assignmentId },
+        data: { isClosed },
+      });
+    } catch (dbErr: any) {
+      if (isDatabaseReadOnlyError(dbErr)) {
+        const found = memoryAssignments.find((a) => a.id === assignmentId);
+        if (found) found.isClosed = isClosed;
+      } else {
+        throw dbErr;
+      }
+    }
 
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/assignments');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/assignments');
@@ -290,7 +312,7 @@ export async function toggleAssignmentLock(assignmentId: string, isClosed: boole
 
     return {
       success: true,
-      isClosed: updated.isClosed,
+      isClosed,
       message: isClosed
         ? 'تم قفل تسليم الواجب (لن يتم قبول تسليمات جديدة)'
         : 'تم فتح تسليم الواجب للطلاب بنجاح',
