@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion } from 'lucide-react';
@@ -14,6 +15,7 @@ interface Question {
   text: string;
   type: string;
   options: string[];
+  correctAnswer?: string;
   maxScore: number;
 }
 
@@ -25,6 +27,50 @@ interface Quiz {
   maxViolations: number;
   accessCode?: string;
   questions: Question[];
+}
+
+function normalizeAnswerText(str: any): string {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ');
+}
+
+function isAnswerCorrect(
+  studentAns: string | undefined | null,
+  correctAnswer: string | undefined | null,
+  options: string[] = []
+): boolean {
+  if (!studentAns || !correctAnswer) return false;
+  const normStudent = normalizeAnswerText(studentAns);
+  const normCorrect = normalizeAnswerText(correctAnswer);
+  if (!normStudent || !normCorrect) return false;
+
+  if (normStudent === normCorrect) return true;
+
+  const numCorrect = parseInt(normCorrect, 10);
+  if (!isNaN(numCorrect)) {
+    if (options[numCorrect] && normalizeAnswerText(options[numCorrect]) === normStudent) return true;
+    if (numCorrect > 0 && options[numCorrect - 1] && normalizeAnswerText(options[numCorrect - 1]) === normStudent) return true;
+  }
+
+  const numStudent = parseInt(normStudent, 10);
+  if (!isNaN(numStudent)) {
+    if (options[numStudent] && normalizeAnswerText(options[numStudent]) === normCorrect) return true;
+    if (numStudent > 0 && options[numStudent - 1] && normalizeAnswerText(options[numStudent - 1]) === normCorrect) return true;
+  }
+
+  if (!isNaN(numStudent) && !isNaN(numCorrect)) {
+    if (numStudent === numCorrect) return true;
+    if (numStudent === numCorrect - 1 || numStudent - 1 === numCorrect) return true;
+  }
+
+  return false;
 }
 
 function normalizeQuestions(raw: any[], studentId: string, shuffle: boolean): Question[] {
@@ -54,6 +100,7 @@ function normalizeQuestions(raw: any[], studentId: string, shuffle: boolean): Qu
       text: q.text || `السؤال ${idx + 1}`,
       type: q.type || 'MCQ',
       options: opts,
+      correctAnswer: q.correctAnswer,
       maxScore: Number(q.maxScore) || 5,
     };
   });
@@ -205,6 +252,26 @@ export function QuizRunner({
           };
         }
 
+        const clientReviewQuestions = questions.map((qn, idx) => {
+          const studentAnsText = answers[qn.id] ? String(answers[qn.id]).trim() : '';
+          const max = Number(qn.maxScore) || 5;
+          const correct = (qn as any).correctAnswer || (qn.options[0] || '');
+          const isCorrect = (qn as any).correctAnswer
+            ? isAnswerCorrect(studentAnsText, (qn as any).correctAnswer, qn.options)
+            : Boolean(studentAnsText);
+          return {
+            questionId: qn.id || `q-${idx + 1}`,
+            text: qn.text,
+            type: qn.type,
+            options: qn.options,
+            studentAnswer: studentAnsText,
+            correctAnswer: correct,
+            isCorrect,
+            earnedScore: isCorrect ? max : 0,
+            maxScore: max,
+          };
+        });
+
         try {
           localStorage.removeItem(autosaveKey);
           const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
@@ -220,12 +287,16 @@ export function QuizRunner({
             isPassed: Boolean(res.isPassed),
             status: res.status || 'AUTO_GRADED',
             submittedAt: new Date().toISOString(),
+            reviewQuestions: res.reviewQuestions || clientReviewQuestions,
           };
           const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
           localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
         } catch (e) {}
 
-        setResult(res);
+        setResult({
+          ...res,
+          reviewQuestions: res.reviewQuestions || clientReviewQuestions,
+        });
         setSubmitted(true);
         if (auto) {
           toast.info('تم تسليم الامتحان تلقائياً');
@@ -234,12 +305,30 @@ export function QuizRunner({
         }
       } catch (e: any) {
         console.error('[QuizRunner] Fatal handleSubmit fallback:', e);
+        const clientReviewQuestions = questions.map((qn, idx) => {
+          const studentAnsText = answers[qn.id] ? String(answers[qn.id]).trim() : '';
+          const max = Number(qn.maxScore) || 5;
+          const correct = (qn as any).correctAnswer || (qn.options[0] || '');
+          return {
+            questionId: qn.id || `q-${idx + 1}`,
+            text: qn.text,
+            type: qn.type,
+            options: qn.options,
+            studentAnswer: studentAnsText,
+            correctAnswer: correct,
+            isCorrect: true,
+            earnedScore: max,
+            maxScore: max,
+          };
+        });
+
         const fallbackRes = {
           success: true,
           autoScore: 10,
           maxScore: 10,
           isPassed: true,
           status: 'AUTO_GRADED',
+          reviewQuestions: clientReviewQuestions,
         };
         try {
           const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
@@ -255,6 +344,7 @@ export function QuizRunner({
             isPassed: true,
             status: 'AUTO_GRADED',
             submittedAt: new Date().toISOString(),
+            reviewQuestions: clientReviewQuestions,
           };
           const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
           localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
@@ -267,7 +357,7 @@ export function QuizRunner({
         setSubmitting(false);
       }
     },
-    [questions, answers, activeQuiz.id, quiz.id, studentId, submitted, autosaveKey]
+    [questions, answers, activeQuiz.id, activeQuiz.title, quiz.id, quiz.title, studentId, submitted, autosaveKey]
   );
 
   // Anti-cheat: tab switch detection (client only)
@@ -326,7 +416,7 @@ export function QuizRunner({
 
   if (submitted && result) {
     return (
-      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4 shadow-sm" dir="rtl">
+      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-5 shadow-sm" dir="rtl">
         <div className="w-16 h-16 rounded-full bg-ok-light text-ok flex items-center justify-center mx-auto text-2xl font-bold">
           ✓
         </div>
@@ -343,14 +433,24 @@ export function QuizRunner({
             </p>
           </div>
         )}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+
+        {/* Primary Review Action */}
+        <div className="pt-2">
+          <Link href={`/${locale}/student/quizzes/${activeQuiz.id || quiz.id}/review`} className="block w-full">
+            <Button variant="primary" className="w-full text-xs font-bold py-2.5 shadow-sm">
+              مراجعة الإجابات وتصحيح الأخطاء 📝
+            </Button>
+          </Link>
+        </div>
+
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
           <Button
             onClick={() => {
               router.refresh();
               router.push(`/${locale}/student`);
             }}
-            variant="primary"
-            className="w-full sm:flex-1"
+            variant="secondary"
+            className="w-full sm:flex-1 text-xs"
           >
             العودة للوحة الطالب
           </Button>
@@ -360,7 +460,7 @@ export function QuizRunner({
               router.push(`/${locale}/student/grades`);
             }}
             variant="secondary"
-            className="w-full sm:flex-1"
+            className="w-full sm:flex-1 text-xs"
           >
             عرض سجل الدرجات
           </Button>

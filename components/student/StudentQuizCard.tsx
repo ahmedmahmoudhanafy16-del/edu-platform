@@ -102,9 +102,14 @@ export function StudentQuizCard({
                   {result.score} / {result.maxScore ?? 100}
                 </span>
               )}
+              <Link href={`/${locale}/student/quizzes/${quiz.id}/review`}>
+                <Button size="sm" variant="primary" className="text-xs h-7 px-2.5 font-semibold">
+                  مراجعة الإجابات
+                </Button>
+              </Link>
               <Link href={`/${locale}/student/grades`}>
                 <Button size="sm" variant="secondary" className="text-xs h-7 px-2 font-medium">
-                  عرض النتيجة
+                  الدرجات
                 </Button>
               </Link>
             </div>

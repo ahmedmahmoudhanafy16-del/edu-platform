@@ -129,11 +129,25 @@ export async function validateQuizAccessCode(
 }
 
 function parseOptionsSafely(optionsRaw: any): string[] {
-  if (Array.isArray(optionsRaw)) return optionsRaw.map((o) => String(o).trim());
+  if (Array.isArray(optionsRaw)) {
+    return optionsRaw.map((o) => {
+      if (typeof o === 'object' && o !== null && (o.text || o.title)) {
+        return String(o.text || o.title).trim();
+      }
+      return String(o).trim();
+    });
+  }
   if (typeof optionsRaw === 'string') {
     try {
       const parsed = JSON.parse(optionsRaw);
-      if (Array.isArray(parsed)) return parsed.map((o) => String(o).trim());
+      if (Array.isArray(parsed)) {
+        return parsed.map((o) => {
+          if (typeof o === 'object' && o !== null && (o.text || o.title)) {
+            return String(o.text || o.title).trim();
+          }
+          return String(o).trim();
+        });
+      }
     } catch {
       return optionsRaw.includes(',')
         ? optionsRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
@@ -143,33 +157,51 @@ function parseOptionsSafely(optionsRaw: any): string[] {
   return [];
 }
 
+function normalizeAnswerText(str: any): string {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u0652]/g, '') // remove Arabic diacritics
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ');
+}
+
 function isAnswerCorrect(
   studentAns: string | undefined | null,
   correctAnswer: string | undefined | null,
   optionsRaw: any
 ): boolean {
   if (!studentAns || !correctAnswer) return false;
-  const cleanStudent = String(studentAns).trim().toLowerCase();
-  const cleanCorrect = String(correctAnswer).trim().toLowerCase();
-  if (!cleanStudent || !cleanCorrect) return false;
+  const normStudent = normalizeAnswerText(studentAns);
+  const normCorrect = normalizeAnswerText(correctAnswer);
+  if (!normStudent || !normCorrect) return false;
 
   // 1. Direct text match
-  if (cleanStudent === cleanCorrect) return true;
+  if (normStudent === normCorrect) return true;
 
   const options = parseOptionsSafely(optionsRaw);
 
   // 2. If correctAnswer is 0-indexed or 1-indexed number
-  const numCorrect = parseInt(cleanCorrect, 10);
+  const numCorrect = parseInt(normCorrect, 10);
   if (!isNaN(numCorrect)) {
-    if (options[numCorrect] && options[numCorrect].toLowerCase() === cleanStudent) return true;
-    if (numCorrect > 0 && options[numCorrect - 1] && options[numCorrect - 1].toLowerCase() === cleanStudent) return true;
+    if (options[numCorrect] && normalizeAnswerText(options[numCorrect]) === normStudent) return true;
+    if (numCorrect > 0 && options[numCorrect - 1] && normalizeAnswerText(options[numCorrect - 1]) === normStudent) return true;
   }
 
   // 3. If studentAnswer is 0-indexed or 1-indexed number
-  const numStudent = parseInt(cleanStudent, 10);
+  const numStudent = parseInt(normStudent, 10);
   if (!isNaN(numStudent)) {
-    if (options[numStudent] && options[numStudent].toLowerCase() === cleanCorrect) return true;
-    if (numStudent > 0 && options[numStudent - 1] && options[numStudent - 1].toLowerCase() === cleanCorrect) return true;
+    if (options[numStudent] && normalizeAnswerText(options[numStudent]) === normCorrect) return true;
+    if (numStudent > 0 && options[numStudent - 1] && normalizeAnswerText(options[numStudent - 1]) === normCorrect) return true;
+  }
+
+  // 4. Index-to-Index equality
+  if (!isNaN(numStudent) && !isNaN(numCorrect)) {
+    if (numStudent === numCorrect) return true;
+    if (numStudent === numCorrect - 1 || numStudent - 1 === numCorrect) return true;
   }
 
   return false;
@@ -259,17 +291,28 @@ export async function submitQuizAnswers(
     let hasEssay = false;
     let totalMaxScore = 0;
     const questionsList = Array.isArray(quiz.questions) ? quiz.questions : [];
+    const reviewQuestions: any[] = [];
 
-    for (const q of questionsList) {
+    questionsList.forEach((q: any, qIdx: number) => {
       const max = Number(q.maxScore) || 5;
       totalMaxScore += max;
 
+      const opts = parseOptionsSafely(q.options);
+
+      // Match answer by ID, dynamic suffix, or array index
+      const studentAns =
+        answersList.find((a) => a.questionId === q.id) ||
+        answersList.find((a) => a.questionId === `q-${qIdx + 1}` || a.questionId === `q-${quizId}-${qIdx + 1}`) ||
+        answersList[qIdx];
+
+      const studentAnsText = studentAns?.answerText ? String(studentAns.answerText).trim() : '';
+
+      let isCorrect = false;
       if (q.type === 'MCQ') {
-        const studentAns = answersList.find((a) => a.questionId === q.id);
-        const isCorrect = isAnswerCorrect(
-          studentAns?.answerText,
+        isCorrect = isAnswerCorrect(
+          studentAnsText,
           q.correctAnswer,
-          q.options
+          opts
         );
         if (isCorrect) {
           autoScore += max;
@@ -277,7 +320,27 @@ export async function submitQuizAnswers(
       } else {
         hasEssay = true;
       }
-    }
+
+      // Determine clean readable correct answer text
+      let displayCorrect = q.correctAnswer || '';
+      const numC = parseInt(displayCorrect, 10);
+      if (!isNaN(numC)) {
+        if (opts[numC]) displayCorrect = opts[numC];
+        else if (numC > 0 && opts[numC - 1]) displayCorrect = opts[numC - 1];
+      }
+
+      reviewQuestions.push({
+        questionId: q.id || `q-${qIdx + 1}`,
+        text: q.text || `السؤال ${qIdx + 1}`,
+        type: q.type || 'MCQ',
+        options: opts,
+        studentAnswer: studentAnsText,
+        correctAnswer: displayCorrect,
+        isCorrect,
+        earnedScore: isCorrect ? max : 0,
+        maxScore: max,
+      });
+    });
 
     if (totalMaxScore === 0) {
       totalMaxScore = Math.max(10, answersList.length * 5);
@@ -291,6 +354,7 @@ export async function submitQuizAnswers(
     const resultPayload: any = {
       id: `res-${Date.now()}`,
       quizId,
+      quizTitle: quiz.title || 'الاختبار الأكاديمي',
       studentId,
       autoScore,
       totalScore: hasEssay ? null : autoScore,
@@ -299,6 +363,7 @@ export async function submitQuizAnswers(
       isPassed,
       status,
       autoSubmitted: isAutoSubmitted,
+      reviewQuestions,
       startedAt: new Date(),
       submittedAt: new Date(),
     };

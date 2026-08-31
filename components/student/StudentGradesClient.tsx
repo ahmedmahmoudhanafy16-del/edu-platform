@@ -176,7 +176,7 @@ export function StudentGradesClient({
                       </span>
                     </div>
 
-                    <div>
+                    <div className="flex items-center gap-2">
                       {r.isPassed ? (
                         <span className="text-xs text-ok bg-ok-light border border-ok/20 px-2.5 py-1 rounded font-semibold flex items-center gap-1">
                           <CheckCircle2 className="h-3.5 w-3.5" /> ناجح
@@ -186,6 +186,12 @@ export function StudentGradesClient({
                           <XCircle className="h-3.5 w-3.5" /> إعادة
                         </span>
                       )}
+
+                      <Link href={`/${locale}/student/quizzes/${r.quizId || r.quiz?.id || r.id}/review`}>
+                        <Button size="sm" variant="primary" className="text-xs h-7 px-2.5 font-semibold">
+                          مراجعة الإجابات
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </div>
