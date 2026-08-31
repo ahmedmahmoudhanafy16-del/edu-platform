@@ -23,6 +23,7 @@ interface Quiz {
   id: string;
   title: string;
   duration: number;
+  passingScore?: number;
   shuffleQuestions: boolean;
   maxViolations: number;
   accessCode?: string;
@@ -227,34 +228,14 @@ export function QuizRunner({
 
         let res: any = null;
         try {
-          res = await submitQuizAnswers(activeQuiz.id || quiz.id, studentId, list, auto);
+          res = await submitQuizAnswers(activeQuiz.id || quiz.id, studentId, list, auto, questions);
         } catch (serverErr) {
           console.warn('[QuizRunner] Server submission action fallback:', serverErr);
         }
 
-        if (!res || !res.success) {
-          // Client-Side Resilience: Calculate score locally if server response was unavailable
-          let localScore = 0;
-          let totalMax = 0;
-          questions.forEach((qn) => {
-            const max = Number(qn.maxScore) || 5;
-            totalMax += max;
-            if (answers[qn.id]) localScore += max;
-          });
-
-          res = {
-            success: true,
-            autoScore: res?.autoScore ?? localScore,
-            totalScore: res?.totalScore ?? localScore,
-            maxScore: res?.maxScore ?? totalMax,
-            isPassed: true,
-            status: 'AUTO_GRADED',
-          };
-        }
-
         const clientReviewQuestions = questions.map((qn, idx) => {
           const studentAnsText = answers[qn.id] ? String(answers[qn.id]).trim() : '';
-          const max = Number(qn.maxScore) || 5;
+          const max = Number(qn.maxScore) || Math.round(100 / Math.max(1, questions.length));
           const correct = (qn as any).correctAnswer || (qn.options[0] || '');
           const isCorrect = (qn as any).correctAnswer
             ? isAnswerCorrect(studentAnsText, (qn as any).correctAnswer, qn.options)
@@ -272,6 +253,45 @@ export function QuizRunner({
           };
         });
 
+        const calculatedEarned = clientReviewQuestions.reduce((acc, q) => acc + q.earnedScore, 0);
+        const calculatedMax = clientReviewQuestions.reduce((acc, q) => acc + q.maxScore, 0);
+
+        if (!res || !res.success) {
+          res = {
+            success: true,
+            autoScore: calculatedEarned,
+            totalScore: calculatedEarned,
+            maxScore: calculatedMax || 20,
+            percentage: calculatedMax > 0 ? Math.round((calculatedEarned / calculatedMax) * 100) : 100,
+            isPassed: calculatedMax > 0 ? (calculatedEarned / calculatedMax) * 100 >= (activeQuiz?.passingScore || 50) : true,
+            status: 'AUTO_GRADED',
+            reviewQuestions: clientReviewQuestions,
+          };
+        }
+
+        // Increment resultsCount on teacher quizzes list
+        try {
+          const currentQuizzes: any[] = JSON.parse(localStorage.getItem('edu_quizzes') || '[]');
+          if (Array.isArray(currentQuizzes)) {
+            const targetId = activeQuiz.id || quiz.id;
+            const updatedQuizzes = currentQuizzes.map((q) => {
+              if (q.id === targetId || q.accessCode === targetId) {
+                return {
+                  ...q,
+                  resultsCount: (q.resultsCount || 0) + 1,
+                };
+              }
+              return q;
+            });
+            localStorage.setItem('edu_quizzes', JSON.stringify(updatedQuizzes));
+          }
+        } catch (e) {}
+
+        const finalReviewQuestions =
+          res.reviewQuestions && res.reviewQuestions.length === questions.length
+            ? res.reviewQuestions
+            : clientReviewQuestions;
+
         try {
           localStorage.removeItem(autosaveKey);
           const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
@@ -280,14 +300,14 @@ export function QuizRunner({
             quizId: activeQuiz.id || quiz.id,
             quizTitle: activeQuiz.title || quiz.title,
             studentId,
-            autoScore: res.autoScore ?? 0,
-            totalScore: res.totalScore ?? res.autoScore ?? 0,
-            maxScore: res.maxScore ?? 100,
-            percentage: res.percentage ?? (res.maxScore ? Math.round(((res.totalScore ?? res.autoScore ?? 0) / res.maxScore) * 100) : 100),
+            autoScore: res.autoScore ?? calculatedEarned,
+            totalScore: res.totalScore ?? res.autoScore ?? calculatedEarned,
+            maxScore: res.maxScore ?? calculatedMax ?? 20,
+            percentage: res.percentage ?? (calculatedMax ? Math.round((calculatedEarned / calculatedMax) * 100) : 100),
             isPassed: Boolean(res.isPassed),
             status: res.status || 'AUTO_GRADED',
             submittedAt: new Date().toISOString(),
-            reviewQuestions: res.reviewQuestions || clientReviewQuestions,
+            reviewQuestions: finalReviewQuestions,
           };
           const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
           localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
@@ -295,7 +315,10 @@ export function QuizRunner({
 
         setResult({
           ...res,
-          reviewQuestions: res.reviewQuestions || clientReviewQuestions,
+          autoScore: res.autoScore ?? calculatedEarned,
+          totalScore: res.totalScore ?? res.autoScore ?? calculatedEarned,
+          maxScore: res.maxScore ?? calculatedMax ?? 20,
+          reviewQuestions: finalReviewQuestions,
         });
         setSubmitted(true);
         if (auto) {

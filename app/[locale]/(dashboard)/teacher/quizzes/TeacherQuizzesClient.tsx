@@ -67,6 +67,21 @@ export function TeacherQuizzesClient({
 
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
+    let resultCountsMap: Record<string, number> = {};
+    try {
+      const storedResults = localStorage.getItem('edu_quiz_results');
+      if (storedResults) {
+        const parsedRes = JSON.parse(storedResults);
+        if (Array.isArray(parsedRes)) {
+          parsedRes.forEach((r) => {
+            if (r.quizId) {
+              resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -79,7 +94,13 @@ export function TeacherQuizzesClient({
               localMap.set(sq.id, sq);
             }
           });
-          const merged = Array.from(localMap.values());
+          const merged = Array.from(localMap.values()).map((q) => {
+            const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
+            return {
+              ...q,
+              resultsCount: Math.max(q.resultsCount || 0, extraCount),
+            };
+          });
           setQuizzes(merged);
           return;
         }
@@ -87,7 +108,15 @@ export function TeacherQuizzesClient({
     } catch (e) {
       console.warn('[TeacherQuizzes] LocalStorage read failed:', e);
     }
-    setQuizzes(initialQuizzes);
+
+    const updatedInitial = initialQuizzes.map((q) => {
+      const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
+      return {
+        ...q,
+        resultsCount: Math.max(q.resultsCount || 0, extraCount),
+      };
+    });
+    setQuizzes(updatedInitial);
   }, [initialQuizzes]);
 
   // Helper to persist quizzes to localStorage

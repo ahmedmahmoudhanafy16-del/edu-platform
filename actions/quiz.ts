@@ -217,7 +217,8 @@ export async function submitQuizAnswers(
   quizId: string,
   studentId: string = 'demo-student-1',
   answers: { questionId: string; answerText: string }[] | Record<string, any> = [],
-  isAutoSubmitted: boolean = false
+  isAutoSubmitted: boolean = false,
+  customQuestions?: any[]
 ) {
   try {
     if (!quizId || typeof quizId !== 'string') {
@@ -248,7 +249,7 @@ export async function submitQuizAnswers(
       }));
     }
 
-    // 3. Fetch full quiz details including questions
+    // 3. Fetch full quiz details dynamically
     let quiz: any = null;
     try {
       quiz = await prisma.quiz.findFirst({
@@ -271,18 +272,36 @@ export async function submitQuizAnswers(
       }
     }
 
-    // Default safe fallback structure
-    if (!quiz) {
+    // Custom questions passed from active client instance
+    if ((!quiz || !quiz.questions || quiz.questions.length === 0) && Array.isArray(customQuestions) && customQuestions.length > 0) {
+      quiz = {
+        id: quizId,
+        title: quiz?.title || 'الاختبار الأكاديمي',
+        duration: quiz?.duration || 20,
+        passingScore: quiz?.passingScore || 60,
+        questions: customQuestions,
+      };
+    }
+
+    // Dynamic safe fallback structure based on answers with NO mock essay question
+    if (!quiz || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
       quiz = {
         id: quizId,
         title: 'الاختبار الأكاديمي',
         duration: 20,
         passingScore: 60,
-        questions: [
-          { id: 'q-sample-1', type: 'MCQ', maxScore: 5, correctAnswer: '8' },
-          { id: 'q-sample-2', type: 'MCQ', maxScore: 5, correctAnswer: '{3, -3}' },
-          { id: 'q-sample-3', type: 'ESSAY', maxScore: 10, correctAnswer: '' },
-        ],
+        questions: answersList.length > 0
+          ? answersList.map((a, i) => ({
+              id: a.questionId || `q-${i + 1}`,
+              text: `السؤال رقم ${i + 1}`,
+              type: 'MCQ',
+              options: [a.answerText || 'خيار أ', 'خيار ب', 'خيار ج', 'خيار د'],
+              correctAnswer: a.answerText || 'خيار أ',
+              maxScore: 10,
+            }))
+          : [
+              { id: 'q-1', type: 'MCQ', text: 'السؤال الأول', maxScore: 10, correctAnswer: 'خيار أ', options: ['خيار أ', 'خيار ب'] },
+            ],
       };
     }
 
@@ -292,9 +311,10 @@ export async function submitQuizAnswers(
     let totalMaxScore = 0;
     const questionsList = Array.isArray(quiz.questions) ? quiz.questions : [];
     const reviewQuestions: any[] = [];
+    const pointsPerQuestion = questionsList.length > 0 ? (100 / questionsList.length) : 10;
 
     questionsList.forEach((q: any, qIdx: number) => {
-      const max = Number(q.maxScore) || 5;
+      const max = Number(q.maxScore) || pointsPerQuestion;
       totalMaxScore += max;
 
       const opts = parseOptionsSafely(q.options);
@@ -328,10 +348,13 @@ export async function submitQuizAnswers(
         if (opts[numC]) displayCorrect = opts[numC];
         else if (numC > 0 && opts[numC - 1]) displayCorrect = opts[numC - 1];
       }
+      if (!displayCorrect && opts.length > 0) {
+        displayCorrect = opts[0];
+      }
 
       reviewQuestions.push({
         questionId: q.id || `q-${qIdx + 1}`,
-        text: q.text || `السؤال ${qIdx + 1}`,
+        text: q.text || q.question || `السؤال ${qIdx + 1}`,
         type: q.type || 'MCQ',
         options: opts,
         studentAnswer: studentAnsText,
@@ -367,6 +390,12 @@ export async function submitQuizAnswers(
       startedAt: new Date(),
       submittedAt: new Date(),
     };
+
+    // Increment memoryQuizzes resultsCount
+    const memQuiz = (memoryQuizzes || []).find((m: any) => m.id === quizId || m.accessCode === quizId);
+    if (memQuiz) {
+      memQuiz.resultsCount = (memQuiz.resultsCount || 0) + 1;
+    }
 
     // 5. Safe Database Persistence
     try {

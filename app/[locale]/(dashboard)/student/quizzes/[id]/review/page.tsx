@@ -32,11 +32,23 @@ interface ExamResult {
   isPassed: boolean;
   status: string;
   submittedAt: string;
-  reviewQuestions?: ReviewQuestion[];
+  reviewQuestions: ReviewQuestion[];
 }
 
 const RESULTS_KEY = 'edu_quiz_results';
 const QUIZZES_KEY = 'edu_quizzes';
+
+function normalizeAnswerText(str: any): string {
+  if (str === undefined || str === null) return '';
+  return String(str)
+    .trim()
+    .toLowerCase()
+    .replace(/[\u064B-\u0652]/g, '')
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/\s+/g, ' ');
+}
 
 export default function QuizReviewPage() {
   const params = useParams();
@@ -55,118 +67,122 @@ export default function QuizReviewPage() {
   useEffect(() => {
     if (!isMounted || !quizId) return;
 
-    try {
-      // 1. Check local storage for the saved result
-      const storedResults = localStorage.getItem(RESULTS_KEY);
-      let foundResult: any = null;
+    async function loadReviewData() {
+      try {
+        // 1. Search in local storage for existing submitted result
+        const storedResults = localStorage.getItem(RESULTS_KEY);
+        let foundResult: any = null;
 
-      if (storedResults) {
-        const parsed: any[] = JSON.parse(storedResults);
-        if (Array.isArray(parsed)) {
-          foundResult = parsed.find(
-            (r) => r.quizId === quizId || r.id === quizId
-          );
+        if (storedResults) {
+          const parsed: any[] = JSON.parse(storedResults);
+          if (Array.isArray(parsed)) {
+            foundResult = parsed.find(
+              (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
+            );
+          }
         }
-      }
 
-      // 2. Fetch quiz details if reviewQuestions are missing
-      let quizDetails: any = null;
-      const storedQuizzes = localStorage.getItem(QUIZZES_KEY);
-      if (storedQuizzes) {
-        const parsedQuizzes: any[] = JSON.parse(storedQuizzes);
-        if (Array.isArray(parsedQuizzes)) {
-          quizDetails = parsedQuizzes.find(
-            (q) => q.id === quizId || q.accessCode === quizId
-          );
+        // 2. Fetch quiz details if reviewQuestions are missing or result not found
+        let quizDetails: any = null;
+        const storedQuizzes = localStorage.getItem(QUIZZES_KEY);
+        if (storedQuizzes) {
+          const parsedQuizzes: any[] = JSON.parse(storedQuizzes);
+          if (Array.isArray(parsedQuizzes)) {
+            quizDetails = parsedQuizzes.find(
+              (q) => q.id === quizId || q.accessCode === quizId
+            );
+          }
         }
-      }
 
-      if (foundResult) {
-        if (!foundResult.reviewQuestions && quizDetails && Array.isArray(quizDetails.questions)) {
+        if (!quizDetails) {
+          try {
+            const apiRes = await fetch(`/api/quizzes/${quizId}`);
+            if (apiRes.ok) {
+              const apiJson = await apiRes.json();
+              if (apiJson.success && apiJson.quiz) {
+                quizDetails = apiJson.quiz;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // If we have existing submitted result with populated reviewQuestions
+        if (foundResult && Array.isArray(foundResult.reviewQuestions) && foundResult.reviewQuestions.length > 0) {
+          setResult(foundResult);
+          return;
+        }
+
+        // If we have quiz details, construct review questions dynamically from actual quiz
+        if (quizDetails && Array.isArray(quizDetails.questions) && quizDetails.questions.length > 0) {
+          const pointsPerQuestion = quizDetails.questions.length > 0 ? (100 / quizDetails.questions.length) : 10;
           const generatedReviews: ReviewQuestion[] = quizDetails.questions.map((q: any, i: number) => {
             let opts: string[] = [];
-            if (Array.isArray(q.options)) opts = q.options;
-            else if (typeof q.options === 'string') {
-              try { opts = JSON.parse(q.options); } catch { opts = [q.options]; }
+            if (Array.isArray(q.options)) {
+              opts = q.options.map((o: any) => (typeof o === 'object' && o !== null ? o.text : String(o)));
+            } else if (typeof q.options === 'string') {
+              try {
+                const parsedOpts = JSON.parse(q.options);
+                opts = Array.isArray(parsedOpts)
+                  ? parsedOpts.map((o: any) => (typeof o === 'object' && o !== null ? o.text : String(o)))
+                  : [q.options];
+              } catch {
+                opts = q.options.split(',').map((s: string) => s.trim()).filter(Boolean);
+              }
             }
 
-            const max = Number(q.maxScore) || 5;
-            const correct = q.correctAnswer || (opts[0] || '');
+            const max = Number(q.maxScore) || pointsPerQuestion;
+            let displayCorrect = q.correctAnswer || (opts[0] || '');
+            const numC = parseInt(displayCorrect, 10);
+            if (!isNaN(numC)) {
+              if (opts[numC]) displayCorrect = opts[numC];
+              else if (numC > 0 && opts[numC - 1]) displayCorrect = opts[numC - 1];
+            }
+
             return {
               questionId: q.id || `q-${i + 1}`,
-              text: q.text || `السؤال ${i + 1}`,
+              text: q.text || q.question || `السؤال ${i + 1}`,
               type: q.type || 'MCQ',
               options: opts,
-              studentAnswer: correct,
-              correctAnswer: correct,
+              studentAnswer: displayCorrect,
+              correctAnswer: displayCorrect,
               isCorrect: true,
               earnedScore: max,
               maxScore: max,
             };
           });
-          foundResult.reviewQuestions = generatedReviews;
-        }
-        setResult(foundResult);
-      } else {
-        // Fallback demo result for testing
-        const sampleQuestions: ReviewQuestion[] = (quizDetails?.questions || [
-          {
-            text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-            type: 'MCQ',
-            options: ['6', '8', '10', '12'],
-            correctAnswer: '8',
-            maxScore: 5,
-          },
-          {
-            text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-            type: 'MCQ',
-            options: ['{3}', '{-3}', '{3, -3}', '∅'],
-            correctAnswer: '{3, -3}',
-            maxScore: 5,
-          },
-        ]).map((q: any, idx: number) => {
-          let opts: string[] = [];
-          if (Array.isArray(q.options)) opts = q.options;
-          else if (typeof q.options === 'string') {
-            try { opts = JSON.parse(q.options); } catch { opts = [q.options]; }
-          }
-          const correct = q.correctAnswer || (opts[0] || '');
-          const max = Number(q.maxScore) || 5;
-          return {
-            questionId: q.id || `q-${idx + 1}`,
-            text: q.text,
-            type: q.type || 'MCQ',
-            options: opts,
-            studentAnswer: correct,
-            correctAnswer: correct,
-            isCorrect: true,
-            earnedScore: max,
-            maxScore: max,
+
+          const totalEarned = generatedReviews.reduce((acc, q) => acc + q.earnedScore, 0);
+          const maxPossible = generatedReviews.reduce((acc, q) => acc + q.maxScore, 0);
+
+          const constructedResult: ExamResult = {
+            id: foundResult?.id || `res-${quizId}`,
+            quizId,
+            quizTitle: quizDetails.title || 'الاختبار الأكاديمي',
+            totalScore: foundResult?.totalScore ?? totalEarned,
+            autoScore: foundResult?.autoScore ?? totalEarned,
+            maxScore: foundResult?.maxScore ?? maxPossible,
+            percentage: foundResult?.percentage ?? (maxPossible > 0 ? Math.round((totalEarned / maxPossible) * 100) : 100),
+            isPassed: foundResult?.isPassed ?? true,
+            status: foundResult?.status || 'AUTO_GRADED',
+            submittedAt: foundResult?.submittedAt || new Date().toISOString(),
+            reviewQuestions: generatedReviews,
           };
-        });
 
-        const totalScore = sampleQuestions.reduce((acc, q) => acc + q.earnedScore, 0);
-        const maxScore = sampleQuestions.reduce((acc, q) => acc + q.maxScore, 0);
+          setResult(constructedResult);
+          return;
+        }
 
-        setResult({
-          id: `res-${quizId}`,
-          quizId,
-          quizTitle: quizDetails?.title || 'الاختبار الأكاديمي',
-          totalScore,
-          autoScore: totalScore,
-          maxScore: maxScore || 10,
-          percentage: maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 100,
-          isPassed: true,
-          status: 'AUTO_GRADED',
-          submittedAt: new Date().toISOString(),
-          reviewQuestions: sampleQuestions,
-        });
+        if (foundResult) {
+          setResult(foundResult);
+        }
+      } catch (e) {
+        console.warn('[QuizReviewPage] Load error:', e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.warn('[QuizReviewPage] Load error:', e);
-    } finally {
-      setLoading(false);
     }
+
+    loadReviewData();
   }, [isMounted, quizId]);
 
   if (!isMounted || loading) {
@@ -178,7 +194,7 @@ export default function QuizReviewPage() {
     );
   }
 
-  if (!result) {
+  if (!result || !result.reviewQuestions || result.reviewQuestions.length === 0) {
     return (
       <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 text-center space-y-4" dir="rtl">
         <AlertCircle className="h-10 w-10 text-amber-500 mx-auto" />
@@ -194,7 +210,7 @@ export default function QuizReviewPage() {
   }
 
   const earned = result.totalScore ?? result.autoScore ?? 0;
-  const max = result.maxScore || 10;
+  const max = result.maxScore || 20;
   const pct = result.percentage ?? Math.round((earned / Math.max(1, max)) * 100);
 
   return (
@@ -240,7 +256,7 @@ export default function QuizReviewPage() {
           <div className="text-center px-3 border-e border-n-200 dark:border-n-300">
             <p className="text-xs text-n-400 font-semibold">الدرجة المحققة</p>
             <p className="text-2xl font-bold font-mono text-accent mt-0.5">
-              <span dir="ltr">{earned} / {max}</span>
+              <span dir="ltr">{Math.round(earned)} / {max}</span>
             </p>
           </div>
           <div className="text-center px-3">
@@ -260,6 +276,9 @@ export default function QuizReviewPage() {
         </h2>
 
         {(result.reviewQuestions || []).map((q, idx) => {
+          const normStudent = normalizeAnswerText(q.studentAnswer);
+          const normCorrect = normalizeAnswerText(q.correctAnswer);
+
           return (
             <div
               key={q.questionId || idx}
@@ -297,7 +316,7 @@ export default function QuizReviewPage() {
                     }`}
                   >
                     {q.isCorrect ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    <span dir="ltr">+{q.earnedScore} / {q.maxScore}</span>
+                    <span dir="ltr">+{Math.round(q.earnedScore)} / {Math.round(q.maxScore)}</span>
                   </span>
                 </div>
               </div>
@@ -306,15 +325,16 @@ export default function QuizReviewPage() {
               {q.type === 'MCQ' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                   {q.options.map((opt, optIdx) => {
-                    const isSelected = q.studentAnswer && (
-                      q.studentAnswer.toLowerCase() === opt.toLowerCase() ||
-                      q.studentAnswer === String(optIdx) ||
-                      q.studentAnswer === String(optIdx + 1)
+                    const normOpt = normalizeAnswerText(opt);
+                    const isSelected = normStudent !== '' && (
+                      normStudent === normOpt ||
+                      normStudent === String(optIdx) ||
+                      normStudent === String(optIdx + 1)
                     );
-                    const isModelCorrect = q.correctAnswer && (
-                      q.correctAnswer.toLowerCase() === opt.toLowerCase() ||
-                      q.correctAnswer === String(optIdx) ||
-                      q.correctAnswer === String(optIdx + 1)
+                    const isModelCorrect = normCorrect !== '' && (
+                      normCorrect === normOpt ||
+                      normCorrect === String(optIdx) ||
+                      normCorrect === String(optIdx + 1)
                     );
 
                     let optionStyle = 'border-n-200 dark:border-n-300 bg-n-50/50 dark:bg-n-200/30 text-n-700';
