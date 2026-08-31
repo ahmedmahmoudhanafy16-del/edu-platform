@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { BookOpen, Users, FileText, ClipboardList, Video, Wifi, Calendar, BarChart3, Ticket } from 'lucide-react';
+import { Wifi, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
+import { TeacherDashboardOverviewClient } from '@/components/teacher/TeacherDashboardOverviewClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,36 +21,43 @@ export default async function TeacherDashboardPage({
 
   let classroomsCount = 1;
   let studentsCount = 4;
-  let assignmentsCount = 2;
-  let quizzesCount = 2;
   let activeLive: any[] = [];
   let recentAssignments: any[] = [];
 
   try {
-    [classroomsCount, studentsCount, assignmentsCount, quizzesCount, activeLive, recentAssignments] =
-      await Promise.all([
-        prisma.classroom.count({ where: { teacherId } }).catch(() => 1),
-        prisma.user.count({ where: { role: 'STUDENT' } }).catch(() => 4),
-        prisma.assignment.count().catch(() => 2),
-        prisma.quiz.count().catch(() => 2),
-        prisma.liveSession.findMany({
-          where: { isActive: true },
-          include: { classroom: true },
-        }).catch(() => []),
-        prisma.assignment.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-        }).catch(() => []),
-      ]);
+    const [clsCount, stuCount, live, assigns] = await Promise.all([
+      prisma.classroom.count({ where: { teacherId } }).catch(() => 1),
+      prisma.user.count({ where: { role: 'STUDENT' } }).catch(() => 4),
+      prisma.liveSession.findMany({
+        where: { isActive: true },
+        include: { classroom: true },
+      }).catch(() => []),
+      prisma.assignment.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => []),
+    ]);
+
+    classroomsCount = clsCount;
+    studentsCount = stuCount;
+    activeLive = live || [];
+    recentAssignments = assigns || [];
   } catch (err) {
     console.warn('[Teacher Dashboard] DB queries cold on Vercel:', err);
   }
 
-  const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
+  const serializedAssignments = (recentAssignments || []).map((a) => ({
+    id: a.id,
+    title: a.title,
+    description: a.description || '',
+    dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
+    maxScore: a.maxScore ?? 10,
+    isClosed: Boolean(a.isClosed),
+    classroomName: a.classroom?.name || 'فصل الرياضيات',
+  }));
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir="rtl">
-
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -92,93 +100,13 @@ export default async function TeacherDashboardPage({
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'الفصول الدراسية', value: classroomsCount || 1, icon: BookOpen },
-          { label: 'إجمالي الطلاب',  value: studentsCount || 4,   icon: Users },
-          { label: 'الواجبات',        value: assignmentsCount || 2, icon: FileText },
-          { label: 'الامتحانات',      value: quizzesCount || 2,    icon: ClipboardList },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className={`${card} p-5 flex items-center justify-between`}>
-            <div>
-              <p className="text-xs text-n-500 dark:text-n-400">{label}</p>
-              <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-1 tabular-nums">{value}</p>
-            </div>
-            <Icon className="h-5 w-5 text-n-300 dark:text-n-400" strokeWidth={1.75} />
-          </div>
-        ))}
-      </div>
-
-      {/* Recent assignments + quick links */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent assignments */}
-        <div className={card}>
-          <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-n-100 dark:border-n-200">
-            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">آخر الواجبات المضافة</h2>
-            <Link href={`/${locale}/teacher/assignments`} className="text-xs text-accent hover:underline">
-              عرض الكل
-            </Link>
-          </div>
-          <div className="px-5 py-4">
-            {recentAssignments.length === 0 ? (
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between p-3 rounded-lg border border-n-100 dark:border-n-200 text-sm">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-n-800 dark:text-n-700 truncate">حل تمارين معادلات الدرجة الأولى</p>
-                    <p className="text-xs text-n-400 mt-0.5">الدرجة القصوى: 10</p>
-                  </div>
-                  <span className="text-xs text-n-500 font-mono flex-shrink-0 ms-3">
-                    أسبوعي
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2.5">
-                {recentAssignments.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between p-3 rounded-lg border border-n-100 dark:border-n-200 text-sm">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-n-800 dark:text-n-700 truncate">{a.title}</p>
-                      <p className="text-xs text-n-400 mt-0.5">الدرجة القصوى: {a.maxScore}</p>
-                    </div>
-                    <span className="text-xs text-n-500 font-mono flex-shrink-0 ms-3">
-                      {new Date(a.dueDate).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Quick links */}
-        <div className={card}>
-          <div className="px-5 pt-5 pb-3 border-b border-n-100 dark:border-n-200">
-            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">روابط سريعة</h2>
-          </div>
-          <div className="p-4 grid grid-cols-2 gap-3">
-            {[
-              { href: `/${locale}/teacher/access-codes`, icon: Ticket,        title: 'أكواد الحصص',           sub: 'توليد ومتابعة المبيعات' },
-              { href: `/${locale}/teacher/live`,         icon: Video,         title: 'البث المباشر',           sub: 'بدء وإدارة الحصص' },
-              { href: `/${locale}/teacher/classrooms`,   icon: BookOpen,      title: 'إدارة الفصول',           sub: 'إضافة وتعديل الفصول' },
-              { href: `/${locale}/teacher/quizzes`,      icon: ClipboardList, title: 'بنك الامتحانات',         sub: 'إنشاء وتوليد الاختبارات' },
-              { href: `/${locale}/teacher/students`,     icon: Users,         title: 'قائمة الطلاب',           sub: 'تصدير CSV · واتساب' },
-              { href: `/${locale}/teacher/reports`,      icon: BarChart3,     title: 'التقارير الأكاديمية',    sub: 'كشوف الدرجات والحضور' },
-            ].map(({ href, icon: Icon, title, sub }) => (
-              <Link
-                key={href}
-                href={href}
-                className="p-4 rounded-lg border border-n-200 dark:border-n-300 hover:bg-n-50 dark:hover:bg-n-200 transition-colors duration-[140ms]"
-              >
-                <Icon className="h-5 w-5 text-accent mb-2.5" strokeWidth={1.75} />
-                <p className="text-xs font-semibold text-n-800 dark:text-n-700">{title}</p>
-                <p className="text-[11px] text-n-400 mt-0.5">{sub}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
+      {/* Dynamic Client Stats & Recent Assignments Overview */}
+      <TeacherDashboardOverviewClient
+        initialClassroomsCount={classroomsCount}
+        initialStudentsCount={studentsCount}
+        initialAssignments={serializedAssignments}
+        locale={locale}
+      />
     </div>
   );
 }
