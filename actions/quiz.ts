@@ -980,6 +980,12 @@ export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
+      revalidatePath('/ar/student/quizzes');
+      revalidatePath('/en/student/quizzes');
+      revalidatePath('/student');
+      revalidatePath('/student/quizzes');
     } catch (e) {}
 
     return {

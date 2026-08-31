@@ -10,6 +10,7 @@ import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { UnlockedSessions } from '@/components/student/UnlockedSessions';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
+import { StudentDashboardQuizzesClient } from '@/components/student/StudentDashboardQuizzesClient';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -259,37 +260,20 @@ export default async function StudentDashboardPage({
           <Link href={`/${locale}/student/quizzes`} className={seeAll}>عرض الكل</Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(quizzes || []).map((q) => {
-            const submission = (quizResults || []).find(
-              (r) => r.quizId === q.id && (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
-            );
-            const isCompleted = Boolean(submission);
-
-            return (
-              <StudentQuizCard
-                key={q.id}
-                quiz={{
-                  id: q.id,
-                  title: q.title,
-                  type: q.type,
-                  duration: q.duration,
-                  passingScore: q.passingScore,
-                  isCodeRequired: q.isCodeRequired !== false,
-                }}
-                isCompleted={isCompleted}
-                result={submission ? {
-                  score: submission.totalScore ?? submission.autoScore,
-                  maxScore: submission.maxScore,
-                  percentage: submission.maxScore ? Math.round(((submission.totalScore ?? submission.autoScore ?? 0) / submission.maxScore) * 100) : undefined,
-                  isPassed: submission.isPassed,
-                } : undefined}
-                studentId={studentId}
-                locale={locale}
-              />
-            );
-          })}
-        </div>
+        <StudentDashboardQuizzesClient
+          initialQuizzes={(quizzes || []).map((q) => ({
+            id: q.id,
+            title: q.title,
+            type: q.type,
+            duration: q.duration,
+            passingScore: q.passingScore,
+            isCodeRequired: q.isCodeRequired !== false,
+            isPublished: q.isPublished !== false,
+          }))}
+          quizResults={quizResults}
+          studentId={studentId}
+          locale={locale}
+        />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════

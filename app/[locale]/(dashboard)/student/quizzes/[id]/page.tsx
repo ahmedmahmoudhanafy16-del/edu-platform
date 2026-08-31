@@ -113,7 +113,14 @@ export default function StudentQuizPage() {
 
       if (!isSubscribed) return;
 
-      // 4. Check Unlock Status for Passcode Protection
+      // 4. Guard against Hidden / Unpublished Quizzes
+      if (resolvedQuiz && (resolvedQuiz.isPublished === false || resolvedQuiz.isHidden === true)) {
+        setError('هذا الاختبار غير متاح حالياً');
+        setLoading(false);
+        return;
+      }
+
+      // 5. Check Unlock Status for Passcode Protection
       let unlocked = !resolvedQuiz.isCodeRequired;
 
       if (!unlocked) {
@@ -150,20 +157,22 @@ export default function StudentQuizPage() {
     );
   }
 
-  // Error State
+  // Error State or Hidden Quiz Guard
   if (error || !quiz) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center p-6" dir="rtl">
         <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-bad-light text-bad flex items-center justify-center mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center mx-auto">
             <AlertCircle className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-bold text-n-800 dark:text-n-700">تعذر تحميل الاختبار</h2>
-          <p className="text-xs text-n-500">{error || 'الاختبار غير متاح أو تم نقله بواسطة المعلم.'}</p>
-          <Link href={`/${locale}/student/quizzes`} className="block w-full">
-            <Button variant="secondary" className="w-full text-xs">
+          <h2 className="text-lg font-bold text-n-800 dark:text-n-700">الاختبار غير متاح</h2>
+          <p className="text-xs text-n-500 font-medium">
+            {error || 'هذا الاختبار غير متاح حالياً أو تم إخفاؤه بواسطة المعلم.'}
+          </p>
+          <Link href={`/${locale}/student`} className="block w-full">
+            <Button variant="primary" className="w-full text-xs">
               <ArrowRight className="h-4 w-4 me-1" />
-              العودة لبنك الامتحانات
+              العودة للوحة تحكم الطالب
             </Button>
           </Link>
         </div>

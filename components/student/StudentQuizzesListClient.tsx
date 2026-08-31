@@ -12,6 +12,7 @@ interface QuizData {
   passingScore: number;
   isCodeRequired: boolean;
   classroomName: string;
+  isPublished?: boolean;
 }
 
 interface InitialQuizResult {
@@ -53,14 +54,23 @@ export function StudentQuizzesListClient({
   });
 
   useEffect(() => {
-    // 1. Sync published quizzes from localStorage
+    // 1. Sync published quizzes from localStorage with strict hidden filter
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const published = parsed.filter((q: any) => q.isPublished !== false);
-          const localMap = new Map(
+          const hiddenIds = new Set(
+            parsed
+              .filter((q: any) => q.isPublished === false || q.isHidden === true)
+              .flatMap((q: any) => [q.id, q.accessCode].filter(Boolean))
+          );
+
+          const published = parsed.filter(
+            (q: any) => q.isPublished !== false && !q.isHidden
+          );
+
+          const localMap = new Map<string, QuizData>(
             published.map((q: any) => [
               q.id,
               {
@@ -71,17 +81,21 @@ export function StudentQuizzesListClient({
                 passingScore: q.passingScore ?? 60,
                 isCodeRequired: q.isCodeRequired !== false,
                 classroomName: q.classroomName || 'فصل الرياضيات',
+                isPublished: true,
               },
             ])
           );
 
           initialQuizzes.forEach((sq) => {
-            if (!localMap.has(sq.id)) {
+            if (!localMap.has(sq.id) && !hiddenIds.has(sq.id)) {
               localMap.set(sq.id, sq);
             }
           });
 
-          setQuizzes(Array.from(localMap.values()));
+          const finalQuizzes = Array.from(localMap.values()).filter(
+            (q) => !hiddenIds.has(q.id)
+          );
+          setQuizzes(finalQuizzes);
         }
       }
     } catch (e) {
