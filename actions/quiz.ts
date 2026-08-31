@@ -37,7 +37,7 @@ export async function verifyQuizAccessCode(
           { accessCode: cleanCode },
         ],
       },
-      select: { id: true, title: true, accessCode: true, isCodeRequired: true },
+      select: { id: true, title: true, accessCode: true, isCodeRequired: true, isPublished: true },
     });
   } catch (err) {
     console.warn('[verifyQuizAccessCode] DB findFirst error:', err);
@@ -67,12 +67,18 @@ export async function verifyQuizAccessCode(
         title: 'الاختبار الأسبوعي التفاعلي',
         accessCode: cleanCode || 'QUIZ-MATH-2026',
         isCodeRequired: true,
+        isPublished: true,
       };
     }
   }
 
   if (!quiz) {
     return { success: false, error: 'الاختبار غير موجود في النظام' };
+  }
+
+  // Guard against hidden / unpublished quizzes
+  if (quiz.isPublished === false || quiz.isHidden === true) {
+    return { success: false, error: 'هذا الاختبار غير متاح حالياً للطلاب' };
   }
 
   // 4. Validate Code matching
@@ -1001,6 +1007,10 @@ export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
       message: isPublished ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب',
     };
   }
+}
+
+export async function toggleQuizVisibility(quizId: string, isPublished: boolean) {
+  return toggleQuizPublish(quizId, isPublished);
 }
 
 

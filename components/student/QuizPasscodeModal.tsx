@@ -80,6 +80,11 @@ export function QuizPasscodeModal({
 
           if (matchedQuiz) {
             targetQuizId = matchedQuiz.id;
+            if (matchedQuiz.isPublished === false || matchedQuiz.isHidden === true) {
+              setErrorMsg('هذا الاختبار غير متاح حالياً للطلاب');
+              setLoading(false);
+              return;
+            }
             const expected = (matchedQuiz.accessCode || 'QUIZ-MATH-2026').trim().toUpperCase();
             if (
               !matchedQuiz.isCodeRequired ||
@@ -99,7 +104,7 @@ export function QuizPasscodeModal({
     // 2. Call Server Action verification
     try {
       const res = await verifyQuizAccessCode(targetQuizId, studentId, cleanCode);
-      if (res.success || clientMatched) {
+      if (res?.success) {
         const finalId = res?.quizId || targetQuizId;
         unlockClientLocally(finalId);
         toast.success('تم التحقق من كود الامتحان بنجاح!');
@@ -107,7 +112,7 @@ export function QuizPasscodeModal({
         router.push(`/${locale}/student/quizzes/${finalId}`);
         return;
       } else {
-        setErrorMsg(res.error || 'الكود غير صحيح أو منتهي الصلاحية');
+        setErrorMsg(res?.error || 'الكود غير صحيح أو منتهي الصلاحية');
       }
     } catch (err: any) {
       if (clientMatched) {
