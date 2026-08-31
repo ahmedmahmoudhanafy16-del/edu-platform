@@ -12,6 +12,7 @@ import { UnlockedSessions } from '@/components/student/UnlockedSessions';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 import { StudentDashboardQuizzesClient } from '@/components/student/StudentDashboardQuizzesClient';
 import { StudentDashboardAssignmentsClient } from '@/components/student/StudentDashboardAssignmentsClient';
+import { StudentDashboardOverviewStats } from '@/components/student/StudentDashboardOverviewStats';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -154,26 +155,13 @@ export default async function StudentDashboardPage({
       </div>
 
       {/* ── Stats bar ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: 'الامتحانات المنجزة', value: (quizResults && quizResults.length) || 3, icon: ClipboardList, warn: false },
-          { label: 'واجبات مطلوبة',    value: pendingCount,                              icon: FileText,      warn: pendingCount > 0 },
-          { label: 'نسبة الحضور',     value: `${attendancePct}%`,                        icon: CalendarCheck, warn: false },
-          { label: 'متوسط الدرجات',   value: avgScore != null ? `${avgScore}%` : '90%',   icon: BarChart3, warn: false },
-        ].map(({ label, value, icon: Icon, warn }) => (
-          <div key={label} className={`${card} p-4 flex items-center gap-3`}>
-            <div className="w-10 h-10 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
-              <Icon className="h-5 w-5 text-accent" strokeWidth={1.75} />
-            </div>
-            <div>
-              <p className="text-xs text-n-500">{label}</p>
-              <p className={`text-lg font-bold leading-tight ${warn ? 'text-warn' : 'text-n-800 dark:text-n-700'}`}>
-                {value}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <StudentDashboardOverviewStats
+        initialExamsCount={quizResults.length}
+        initialPendingCount={pendingCount}
+        initialAttendancePct={attendancePct}
+        initialAvgScore={quizResults.length > 0 ? avgScore : null}
+        studentId={studentId}
+      />
 
       {/* ── Unlocked Active Sessions ───────────────────────────────── */}
       <UnlockedSessions locale={locale} studentId={studentId} studentName={studentName} />

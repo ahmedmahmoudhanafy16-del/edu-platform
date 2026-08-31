@@ -10,6 +10,7 @@ import { formatDateShort } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent } from '@/actions/student';
 import { getSubmissions } from '@/lib/store';
+import { getStudentAcademicSummary } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 export interface Student {
@@ -40,35 +41,14 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   try {
     const submissions = getSubmissions();
     return studentList.map((student) => {
-      const studentSubs = submissions.filter(
-        (sub) =>
-          sub.studentId === student.id ||
-          sub.studentId === student.studentCode ||
-          (student.studentCode === 'STU-001' &&
-            (sub.studentId === 'demo-student-1' ||
-              sub.studentId === 'STU-001' ||
-              sub.studentId === 'student-1')) ||
-          (student.studentCode === 'STU-777' &&
-            (sub.studentId === 'demo-student-2' ||
-              sub.studentId === 'STU-777' ||
-              sub.studentId === 'student-2'))
-      );
-
-      if (studentSubs.length > 0) {
-        const sumPct = studentSubs.reduce((acc, curr) => {
-          const score = curr.totalScore ?? curr.autoScore ?? curr.score ?? 0;
-          const max = curr.maxScore && curr.maxScore > 0 ? curr.maxScore : 100;
-          const pct = curr.percentage ?? Math.round((score / max) * 100);
-          return acc + pct;
-        }, 0);
-        const dynamicAvg = Math.round(sumPct / studentSubs.length);
+      const summary = getStudentAcademicSummary(student.studentCode || student.id, submissions);
+      if (summary.totalExams > 0) {
         return {
           ...student,
-          avgScore: dynamicAvg,
-          submissionsCount: Math.max(student.submissionsCount, studentSubs.length),
+          avgScore: summary.averagePercentage,
+          submissionsCount: Math.max(student.submissionsCount, summary.totalExams),
         };
       }
-
       return student;
     });
   } catch {
