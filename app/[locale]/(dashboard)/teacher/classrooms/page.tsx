@@ -54,6 +54,7 @@ export default async function TeacherClassroomsPage({
     name: c.name,
     subject: c.subject,
     code: c.code,
+    isActive: c.isActive !== false,
     studentsCount: c.enrollments?.length ?? 4,
     quizzesCount: c.quizzes?.length ?? 2,
     assignmentsCount: c.assignments?.length ?? 2,

@@ -96,6 +96,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    // 3.5 Check if user is suspended / inactive
+    if (user.role === 'STUDENT' && user.isActive === false) {
+      console.log(`[Auth Login] Blocked access for suspended Student ID=${user.id}`);
+      return NextResponse.json(
+        {
+          error: 'SUSPENDED',
+          message: 'تم تعليق حسابك من قِبل إدارة المنصة. يرجى التواصل مع المعلمة لإعادة التفعيل.',
+        },
+        { status: 403 }
+      );
+    }
+
     console.log(`[Auth Login] SUCCESS! Logged in: ID=${user.id}, Name=${user.name}, Role=${user.role}`);
 
     // 4. Session Payload
@@ -105,6 +117,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
       studentCode: user.studentCode || undefined,
       grade: user.grade || 'الصف الثالث الإعدادي',
+      isActive: user.isActive !== false,
     };
 
     const response = NextResponse.json({

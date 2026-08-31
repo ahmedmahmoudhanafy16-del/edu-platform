@@ -67,8 +67,13 @@ export default function UnifiedLoginPage() {
         body: JSON.stringify({ studentCode, password: studentPassword, role: 'STUDENT' }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError('كود الطالب أو كلمة المرور غير صحيحة');
+        if (data.error === 'SUSPENDED' || res.status === 403) {
+          router.push(`/${locale}/suspended`);
+          return;
+        }
+        setError(data.message || 'كود الطالب أو كلمة المرور غير صحيحة');
         return;
       }
 

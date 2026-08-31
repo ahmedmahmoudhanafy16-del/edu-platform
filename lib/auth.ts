@@ -8,6 +8,7 @@ export interface SessionUser {
   studentCode?: string;
   phone?: string;
   grade?: string;
+  isActive?: boolean;
 }
 
 /**
@@ -26,7 +27,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: parsed.id },
-              select: { id: true, name: true, role: true, studentCode: true, phone: true, grade: true },
+              select: { id: true, name: true, role: true, studentCode: true, phone: true, grade: true, isActive: true },
             });
 
             if (dbUser) {
@@ -37,6 +38,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
                 studentCode: dbUser.studentCode || undefined,
                 phone: dbUser.phone || undefined,
                 grade: dbUser.grade || undefined,
+                isActive: dbUser.isActive !== false,
               };
             }
           } catch (dbErr) {
@@ -50,6 +52,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             role: parsed.role,
             studentCode: parsed.studentCode,
             grade: parsed.grade || 'الصف الثالث الإعدادي',
+            isActive: parsed.isActive !== false,
           };
         }
       } catch (err) {
@@ -86,6 +89,7 @@ export async function getAuthenticatedStudent() {
       studentCode: sessionUser.studentCode || 'STU-001',
       phone: sessionUser.phone || '01099998888',
       grade: sessionUser.grade || 'الصف الثالث الإعدادي',
+      isActive: sessionUser.isActive !== false,
       parentPhone: '01012345678',
       password: '',
       email: null,

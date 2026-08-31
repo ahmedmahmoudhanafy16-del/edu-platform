@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 
 interface AddStudentModalProps {
   classrooms: { id: string; name: string }[];
+  defaultClassroomId?: string;
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
@@ -26,12 +27,18 @@ const ACADEMIC_GRADES = [
   'الصف الرابع الابتدائي',
 ];
 
-export function AddStudentModal({ classrooms, isOpen, onClose, onSuccess }: AddStudentModalProps) {
+export function AddStudentModal({
+  classrooms,
+  defaultClassroomId,
+  isOpen,
+  onClose,
+  onSuccess,
+}: AddStudentModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [parentPhone, setParentPhone] = useState('');
   const [grade, setGrade] = useState(ACADEMIC_GRADES[0]);
-  const [classroomId, setClassroomId] = useState(classrooms[0]?.id || '');
+  const [classroomId, setClassroomId] = useState(defaultClassroomId || classrooms[0]?.id || '');
   const [password, setPassword] = useState('1234');
   const [loading, setLoading] = useState(false);
 

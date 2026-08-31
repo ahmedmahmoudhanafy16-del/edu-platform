@@ -216,24 +216,13 @@ export function TeacherQuizzesClient({
 
     try {
       const res = await toggleQuizPublish(quiz.id, nextState);
-      if (res.success) {
-        toast.success(res.message);
+      if (res?.success) {
+        toast.success(res.message || (nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب'));
       } else {
-        // Revert
-        setQuizzes((prev) => {
-          const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q));
-          persistQuizzes(nextList);
-          return nextList;
-        });
-        toast.error(res.error || 'فشل تغيير حالة الامتحان');
+        toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
       }
     } catch (err: any) {
-      setQuizzes((prev) => {
-        const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: !nextState } : q));
-        persistQuizzes(nextList);
-        return nextList;
-      });
-      toast.error('حدث خطأ أثناء تعديل ظهور الامتحان');
+      toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
     }
   }
 

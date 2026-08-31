@@ -16,6 +16,7 @@ interface StudentItem {
   submissionsCount: number;
   attendanceCount: number;
   lastActive: string | Date | null;
+  isActive?: boolean;
 }
 
 export function TeacherStudentsClient({
@@ -47,7 +48,11 @@ export function TeacherStudentsClient({
         </Button>
       </div>
 
-      <CompactStudentsTable students={initialStudents} classroomName="الصف_الثالث_الإعدادي" />
+      <CompactStudentsTable
+        students={initialStudents}
+        classroomName="الصف_الثالث_الإعدادي"
+        onRefresh={refresh}
+      />
 
       <AddStudentModal
         classrooms={classrooms}

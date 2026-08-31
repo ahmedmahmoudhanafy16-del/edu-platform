@@ -30,8 +30,13 @@ export default function StudentLoginPage() {
         body: JSON.stringify({ studentCode, password, role: 'STUDENT' }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(t('errorInvalid'));
+        if (data.error === 'SUSPENDED' || res.status === 403) {
+          router.push(`/${locale}/suspended`);
+          return;
+        }
+        setError(data.message || t('errorInvalid'));
         return;
       }
 

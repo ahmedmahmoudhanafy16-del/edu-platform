@@ -89,6 +89,7 @@ export default async function TeacherStudentsPage({
       phone: s.phone,
       parentPhone: s.parentPhone,
       grade: s.grade || 'الصف الثالث الإعدادي',
+      isActive: s.isActive !== false,
       avgScore,
       submissionsCount: s.submissions?.length ?? 0,
       attendanceCount: s.attendance?.length ?? 0,

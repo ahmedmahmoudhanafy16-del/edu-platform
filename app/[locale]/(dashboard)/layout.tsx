@@ -1,6 +1,7 @@
 import { TopNav } from '@/components/shared/TopNav';
 import { AnnouncementBanner } from '@/components/shared/AnnouncementBanner';
 import { getCurrentUser } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,10 @@ export default async function DashboardLayout({
     currentUser = await getCurrentUser();
   } catch (err) {
     console.warn('[DashboardLayout] User session lookup warning:', err);
+  }
+
+  if (currentUser && currentUser.role === 'STUDENT' && currentUser.isActive === false) {
+    redirect('/ar/suspended');
   }
 
   return (
