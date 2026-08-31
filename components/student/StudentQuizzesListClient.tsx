@@ -3,49 +3,35 @@
 import React, { useState, useEffect } from 'react';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 import { ClipboardList } from 'lucide-react';
-
-interface QuizData {
-  id: string;
-  title: string;
-  type: string;
-  duration: number;
-  passingScore: number;
-  isCodeRequired: boolean;
-  classroomName: string;
-  isPublished?: boolean;
-}
-
-interface InitialQuizResult {
-  quizId: string;
-  score?: number;
-  maxScore?: number;
-  percentage?: number;
-  isPassed?: boolean;
-}
-
-const STORAGE_KEY = 'edu_quizzes';
-const RESULTS_KEY = 'edu_quiz_results';
+import { getStudentQuizzes, getSubmissions, QuizData, QuizSubmissionData } from '@/lib/store';
 
 export function StudentQuizzesListClient({
-  initialQuizzes,
-  completedQuizIds,
+  initialQuizzes = [],
+  completedQuizIds = [],
   initialResults = [],
   studentId,
   locale,
 }: {
-  initialQuizzes: QuizData[];
-  completedQuizIds: string[];
-  initialResults?: InitialQuizResult[];
+  initialQuizzes?: any[];
+  completedQuizIds?: string[];
+  initialResults?: any[];
   studentId: string;
   locale: string;
 }) {
-  const [quizzes, setQuizzes] = useState<QuizData[]>(initialQuizzes);
-  const [resultsMap, setResultsMap] = useState<Record<string, InitialQuizResult>>(() => {
-    const map: Record<string, InitialQuizResult> = {};
+  const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = getStudentQuizzes();
+      if (stored.length > 0) return stored;
+    }
+    return (initialQuizzes || []).filter((q) => q.isPublished !== false && !q.isHidden);
+  });
+
+  const [resultsMap, setResultsMap] = useState<Record<string, QuizSubmissionData>>(() => {
+    const map: Record<string, QuizSubmissionData> = {};
     (initialResults || []).forEach((r) => {
       if (r.quizId) map[r.quizId] = r;
     });
-    completedQuizIds.forEach((id) => {
+    (completedQuizIds || []).forEach((id) => {
       if (!map[id]) {
         map[id] = { quizId: id, score: undefined, isPassed: true };
       }
@@ -54,81 +40,30 @@ export function StudentQuizzesListClient({
   });
 
   useEffect(() => {
-    // 1. Sync published quizzes from localStorage with strict hidden filter
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hiddenIds = new Set(
-            parsed
-              .filter((q: any) => q.isPublished === false || q.isHidden === true)
-              .flatMap((q: any) => [q.id, q.accessCode].filter(Boolean))
-          );
+    function syncQuizzesAndResults() {
+      // 1. Sync published quizzes from the unified client store
+      const activeQuizzes = getStudentQuizzes();
+      setQuizzes(activeQuizzes);
 
-          const published = parsed.filter(
-            (q: any) => q.isPublished !== false && !q.isHidden
-          );
-
-          const localMap = new Map<string, QuizData>(
-            published.map((q: any) => [
-              q.id,
-              {
-                id: q.id,
-                title: q.title,
-                type: q.type || 'WEEKLY',
-                duration: q.duration ?? 20,
-                passingScore: q.passingScore ?? 60,
-                isCodeRequired: q.isCodeRequired !== false,
-                classroomName: q.classroomName || 'فصل الرياضيات',
-                isPublished: true,
-              },
-            ])
-          );
-
-          initialQuizzes.forEach((sq) => {
-            if (!localMap.has(sq.id) && !hiddenIds.has(sq.id)) {
-              localMap.set(sq.id, sq);
-            }
-          });
-
-          const finalQuizzes = Array.from(localMap.values()).filter(
-            (q) => !hiddenIds.has(q.id)
-          );
-          setQuizzes(finalQuizzes);
-        }
-      }
-    } catch (e) {
-      console.warn('[StudentQuizzesListClient] Quizzes LocalStorage error:', e);
+      // 2. Sync submissions from the unified client store
+      const activeSubmissions = getSubmissions(studentId);
+      const newMap: Record<string, QuizSubmissionData> = {};
+      activeSubmissions.forEach((r) => {
+        if (r.quizId) newMap[r.quizId] = r;
+      });
+      setResultsMap((prev) => ({ ...prev, ...newMap }));
     }
 
-    // 2. Sync completed exam results from localStorage
-    try {
-      const storedResults = localStorage.getItem(RESULTS_KEY);
-      if (storedResults) {
-        const parsedRes: any[] = JSON.parse(storedResults);
-        if (Array.isArray(parsedRes) && parsedRes.length > 0) {
-          setResultsMap((prev) => {
-            const updated = { ...prev };
-            parsedRes.forEach((r) => {
-              if (r.quizId) {
-                updated[r.quizId] = {
-                  quizId: r.quizId,
-                  score: r.totalScore ?? r.autoScore,
-                  maxScore: r.maxScore,
-                  percentage: r.percentage,
-                  isPassed: r.isPassed,
-                };
-              }
-            });
-            return updated;
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('[StudentQuizzesListClient] Results LocalStorage error:', e);
-    }
-  }, [initialQuizzes, completedQuizIds, initialResults]);
+    syncQuizzesAndResults();
+
+    window.addEventListener('edu_store_updated', syncQuizzesAndResults);
+    window.addEventListener('storage', syncQuizzesAndResults);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncQuizzesAndResults);
+      window.removeEventListener('storage', syncQuizzesAndResults);
+    };
+  }, [studentId]);
 
   if (quizzes.length === 0) {
     return (
@@ -148,9 +83,27 @@ export function StudentQuizzesListClient({
         return (
           <StudentQuizCard
             key={q.id}
-            quiz={q}
+            quiz={{
+              id: q.id,
+              title: q.title,
+              type: q.type,
+              duration: q.duration,
+              passingScore: q.passingScore,
+              isCodeRequired: q.isCodeRequired !== false,
+            }}
             isCompleted={isDone}
-            result={res}
+            result={
+              res
+                ? {
+                    score: res.totalScore ?? res.autoScore ?? res.score,
+                    maxScore: res.maxScore,
+                    percentage: res.maxScore
+                      ? Math.round(((res.totalScore ?? res.autoScore ?? res.score ?? 0) / res.maxScore) * 100)
+                      : res.percentage,
+                    isPassed: res.isPassed,
+                  }
+                : undefined
+            }
             studentId={studentId}
             locale={locale}
           />

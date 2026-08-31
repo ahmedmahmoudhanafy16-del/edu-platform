@@ -3,113 +3,50 @@
 import React, { useState, useEffect } from 'react';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 import { ClipboardList } from 'lucide-react';
-
-interface QuizData {
-  id: string;
-  title: string;
-  type: string;
-  duration: number;
-  passingScore: number;
-  isCodeRequired: boolean;
-  classroomName?: string;
-  isPublished?: boolean;
-}
-
-interface QuizResultItem {
-  quizId: string;
-  totalScore?: number | null;
-  autoScore?: number | null;
-  maxScore?: number;
-  isPassed?: boolean;
-  status?: string;
-}
-
-const STORAGE_KEY = 'edu_quizzes';
-const RESULTS_KEY = 'edu_quiz_results';
+import { getStudentQuizzes, getSubmissions, QuizData, QuizSubmissionData } from '@/lib/store';
 
 export function StudentDashboardQuizzesClient({
-  initialQuizzes,
+  initialQuizzes = [],
   quizResults = [],
   studentId,
   locale,
 }: {
-  initialQuizzes: QuizData[];
-  quizResults: QuizResultItem[];
+  initialQuizzes?: any[];
+  quizResults?: any[];
   studentId: string;
   locale: string;
 }) {
-  const [quizzes, setQuizzes] = useState<QuizData[]>(initialQuizzes);
-  const [results, setResults] = useState<QuizResultItem[]>(quizResults);
+  const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = getStudentQuizzes();
+      if (stored.length > 0) return stored;
+    }
+    return (initialQuizzes || []).filter((q) => q.isPublished !== false && !q.isHidden);
+  });
+
+  const [results, setResults] = useState<QuizSubmissionData[]>(quizResults);
 
   useEffect(() => {
-    // 1. Strict filtering of published quizzes from localStorage
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hiddenIds = new Set(
-            parsed
-              .filter((q: any) => q.isPublished === false || q.isHidden === true)
-              .flatMap((q: any) => [q.id, q.accessCode].filter(Boolean))
-          );
+    function syncQuizzesAndResults() {
+      // 1. Strict filtering of published quizzes from the unified client store
+      const activeQuizzes = getStudentQuizzes();
+      setQuizzes(activeQuizzes);
 
-          const published = parsed.filter(
-            (q: any) => q.isPublished !== false && !q.isHidden
-          );
-
-          const localMap = new Map<string, QuizData>(
-            published.map((q: any) => [
-              q.id,
-              {
-                id: q.id,
-                title: q.title,
-                type: q.type || 'WEEKLY',
-                duration: q.duration ?? 20,
-                passingScore: q.passingScore ?? 60,
-                isCodeRequired: q.isCodeRequired !== false,
-                classroomName: q.classroomName || 'فصل الرياضيات',
-                isPublished: true,
-              },
-            ])
-          );
-
-          initialQuizzes.forEach((sq) => {
-            if (!localMap.has(sq.id) && !hiddenIds.has(sq.id) && sq.isPublished !== false) {
-              localMap.set(sq.id, sq);
-            }
-          });
-
-          const finalQuizzes = Array.from(localMap.values()).filter(
-            (q) => !hiddenIds.has(q.id) && q.isPublished !== false
-          );
-          setQuizzes(finalQuizzes);
-        }
-      }
-    } catch (e) {
-      console.warn('[StudentDashboardQuizzesClient] LocalStorage sync error:', e);
+      // 2. Sync student submissions
+      const activeSubmissions = getSubmissions(studentId);
+      setResults(activeSubmissions);
     }
 
-    // 2. Sync results from localStorage
-    try {
-      const storedRes = localStorage.getItem(RESULTS_KEY);
-      if (storedRes) {
-        const parsedRes = JSON.parse(storedRes);
-        if (Array.isArray(parsedRes)) {
-          setResults((prev) => {
-            const dbIds = new Set(prev.map((r) => r.quizId));
-            const merged = [...prev];
-            parsedRes.forEach((r: any) => {
-              if (r.quizId && !dbIds.has(r.quizId)) {
-                merged.push(r);
-              }
-            });
-            return merged;
-          });
-        }
-      }
-    } catch (e) {}
-  }, [initialQuizzes]);
+    syncQuizzesAndResults();
+
+    window.addEventListener('edu_store_updated', syncQuizzesAndResults);
+    window.addEventListener('storage', syncQuizzesAndResults);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncQuizzesAndResults);
+      window.removeEventListener('storage', syncQuizzesAndResults);
+    };
+  }, [studentId]);
 
   if (quizzes.length === 0) {
     return (
@@ -127,7 +64,7 @@ export function StudentDashboardQuizzesClient({
         const submission = (results || []).find(
           (r) =>
             (r.quizId === q.id || (r as any).id === q.id) &&
-            (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+            (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING' || r.isPassed !== undefined)
         );
         const isCompleted = Boolean(submission);
 
@@ -146,15 +83,15 @@ export function StudentDashboardQuizzesClient({
             result={
               submission
                 ? {
-                    score: submission.totalScore ?? submission.autoScore ?? undefined,
+                    score: submission.totalScore ?? submission.autoScore ?? submission.score,
                     maxScore: submission.maxScore,
                     percentage: submission.maxScore
                       ? Math.round(
-                          ((submission.totalScore ?? submission.autoScore ?? 0) /
+                          ((submission.totalScore ?? submission.autoScore ?? submission.score ?? 0) /
                             submission.maxScore) *
                             100
                         )
-                      : undefined,
+                      : submission.percentage,
                     isPassed: submission.isPassed,
                   }
                 : undefined

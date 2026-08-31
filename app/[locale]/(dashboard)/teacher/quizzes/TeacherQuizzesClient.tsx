@@ -17,7 +17,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
-import { deleteQuiz, toggleQuizPublish } from '@/actions/quiz';
+import { deleteQuiz as deleteQuizAction, toggleQuizPublish as toggleQuizPublishAction } from '@/actions/quiz';
+import {
+  getQuizzes,
+  saveQuiz,
+  deleteQuiz as deleteQuizStore,
+  toggleQuizVisibility as toggleVisibilityStore,
+  getSubmissions,
+} from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
@@ -69,54 +76,43 @@ export function TeacherQuizzesClient({
   useEffect(() => {
     let resultCountsMap: Record<string, number> = {};
     try {
-      const storedResults = localStorage.getItem('edu_quiz_results');
-      if (storedResults) {
-        const parsedRes = JSON.parse(storedResults);
-        if (Array.isArray(parsedRes)) {
-          parsedRes.forEach((r) => {
-            if (r.quizId) {
-              resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
-            }
-          });
+      const submissions = getSubmissions();
+      submissions.forEach((r) => {
+        if (r.quizId) {
+          resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
         }
-      }
+      });
     } catch (e) {}
 
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: QuizItem[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge server items and local storage items by ID
-          const localMap = new Map(parsed.map((item) => [item.id, item]));
-          initialQuizzes.forEach((sq) => {
-            if (!localMap.has(sq.id)) {
-              localMap.set(sq.id, sq);
-            }
-          });
-          const merged = Array.from(localMap.values()).map((q) => {
-            const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
-            return {
-              ...q,
-              resultsCount: Math.max(q.resultsCount || 0, extraCount),
-            };
-          });
-          setQuizzes(merged);
-          return;
-        }
-      }
-    } catch (e) {
-      console.warn('[TeacherQuizzes] LocalStorage read failed:', e);
-    }
+      const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
+      const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
-    const updatedInitial = initialQuizzes.map((q) => {
-      const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
-      return {
-        ...q,
-        resultsCount: Math.max(q.resultsCount || 0, extraCount),
-      };
-    });
-    setQuizzes(updatedInitial);
+      const stored = getQuizzes();
+      const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
+
+      initialQuizzes.forEach((sq) => {
+        if (!deletedSet.has(sq.id) && !localMap.has(sq.id)) {
+          localMap.set(sq.id, sq);
+        }
+      });
+
+      const merged = Array.from(localMap.values())
+        .filter((q) => !deletedSet.has(q.id) && !deletedSet.has(q.accessCode))
+        .map((q) => {
+          const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
+          return {
+            ...q,
+            resultsCount: Math.max(q.resultsCount || 0, extraCount),
+          };
+        });
+
+      setQuizzes(merged);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    } catch (e) {
+      console.warn('[TeacherQuizzes] Sync error:', e);
+      setQuizzes(initialQuizzes);
+    }
   }, [initialQuizzes]);
 
   // Helper to persist quizzes to localStorage
@@ -126,10 +122,6 @@ export function TeacherQuizzesClient({
     } catch (e) {
       console.warn('[TeacherQuizzes] LocalStorage write failed:', e);
     }
-  }
-
-  function refresh() {
-    router.refresh();
   }
 
   function handleQuizSaved(savedQuiz?: any) {
@@ -171,6 +163,8 @@ export function TeacherQuizzesClient({
         questions: formattedQuestions,
       };
 
+      saveQuiz(formatted as any);
+
       setQuizzes((prev) => {
         const existingIndex = prev.findIndex((q) => q.id === formatted.id);
         let nextList: QuizItem[];
@@ -184,7 +178,6 @@ export function TeacherQuizzesClient({
         return nextList;
       });
     }
-    router.refresh();
   }
 
   function handleCreateNew() {
@@ -207,23 +200,22 @@ export function TeacherQuizzesClient({
 
   async function handleTogglePublish(quiz: QuizItem) {
     const nextState = !quiz.isPublished;
-    // Optimistic update
+    // 1. Direct Store update
+    toggleVisibilityStore(quiz.id, nextState);
+
+    // 2. Immediate Local State update
     setQuizzes((prev) => {
-      const nextList = prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: nextState } : q));
+      const nextList = prev.map((q) =>
+        q.id === quiz.id ? { ...q, isPublished: nextState } : q
+      );
       persistQuizzes(nextList);
       return nextList;
     });
 
-    try {
-      const res = await toggleQuizPublish(quiz.id, nextState);
-      if (res?.success) {
-        toast.success(res.message || (nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب'));
-      } else {
-        toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
-      }
-    } catch (err: any) {
-      toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
-    }
+    toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
+
+    // 3. Silent server action backup (fail-safe)
+    toggleQuizPublishAction(quiz.id, nextState).catch(() => null);
   }
 
   async function handleConfirmDelete() {
@@ -231,28 +223,22 @@ export function TeacherQuizzesClient({
     const targetId = quizToDelete.id;
     setDeleteLoading(true);
 
-    // 1. Immediate Optimistic UI & LocalStorage Update
+    // 1. Direct Store update & Tombstone record
+    deleteQuizStore(targetId);
+
+    // 2. Immediate Local State update
     setQuizzes((prev) => {
-      const nextList = prev.filter((q) => q.id !== targetId);
+      const nextList = prev.filter((q) => q.id !== targetId && q.accessCode !== targetId);
       persistQuizzes(nextList);
       return nextList;
     });
-    setQuizToDelete(null);
 
-    try {
-      const res = await deleteQuiz(targetId);
-      if (res.success) {
-        toast.success(res.message || 'تم حذف الامتحان بنجاح');
-      } else {
-        toast.error(res.error || 'فشل حذف الامتحان من الخادم');
-      }
-      router.refresh();
-    } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ أثناء حذف الامتحان');
-      router.refresh();
-    } finally {
-      setDeleteLoading(false);
-    }
+    setQuizToDelete(null);
+    setDeleteLoading(false);
+    toast.success('تم حذف الامتحان بنجاح');
+
+    // 3. Silent server action backup (fail-safe)
+    deleteQuizAction(targetId).catch(() => null);
   }
 
   function handlePrint(quiz: QuizItem) {

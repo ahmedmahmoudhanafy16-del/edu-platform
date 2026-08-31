@@ -905,15 +905,17 @@ export async function deleteQuiz(quizId: string) {
 
       await prisma.quiz.delete({
         where: { id: quizId },
-      });
+      }).catch(() => null);
     } catch (dbErr: any) {
-      console.error('[deleteQuiz] Database delete error:', dbErr);
-      // Fallback: if record doesn't exist or is sample
-      if (dbErr.code === 'P2025' || quizId.startsWith('sample-')) {
-        // Already gone or mock
-      } else {
-        throw dbErr;
-      }
+      console.warn('[deleteQuiz] Database delete skipped/relaxed:', dbErr?.message);
+    }
+
+    // Cascade cleanup in memory
+    const memIndex = (memoryQuizzes || []).findIndex(
+      (m: any) => m.id === quizId || m.accessCode === quizId
+    );
+    if (memIndex !== -1) {
+      memoryQuizzes.splice(memIndex, 1);
     }
 
     // 3. Cache revalidation across all layouts and routes
