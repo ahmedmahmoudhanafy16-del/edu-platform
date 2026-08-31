@@ -5,7 +5,7 @@ import { MessageCircle } from 'lucide-react';
 interface StudentSummary {
   name: string;
   phone?: string | null;
-  avgScore: number;
+  avgScore: number | null;
   submissionsCount: number;
   attendanceCount: number;
 }
@@ -14,7 +14,7 @@ export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
     const text = encodeURIComponent(
       `📊 *تقرير أداء الطالب — ${student.name}*\n\n` +
-      `✅ متوسط الدرجات: *${student.avgScore}%*\n` +
+      `✅ متوسط الدرجات: *${student.avgScore != null ? `${student.avgScore}%` : '—'}*\n` +
       `📝 الواجبات المُسلَّمة: *${student.submissionsCount}*\n` +
       `📹 الحصص المباشرة المحضورة: *${student.attendanceCount}*\n\n` +
       `_تم إرسال هذا التقرير من منصة التعليم الإلكتروني_`

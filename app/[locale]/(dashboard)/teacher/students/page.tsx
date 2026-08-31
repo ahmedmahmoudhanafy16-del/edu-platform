@@ -22,6 +22,7 @@ export default async function TeacherStudentsPage({
 
   let classrooms: any[] = [];
   let students: any[] = [];
+  let quizSubmissions: any[] = [];
 
   try {
     const results = await Promise.allSettled([
@@ -38,10 +39,20 @@ export default async function TeacherStudentsPage({
         },
         orderBy: { createdAt: 'desc' },
       }),
+      prisma.quizResult.findMany({
+        select: {
+          studentId: true,
+          totalScore: true,
+          autoScore: true,
+          maxScore: true,
+          submittedAt: true,
+        },
+      }),
     ]);
 
     if (results[0].status === 'fulfilled') classrooms = results[0].value || [];
     if (results[1].status === 'fulfilled') students = results[1].value || [];
+    if (results[2].status === 'fulfilled') quizSubmissions = results[2].value || [];
   } catch (err) {
     console.warn('[Teacher Students] DB query skipped:', err);
   }
@@ -59,8 +70,8 @@ export default async function TeacherStudentsPage({
         phone: '01099998888',
         parentPhone: '01012345678',
         grade: 'الصف الثالث الإعدادي',
-        submissions: [1, 2],
-        quizResults: [{ totalScore: 90, maxScore: 100, submittedAt: new Date() }],
+        submissions: [],
+        quizResults: [],
         attendance: [1, 2, 3],
       },
       {
@@ -70,17 +81,34 @@ export default async function TeacherStudentsPage({
         phone: '01055554444',
         parentPhone: '01087654321',
         grade: 'الصف الثالث الإعدادي',
-        submissions: [1],
-        quizResults: [{ totalScore: 85, maxScore: 100, submittedAt: new Date() }],
+        submissions: [],
+        quizResults: [],
         attendance: [1, 2],
       },
     ];
   }
 
   const formatted = (students || []).map((s) => {
-    const totalScore = (s.quizResults || []).reduce((acc: number, r: any) => acc + (r.totalScore || 0), 0);
-    const maxPossible = (s.quizResults || []).reduce((acc: number, r: any) => acc + (r.maxScore || 1), 0);
-    const avgScore = maxPossible > 0 ? Math.round((totalScore / maxPossible) * 100) : 90;
+    const studentDbSubs = (quizSubmissions || []).filter(
+      (sub: any) =>
+        sub.studentId === s.id ||
+        sub.studentId === s.studentCode ||
+        (s.studentCode === 'STU-001' && (sub.studentId === 'demo-student-1' || sub.studentId === 'student-1')) ||
+        (s.studentCode === 'STU-777' && (sub.studentId === 'demo-student-2' || sub.studentId === 'student-2'))
+    );
+
+    const combinedResults = [...(s.quizResults || []), ...studentDbSubs];
+
+    let avgScore: number | null = null;
+    if (combinedResults.length > 0) {
+      const sumPct = combinedResults.reduce((acc: number, curr: any) => {
+        const score = curr.totalScore ?? curr.autoScore ?? curr.score ?? 0;
+        const max = curr.maxScore && curr.maxScore > 0 ? curr.maxScore : 100;
+        const pct = curr.percentage ?? Math.round((score / max) * 100);
+        return acc + pct;
+      }, 0);
+      avgScore = Math.round(sumPct / combinedResults.length);
+    }
 
     return {
       id: s.id,
@@ -91,9 +119,9 @@ export default async function TeacherStudentsPage({
       grade: s.grade || 'الصف الثالث الإعدادي',
       isActive: s.isActive !== false,
       avgScore,
-      submissionsCount: s.submissions?.length ?? 0,
+      submissionsCount: Math.max(s.submissions?.length ?? 0, combinedResults.length),
       attendanceCount: s.attendance?.length ?? 0,
-      lastActive: s.quizResults && s.quizResults[0]?.submittedAt ? new Date(s.quizResults[0].submittedAt).toISOString() : null,
+      lastActive: combinedResults[0]?.submittedAt ? new Date(combinedResults[0].submittedAt).toISOString() : null,
     };
   });
 

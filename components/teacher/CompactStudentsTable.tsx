@@ -9,6 +9,7 @@ import { exportToCsv } from '@/lib/export-csv';
 import { formatDateShort } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent } from '@/actions/student';
+import { getSubmissions } from '@/lib/store';
 import { toast } from 'sonner';
 
 export interface Student {
@@ -34,8 +35,49 @@ interface Props {
 
 const STORAGE_KEY = 'edu_students';
 
+function computeDynamicAverages(studentList: Student[]): Student[] {
+  if (typeof window === 'undefined') return studentList;
+  try {
+    const submissions = getSubmissions();
+    return studentList.map((student) => {
+      const studentSubs = submissions.filter(
+        (sub) =>
+          sub.studentId === student.id ||
+          sub.studentId === student.studentCode ||
+          (student.studentCode === 'STU-001' &&
+            (sub.studentId === 'demo-student-1' ||
+              sub.studentId === 'STU-001' ||
+              sub.studentId === 'student-1')) ||
+          (student.studentCode === 'STU-777' &&
+            (sub.studentId === 'demo-student-2' ||
+              sub.studentId === 'STU-777' ||
+              sub.studentId === 'student-2'))
+      );
+
+      if (studentSubs.length > 0) {
+        const sumPct = studentSubs.reduce((acc, curr) => {
+          const score = curr.totalScore ?? curr.autoScore ?? curr.score ?? 0;
+          const max = curr.maxScore && curr.maxScore > 0 ? curr.maxScore : 100;
+          const pct = curr.percentage ?? Math.round((score / max) * 100);
+          return acc + pct;
+        }, 0);
+        const dynamicAvg = Math.round(sumPct / studentSubs.length);
+        return {
+          ...student,
+          avgScore: dynamicAvg,
+          submissionsCount: Math.max(student.submissionsCount, studentSubs.length),
+        };
+      }
+
+      return student;
+    });
+  } catch {
+    return studentList;
+  }
+}
+
 export function CompactStudentsTable({ students: initialStudents, classroomName, onRefresh }: Props) {
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>(() => computeDynamicAverages(initialStudents));
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [query, setQuery] = useState('');
@@ -44,23 +86,37 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
   // Sync with localStorage on mount & prop changes
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed: Student[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const localMap = new Map(parsed.map((s) => [s.id, s]));
-          initialStudents.forEach((s) => {
-            if (!localMap.has(s.id)) {
-              localMap.set(s.id, s);
-            }
-          });
-          setStudents(Array.from(localMap.values()));
-          return;
+    function syncStudents() {
+      let baseList = initialStudents;
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed: Student[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const localMap = new Map(parsed.map((s) => [s.id, s]));
+            initialStudents.forEach((s) => {
+              if (!localMap.has(s.id)) {
+                localMap.set(s.id, s);
+              }
+            });
+            baseList = Array.from(localMap.values());
+          }
         }
-      }
-    } catch {}
-    setStudents(initialStudents);
+      } catch {}
+
+      const computed = computeDynamicAverages(baseList);
+      setStudents(computed);
+    }
+
+    syncStudents();
+
+    window.addEventListener('edu_store_updated', syncStudents);
+    window.addEventListener('storage', syncStudents);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncStudents);
+      window.removeEventListener('storage', syncStudents);
+    };
   }, [initialStudents]);
 
   function persistStudents(list: Student[]) {
