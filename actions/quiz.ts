@@ -128,6 +128,53 @@ export async function validateQuizAccessCode(
   return verifyQuizAccessCode(quizId, studentId, enteredCode);
 }
 
+function parseOptionsSafely(optionsRaw: any): string[] {
+  if (Array.isArray(optionsRaw)) return optionsRaw.map((o) => String(o).trim());
+  if (typeof optionsRaw === 'string') {
+    try {
+      const parsed = JSON.parse(optionsRaw);
+      if (Array.isArray(parsed)) return parsed.map((o) => String(o).trim());
+    } catch {
+      return optionsRaw.includes(',')
+        ? optionsRaw.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [optionsRaw.trim()];
+    }
+  }
+  return [];
+}
+
+function isAnswerCorrect(
+  studentAns: string | undefined | null,
+  correctAnswer: string | undefined | null,
+  optionsRaw: any
+): boolean {
+  if (!studentAns || !correctAnswer) return false;
+  const cleanStudent = String(studentAns).trim().toLowerCase();
+  const cleanCorrect = String(correctAnswer).trim().toLowerCase();
+  if (!cleanStudent || !cleanCorrect) return false;
+
+  // 1. Direct text match
+  if (cleanStudent === cleanCorrect) return true;
+
+  const options = parseOptionsSafely(optionsRaw);
+
+  // 2. If correctAnswer is 0-indexed or 1-indexed number
+  const numCorrect = parseInt(cleanCorrect, 10);
+  if (!isNaN(numCorrect)) {
+    if (options[numCorrect] && options[numCorrect].toLowerCase() === cleanStudent) return true;
+    if (numCorrect > 0 && options[numCorrect - 1] && options[numCorrect - 1].toLowerCase() === cleanStudent) return true;
+  }
+
+  // 3. If studentAnswer is 0-indexed or 1-indexed number
+  const numStudent = parseInt(cleanStudent, 10);
+  if (!isNaN(numStudent)) {
+    if (options[numStudent] && options[numStudent].toLowerCase() === cleanCorrect) return true;
+    if (numStudent > 0 && options[numStudent - 1] && options[numStudent - 1].toLowerCase() === cleanCorrect) return true;
+  }
+
+  return false;
+}
+
 /**
  * Grades quiz submissions strictly on the server side.
  * Enforces server-side timer verification (startedAt + duration + 60s tolerance).
@@ -207,7 +254,7 @@ export async function submitQuizAnswers(
       };
     }
 
-    // 4. Safe Score Calculation
+    // 4. Robust Auto-Grading Calculation (Option text, ID, index tolerant)
     let autoScore = 0;
     let hasEssay = false;
     let totalMaxScore = 0;
@@ -219,12 +266,12 @@ export async function submitQuizAnswers(
 
       if (q.type === 'MCQ') {
         const studentAns = answersList.find((a) => a.questionId === q.id);
-        if (
-          studentAns &&
-          q.correctAnswer &&
-          typeof studentAns.answerText === 'string' &&
-          studentAns.answerText.trim().toLowerCase() === String(q.correctAnswer).trim().toLowerCase()
-        ) {
+        const isCorrect = isAnswerCorrect(
+          studentAns?.answerText,
+          q.correctAnswer,
+          q.options
+        );
+        if (isCorrect) {
           autoScore += max;
         }
       } else {
@@ -237,7 +284,8 @@ export async function submitQuizAnswers(
       autoScore = Math.min(totalMaxScore, answersList.filter((a) => a.answerText).length * 5);
     }
 
-    const isPassed = !hasEssay && totalMaxScore > 0 && (autoScore / totalMaxScore) * 100 >= (quiz.passingScore || 50);
+    const percentage = totalMaxScore > 0 ? Math.round((autoScore / totalMaxScore) * 100) : 0;
+    const isPassed = !hasEssay && percentage >= (quiz.passingScore || 50);
     const status = hasEssay ? 'PENDING' : 'AUTO_GRADED';
 
     const resultPayload: any = {
@@ -247,6 +295,7 @@ export async function submitQuizAnswers(
       autoScore,
       totalScore: hasEssay ? null : autoScore,
       maxScore: totalMaxScore,
+      percentage,
       isPassed,
       status,
       autoSubmitted: isAutoSubmitted,

@@ -278,6 +278,12 @@ export default async function StudentDashboardPage({
                   isCodeRequired: q.isCodeRequired !== false,
                 }}
                 isCompleted={isCompleted}
+                result={submission ? {
+                  score: submission.totalScore ?? submission.autoScore,
+                  maxScore: submission.maxScore,
+                  percentage: submission.maxScore ? Math.round(((submission.totalScore ?? submission.autoScore ?? 0) / submission.maxScore) * 100) : undefined,
+                  isPassed: submission.isPassed,
+                } : undefined}
                 studentId={studentId}
                 locale={locale}
               />

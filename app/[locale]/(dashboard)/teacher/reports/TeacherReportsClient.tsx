@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, MessageSquare, Search, FileSpreadsheet, CheckCircle2, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,9 +21,56 @@ interface StudentReportItem {
   status: string;
 }
 
+const RESULTS_KEY = 'edu_quiz_results';
+
 export function TeacherReportsClient({ initialReports }: { initialReports: StudentReportItem[] }) {
   const [search, setSearch] = useState('');
-  const [reports] = useState(initialReports);
+  const [reports, setReports] = useState<StudentReportItem[]>(initialReports);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RESULTS_KEY);
+      if (stored) {
+        const parsedRes: any[] = JSON.parse(stored);
+        if (Array.isArray(parsedRes) && parsedRes.length > 0) {
+          setReports((prev) =>
+            prev.map((student) => {
+              // Find matching student submissions
+              const studentSubmissions = parsedRes.filter(
+                (r) =>
+                  r.studentId === student.id ||
+                  (student.studentCode === 'STU-001' && (!r.studentId || r.studentId === 'demo-student-1'))
+              );
+
+              if (studentSubmissions.length > 0) {
+                const totalScore = studentSubmissions.reduce(
+                  (sum, sub) => sum + (sub.totalScore ?? sub.autoScore ?? 0),
+                  0
+                );
+                const maxScore = studentSubmissions.reduce(
+                  (sum, sub) => sum + (sub.maxScore ?? 100),
+                  0
+                );
+                const computedAvg = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : student.avgScore;
+                const totalExams = Math.max(student.examsCompleted, studentSubmissions.length);
+
+                return {
+                  ...student,
+                  avgScore: computedAvg,
+                  examsCompleted: totalExams,
+                  status: computedAvg >= 65 ? 'ممتاز' : 'يحتاج متابعة',
+                };
+              }
+
+              return student;
+            })
+          );
+        }
+      }
+    } catch (err) {
+      console.warn('[TeacherReportsClient] LocalStorage sync error:', err);
+    }
+  }, [initialReports]);
 
   const filtered = reports.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -130,7 +177,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                 <th className="py-3.5 px-4 text-start">الكود</th>
                 <th className="py-3.5 px-4 text-start">الصف الدراسي</th>
                 <th className="py-3.5 px-4 text-start">واتساب ولي الأمر</th>
-                <th className="py-3.5 px-4 text-center">الدرجات</th>
+                <th className="py-3.5 px-4 text-center">متوسط الدرجات</th>
                 <th className="py-3.5 px-4 text-center">الامتحانات</th>
                 <th className="py-3.5 px-4 text-center">الواجبات</th>
                 <th className="py-3.5 px-4 text-center">الحضور</th>
@@ -144,7 +191,9 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                   <td className="py-3.5 px-4 font-mono font-bold text-blue-600">{s.studentCode}</td>
                   <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{s.grade}</td>
                   <td className="py-3.5 px-4 font-mono text-slate-500">{s.parentPhone}</td>
-                  <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600">{s.avgScore}%</td>
+                  <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600">
+                    <span dir="ltr">{s.avgScore}%</span>
+                  </td>
                   <td className="py-3.5 px-4 text-center">{s.examsCompleted}</td>
                   <td className="py-3.5 px-4 text-center">{s.homeworkCompleted}</td>
                   <td className="py-3.5 px-4 text-center">{s.attendanceCount}</td>

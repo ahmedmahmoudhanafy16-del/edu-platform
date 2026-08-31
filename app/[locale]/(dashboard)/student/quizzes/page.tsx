@@ -75,6 +75,14 @@ export default async function StudentQuizzesPage({
     .filter((r) => r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
     .map((r) => r.quizId);
 
+  const initialResults = allResults.map((r) => ({
+    quizId: r.quizId,
+    score: r.totalScore ?? r.autoScore,
+    maxScore: r.maxScore,
+    percentage: r.maxScore ? Math.round(((r.totalScore ?? r.autoScore ?? 0) / r.maxScore) * 100) : undefined,
+    isPassed: Boolean(r.isPassed),
+  }));
+
   return (
     <div dir="rtl" className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div>
@@ -90,6 +98,7 @@ export default async function StudentQuizzesPage({
       <StudentQuizzesListClient
         initialQuizzes={formattedQuizzes}
         completedQuizIds={completedQuizIds}
+        initialResults={initialResults}
         studentId={studentId}
         locale={locale}
       />

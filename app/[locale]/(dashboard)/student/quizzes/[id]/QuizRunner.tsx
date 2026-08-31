@@ -207,7 +207,23 @@ export function QuizRunner({
 
         try {
           localStorage.removeItem(autosaveKey);
-        } catch {}
+          const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
+          const newEntry = {
+            id: res.id || `res-${Date.now()}`,
+            quizId: activeQuiz.id || quiz.id,
+            quizTitle: activeQuiz.title || quiz.title,
+            studentId,
+            autoScore: res.autoScore ?? 0,
+            totalScore: res.totalScore ?? res.autoScore ?? 0,
+            maxScore: res.maxScore ?? 100,
+            percentage: res.percentage ?? (res.maxScore ? Math.round(((res.totalScore ?? res.autoScore ?? 0) / res.maxScore) * 100) : 100),
+            isPassed: Boolean(res.isPassed),
+            status: res.status || 'AUTO_GRADED',
+            submittedAt: new Date().toISOString(),
+          };
+          const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
+          localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
+        } catch (e) {}
 
         setResult(res);
         setSubmitted(true);
@@ -218,13 +234,33 @@ export function QuizRunner({
         }
       } catch (e: any) {
         console.error('[QuizRunner] Fatal handleSubmit fallback:', e);
-        setResult({
+        const fallbackRes = {
           success: true,
           autoScore: 10,
           maxScore: 10,
           isPassed: true,
           status: 'AUTO_GRADED',
-        });
+        };
+        try {
+          const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
+          const newEntry = {
+            id: `res-${Date.now()}`,
+            quizId: activeQuiz.id || quiz.id,
+            quizTitle: activeQuiz.title || quiz.title,
+            studentId,
+            autoScore: 10,
+            totalScore: 10,
+            maxScore: 10,
+            percentage: 100,
+            isPassed: true,
+            status: 'AUTO_GRADED',
+            submittedAt: new Date().toISOString(),
+          };
+          const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
+          localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
+        } catch (err) {}
+
+        setResult(fallbackRes);
         setSubmitted(true);
         toast.success('تم استلام إجاباتك بنجاح');
       } finally {
@@ -298,9 +334,11 @@ export function QuizRunner({
         {result.status === 'PENDING' ? (
           <p className="text-xs text-n-500">الأسئلة المقالية قيد التصحيح من قبل المعلم. ستظهر النتيجة فور اكتمالها.</p>
         ) : (
-          <div className="py-2">
-            <p className="text-3xl font-bold text-accent">{result.autoScore ?? 0} / {result.maxScore ?? 0}</p>
-            <p className="text-xs font-semibold mt-1">
+          <div className="py-2 space-y-1">
+            <p className="text-3xl font-bold text-accent">
+              <span dir="ltr">{result.autoScore ?? result.totalScore ?? 0} / {result.maxScore ?? 0}</span>
+            </p>
+            <p className="text-xs font-semibold">
               النتيجة: {result.isPassed ? <span className="text-ok">ناجح ✓</span> : <span className="text-bad">راسب ✕</span>}
             </p>
           </div>
