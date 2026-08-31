@@ -15,7 +15,7 @@ export default function SuspendedAccountPage() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
     } catch {}
-    router.push(`/${locale}/login`);
+    router.push(`/${locale}`);
   }
 
   return (

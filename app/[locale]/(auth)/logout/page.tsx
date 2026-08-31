@@ -10,7 +10,7 @@ export default function LogoutPage() {
 
   useEffect(() => {
     fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-      router.push(`/${locale}/login`);
+      router.push(`/${locale}`);
     });
   }, [locale, router]);
 
