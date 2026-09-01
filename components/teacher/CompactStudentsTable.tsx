@@ -41,18 +41,22 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   try {
     const submissions = getSubmissions();
     return studentList.map((student) => {
-      const summary = getStudentAcademicSummary(student.studentCode || student.id, submissions);
+      const lookupCode = student.studentCode || student.id;
+      const summary = getStudentAcademicSummary(lookupCode, submissions);
       if (summary.totalExams > 0) {
         return {
           ...student,
           avgScore: summary.averagePercentage,
-          submissionsCount: Math.max(student.submissionsCount, summary.totalExams),
+          submissionsCount: Math.max(student.submissionsCount || 0, summary.totalExams),
         };
       }
-      return student;
+      return {
+        ...student,
+        avgScore: null,
+      };
     });
   } catch {
-    return studentList;
+    return studentList.map((s) => ({ ...s, avgScore: null }));
   }
 }
 

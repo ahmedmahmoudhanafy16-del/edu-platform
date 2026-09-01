@@ -59,21 +59,7 @@ async function main() {
     },
   });
 
-  // 5. Assignment
-  await prisma.assignment.upsert({
-    where: { id: 'sample-assignment-1' },
-    update: {},
-    create: {
-      id: 'sample-assignment-1',
-      title: 'حل تمارين معادلات الدرجة الأولى',
-      description: 'قم بحل المسائل في الصفحة رقم 45 من كتاب التدريبات واكتب خطوات الحل كاملة.',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      maxScore: 10,
-      classroomId: classroom.id,
-    },
-  });
-
-  // 6. Quiz with MCQ + Essay Questions
+  // 5. Quiz with MCQ Questions
   await prisma.quiz.upsert({
     where: { id: 'sample-quiz-1' },
     update: {
@@ -108,15 +94,6 @@ async function main() {
             maxScore: 5,
             order: 2,
             difficulty: 'MEDIUM',
-          },
-          {
-            text: 'اشرح بالخطوات كيفية حل نظام من معادلتين خطيتين بطريقة الحذف مع ذكر مثال بسيط.',
-            type: 'ESSAY',
-            options: '[]',
-            correctAnswer: null,
-            maxScore: 10,
-            order: 3,
-            difficulty: 'HARD',
           },
         ],
       },

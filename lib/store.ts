@@ -68,7 +68,7 @@ export const INITIAL_SEED_QUIZZES: QuizData[] = [
     isHidden: false,
     classroomName: 'فصل الرياضيات (3ع - أ)',
     classroomId: 'cls-math-1',
-    questionsCount: 3,
+    questionsCount: 2,
     resultsCount: 0,
     questions: [
       {
@@ -88,15 +88,6 @@ export const INITIAL_SEED_QUIZZES: QuizData[] = [
         correctAnswer: '{3, -3}',
         maxScore: 5,
         order: 2,
-      },
-      {
-        id: 'q-sample-3',
-        text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
-        type: 'ESSAY',
-        options: [],
-        correctAnswer: null,
-        maxScore: 10,
-        order: 3,
       },
     ],
   },
