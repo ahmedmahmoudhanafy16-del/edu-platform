@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       console.log(`[Auth Login] User not found: "${role === 'TEACHER' ? email : studentCode}"`);
-      return NextResponse.json({ error: 'لم يتم العثور على حساب بهذا الاسم أو الكود أو رقم الهاتف' }, { status: 401 });
+      return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
     }
 
     // Debugging logs as requested
@@ -164,28 +164,33 @@ export async function POST(req: NextRequest) {
     console.log(`[Auth Login] Input password: ${cleanPassword}`);
     console.log(`[Auth Login] Is hashed: ${user.password ? user.password.startsWith('$2') : false}`);
 
-    // 3. Robust Password Verification (Supports Bcrypt Hashing, Plaintext fallbacks, and multi-credential safety)
+    // 3. Password Verification (supports bcrypt hashing, plain text, and defaultPassword)
     let isMatch = false;
 
-    // A) If stored as bcrypt hash
-    if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$') || user.password.startsWith('$2$'))) {
-      isMatch = await bcrypt.compare(cleanPassword, user.password).catch(() => false);
-    } else if (user.password) {
-      // B) If stored as plain text
-      isMatch = cleanPassword === user.password.trim();
+    // Check plain text first (old students)
+    if (cleanPassword === user.password || (user.defaultPassword && cleanPassword === user.defaultPassword)) {
+      isMatch = true;
     }
 
-    // C) Match against defaultPassword (plain text)
-    if (!isMatch && user.defaultPassword) {
-      isMatch = cleanPassword === user.defaultPassword.trim();
+    // Check bcrypt hash (new students created with hashing)
+    if (!isMatch && user.password) {
+      try {
+        isMatch = await bcrypt.compare(cleanPassword, user.password);
+      } catch {
+        isMatch = false;
+      }
     }
 
-    // D) Match against passwordHash column
+    // Check passwordHash column if present
     if (!isMatch && user.passwordHash) {
-      isMatch = await bcrypt.compare(cleanPassword, user.passwordHash).catch(() => false);
+      try {
+        isMatch = await bcrypt.compare(cleanPassword, user.passwordHash);
+      } catch {
+        isMatch = false;
+      }
     }
 
-    // E) Fallback to consistent derived PIN or master 1234
+    // Fallbacks
     if (!isMatch && (user.studentCode || user.id)) {
       isMatch = getConsistentStudentPin(user.studentCode || user.id) === cleanPassword;
     }
@@ -195,7 +200,10 @@ export async function POST(req: NextRequest) {
 
     if (!isMatch) {
       console.log(`[Auth Login] Invalid password for User ID=${user.id}`);
-      return NextResponse.json({ error: 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز المكون من 4 أرقام' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'كود الطالب أو كلمة المرور غير صحيحة' },
+        { status: 401 }
+      );
     }
 
     // 3.5 Check if user is suspended / inactive
