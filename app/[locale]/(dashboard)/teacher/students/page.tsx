@@ -1,6 +1,7 @@
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
+import { getStudentAcademicSummary } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -22,7 +23,7 @@ export default async function TeacherStudentsPage({
 
   let classrooms: any[] = [];
   let students: any[] = [];
-  let quizSubmissions: any[] = [];
+  let dbQuizSubmissions: any[] = [];
 
   try {
     const results = await Promise.allSettled([
@@ -41,10 +42,13 @@ export default async function TeacherStudentsPage({
       }),
       prisma.quizResult.findMany({
         select: {
+          id: true,
+          quizId: true,
           studentId: true,
           totalScore: true,
           autoScore: true,
           maxScore: true,
+          isPassed: true,
           submittedAt: true,
         },
       }),
@@ -52,7 +56,7 @@ export default async function TeacherStudentsPage({
 
     if (results[0].status === 'fulfilled') classrooms = results[0].value || [];
     if (results[1].status === 'fulfilled') students = results[1].value || [];
-    if (results[2].status === 'fulfilled') quizSubmissions = results[2].value || [];
+    if (results[2].status === 'fulfilled') dbQuizSubmissions = results[2].value || [];
   } catch (err) {
     console.warn('[Teacher Students] DB query skipped:', err);
   }
@@ -88,27 +92,37 @@ export default async function TeacherStudentsPage({
     ];
   }
 
+  // Merge database quiz results with serverless in-memory store
+  const allSubmissions = [
+    ...dbQuizSubmissions,
+    ...(memoryQuizResults || []).map((m: any) => ({
+      id: m.id,
+      quizId: m.quizId,
+      quizTitle: m.quizTitle,
+      studentId: m.studentId,
+      score: m.totalScore ?? m.autoScore ?? m.score ?? 0,
+      totalScore: m.totalScore ?? m.autoScore ?? m.score ?? 0,
+      autoScore: m.autoScore ?? 0,
+      maxScore: m.maxScore || 100,
+      percentage: m.percentage,
+      isPassed: Boolean(m.isPassed),
+      submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
+    })),
+  ];
+
   const formatted = (students || []).map((s) => {
-    const studentDbSubs = (quizSubmissions || []).filter(
-      (sub: any) =>
-        sub.studentId === s.id ||
-        sub.studentId === s.studentCode ||
-        (s.studentCode === 'STU-001' && (sub.studentId === 'demo-student-1' || sub.studentId === 'student-1')) ||
-        (s.studentCode === 'STU-777' && (sub.studentId === 'demo-student-2' || sub.studentId === 'student-2'))
-    );
+    const studentSubs = allSubmissions.filter((sub: any) => {
+      const sId = sub.studentId || sub.studentCode;
+      return (
+        sId === s.id ||
+        sId === s.studentCode ||
+        (s.studentCode === 'STU-001' && (sId === 'demo-student-1' || sId === 'student-1' || sId === 'STU-001')) ||
+        (s.studentCode === 'STU-777' && (sId === 'demo-student-2' || sId === 'student-2' || sId === 'STU-777'))
+      );
+    });
 
-    const combinedResults = [...(s.quizResults || []), ...studentDbSubs];
-
-    let avgScore: number | null = null;
-    if (combinedResults.length > 0) {
-      const sumPct = combinedResults.reduce((acc: number, curr: any) => {
-        const score = curr.totalScore ?? curr.autoScore ?? curr.score ?? 0;
-        const max = curr.maxScore && curr.maxScore > 0 ? curr.maxScore : 100;
-        const pct = curr.percentage ?? Math.round((score / max) * 100);
-        return acc + pct;
-      }, 0);
-      avgScore = Math.round(sumPct / combinedResults.length);
-    }
+    const combinedResults = [...(s.quizResults || []), ...studentSubs];
+    const summary = getStudentAcademicSummary(s.studentCode || s.id, combinedResults);
 
     return {
       id: s.id,
@@ -118,8 +132,8 @@ export default async function TeacherStudentsPage({
       parentPhone: s.parentPhone,
       grade: s.grade || 'الصف الثالث الإعدادي',
       isActive: s.isActive !== false,
-      avgScore,
-      submissionsCount: Math.max(s.submissions?.length ?? 0, combinedResults.length),
+      avgScore: summary.totalExams > 0 ? summary.averagePercentage : null,
+      submissionsCount: Math.max(s.submissions?.length ?? 0, summary.totalExams),
       attendanceCount: s.attendance?.length ?? 0,
       lastActive: combinedResults[0]?.submittedAt ? new Date(combinedResults[0].submittedAt).toISOString() : null,
     };
