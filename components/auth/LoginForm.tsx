@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Lock, Mail, KeyRound, GraduationCap, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { verifyStudentLogin } from '@/actions/auth';
+import { authenticateStudent } from '@/actions/auth';
 
 export function LoginForm() {
   const params = useParams();
@@ -32,14 +32,14 @@ export function LoginForm() {
     setError('');
 
     try {
-      const res = await verifyStudentLogin(studentCode, studentPassword);
+      const result = await authenticateStudent(studentCode, studentPassword);
 
-      if (!res.success) {
-        if (res.error?.includes('تعليق') || res.error?.includes('محظور')) {
+      if (!result.success) {
+        if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(res.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
+        setError(result.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
         return;
       }
 

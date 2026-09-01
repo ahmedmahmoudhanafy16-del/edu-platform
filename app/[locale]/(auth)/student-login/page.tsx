@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Lock, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { verifyStudentLogin } from '@/actions/auth';
+import { authenticateStudent } from '@/actions/auth';
 
 export default function StudentLoginPage() {
   const t = useTranslations('auth.studentLogin');
@@ -25,14 +25,14 @@ export default function StudentLoginPage() {
     setError('');
 
     try {
-      const res = await verifyStudentLogin(studentCode, password);
+      const result = await authenticateStudent(studentCode, password);
 
-      if (!res.success) {
-        if (res.error?.includes('تعليق') || res.error?.includes('محظور')) {
+      if (!result.success) {
+        if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(res.error || t('errorInvalid'));
+        setError(result.error || t('errorInvalid'));
         return;
       }
 
