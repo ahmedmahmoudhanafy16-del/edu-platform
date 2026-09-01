@@ -41,17 +41,6 @@
       "teacherLink": "ادخل هنا",
       "errorInvalid": "كود الطالب أو كلمة المرور غير صحيحة",
       "loading": "جاري التحقق..."
-    },
-    "parentPortal": {
-      "title": "بوابة ولي الأمر",
-      "subtitle": "تابع أداء ابنك أو ابنتك",
-      "phone": "رقم هاتف الطالب المسجل",
-      "phonePlaceholder": "010xxxxxxxx",
-      "code": "كود الطالب",
-      "codePlaceholder2": "كود الطالب",
-      "submit": "دخول بوابة ولي الأمر",
-      "errorInvalid": "البيانات غير صحيحة، تحقق من الرقم والكود",
-      "loading": "جاري التحقق..."
     }
   },
   "teacher": {

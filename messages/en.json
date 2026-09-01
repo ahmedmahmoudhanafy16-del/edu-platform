@@ -41,17 +41,6 @@
       "teacherLink": "Sign in here",
       "errorInvalid": "Invalid student code or password",
       "loading": "Signing in..."
-    },
-    "parentPortal": {
-      "title": "Parent Portal",
-      "subtitle": "Track your child's academic progress",
-      "phone": "Student's registered phone number",
-      "phonePlaceholder": "Phone number",
-      "code": "Student code",
-      "codePlaceholder2": "Student code",
-      "submit": "Access Parent Portal",
-      "errorInvalid": "Incorrect credentials. Check the phone number and code.",
-      "loading": "Verifying..."
     }
   },
   "teacher": {

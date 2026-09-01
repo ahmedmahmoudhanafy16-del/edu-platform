@@ -4,8 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  Lock, Mail, KeyRound, Phone, GraduationCap,
-  Users, UserCheck
+  Lock, Mail, KeyRound, GraduationCap, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,48 +17,19 @@ export default function RootLoginPage() {
   const isAr = locale === 'ar';
   const router = useRouter();
 
-  // Role: STUDENT | TEACHER | PARENT
-  const [role, setRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT'>('STUDENT');
-
-  // Teacher fields
-  const [teacherEmail, setTeacherEmail] = useState('');
-  const [teacherPassword, setTeacherPassword] = useState('');
+  // Role: STUDENT | TEACHER (Default is STUDENT)
+  const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
 
   // Student fields
   const [studentCode, setStudentCode] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
 
-  // Parent fields
-  const [parentStudentCode, setParentStudentCode] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
+  // Teacher fields
+  const [teacherEmail, setTeacherEmail] = useState('');
+  const [teacherPassword, setTeacherPassword] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  const handleTeacherSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: teacherEmail, password: teacherPassword, role: 'TEACHER' }),
-      });
-
-      if (!res.ok) {
-        setError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
-        return;
-      }
-
-      router.push(`/${locale}/teacher`);
-    } catch {
-      setError(isAr ? 'حدث خطأ في الاتصال بالخادم' : 'Server connection error');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,21 +61,26 @@ export default function RootLoginPage() {
     }
   };
 
-  const handleParentSubmit = async (e: React.FormEvent) => {
+  const handleTeacherSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch(`/api/parent/dashboard?code=${parentStudentCode}&phone=${parentPhone}`);
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: teacherEmail, password: teacherPassword, role: 'TEACHER' }),
+      });
+
       if (!res.ok) {
-        setError(isAr ? 'تعذر العثور على بيانات الطالب أو رقم الهاتف غير مطابق' : 'Student data not found or phone does not match');
+        setError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
         return;
       }
-      sessionStorage.setItem('parent_auth', JSON.stringify({ phone: parentPhone, studentCode: parentStudentCode }));
-      router.push(`/${locale}/parent/dashboard`);
+
+      router.push(`/${locale}/teacher`);
     } catch {
-      setError(isAr ? 'حدث خطأ أثناء الاستعلام عن بيانات الطالب' : 'Error retrieving student report');
+      setError(isAr ? 'حدث خطأ في الاتصال بالخادم' : 'Server connection error');
     } finally {
       setLoading(false);
     }
@@ -144,24 +119,20 @@ export default function RootLoginPage() {
           {/* Card Header */}
           <div className="text-center space-y-1.5">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-accent-light text-accent font-bold text-xl mb-1 border border-accent/20">
-              {role === 'STUDENT' && <GraduationCap className="h-6 w-6" />}
-              {role === 'TEACHER' && <Users className="h-6 w-6" />}
-              {role === 'PARENT' && <UserCheck className="h-6 w-6" />}
+              {role === 'STUDENT' ? <GraduationCap className="h-6 w-6" /> : <Users className="h-6 w-6" />}
             </div>
             <h1 className="text-xl font-bold text-n-800 dark:text-n-700">
               {role === 'STUDENT' && (isAr ? 'تسجيل دخول الطالب' : 'Student Login')}
               {role === 'TEACHER' && (isAr ? 'تسجيل دخول المعلم' : 'Teacher Login')}
-              {role === 'PARENT' && (isAr ? 'بوابة ولي الأمر الأكاديمية' : 'Parent Portal')}
             </h1>
             <p className="text-xs text-n-400">
               {role === 'STUDENT' && (isAr ? 'أدخل كود الطالب وكلمة المرور للوصول لحصصك وامتحاناتك' : 'Enter your student code and password')}
               {role === 'TEACHER' && (isAr ? 'أدخل البريد الإلكتروني للمتابعة وإدارة المحتوى والطلاب' : 'Enter your teacher credentials')}
-              {role === 'PARENT' && (isAr ? 'أدخل كود الطالب ورقم هاتفك للاستعلام المباشر عن النتائج' : 'Enter student code and phone number')}
             </p>
           </div>
 
-          {/* Role Tabs Switcher */}
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-n-100 dark:bg-n-200 rounded-xl border border-n-200 dark:border-n-300 text-xs font-semibold">
+          {/* Role Tabs Switcher: Exactly 2 Roles (Student & Teacher) */}
+          <div className="grid grid-cols-2 gap-1.5 p-1 bg-n-100 dark:bg-n-200 rounded-xl border border-n-200 dark:border-n-300 text-xs font-semibold">
             <button
               type="button"
               onClick={() => { setRole('STUDENT'); setError(''); }}
@@ -172,7 +143,7 @@ export default function RootLoginPage() {
               }`}
             >
               <GraduationCap className="h-3.5 w-3.5" />
-              {isAr ? 'طالب' : 'Student'}
+              {isAr ? 'دخول الطالب' : 'Student'}
             </button>
 
             <button
@@ -185,20 +156,7 @@ export default function RootLoginPage() {
               }`}
             >
               <Users className="h-3.5 w-3.5" />
-              {isAr ? 'معلم' : 'Teacher'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => { setRole('PARENT'); setError(''); }}
-              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-                role === 'PARENT'
-                  ? 'bg-white dark:bg-n-100 text-accent shadow-sm border border-n-200/60 dark:border-n-300'
-                  : 'text-n-500 hover:text-n-700'
-              }`}
-            >
-              <UserCheck className="h-3.5 w-3.5" />
-              {isAr ? 'ولي أمر' : 'Parent'}
+              {isAr ? 'لوحة تحكم المعلم' : 'Teacher'}
             </button>
           </div>
 
@@ -291,49 +249,6 @@ export default function RootLoginPage() {
 
               <Button type="submit" loading={loading} variant="primary" className="w-full h-11 text-xs font-bold mt-2 shadow-md">
                 {isAr ? 'دخول لوحة تحكم المعلم' : 'Sign in as Teacher'}
-              </Button>
-            </form>
-          )}
-
-          {/* Parent Form */}
-          {role === 'PARENT' && (
-            <form onSubmit={handleParentSubmit} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1.5">
-                  {isAr ? 'كود الطالب المراد متابعته:' : 'Student Code:'}
-                </label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    required
-                    value={parentStudentCode}
-                    onChange={(e) => setParentStudentCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'كود الطالب' : 'Student code'}
-                    className="pe-9 font-mono font-bold tracking-wider text-center"
-                  />
-                  <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1.5">
-                  {isAr ? 'رقم هاتف ولي الأمر (المسجل لدى المعلم):' : 'Registered Parent Phone Number:'}
-                </label>
-                <div className="relative">
-                  <Input
-                    type="tel"
-                    required
-                    value={parentPhone}
-                    onChange={(e) => setParentPhone(e.target.value)}
-                    placeholder="010xxxxxxxx"
-                    className="pe-9 font-mono"
-                  />
-                  <Phone className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
-                </div>
-              </div>
-
-              <Button type="submit" loading={loading} variant="primary" className="w-full h-11 text-xs font-bold mt-2 shadow-md">
-                {isAr ? 'استعلام عن تقرير ودرجات الطالب' : 'Access Parent Portal'}
               </Button>
             </form>
           )}

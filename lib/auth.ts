@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 export interface SessionUser {
   id: string;
   name: string;
-  role: 'TEACHER' | 'STUDENT' | 'PARENT' | 'ADMIN';
+  role: 'TEACHER' | 'STUDENT' | 'ADMIN';
   studentCode?: string;
   phone?: string;
   grade?: string;
@@ -170,7 +170,7 @@ export async function getAuthenticatedTeacher() {
 /**
  * Enforces role authorization strictly on the server-side.
  */
-export async function requireRole(allowedRoles: ('TEACHER' | 'STUDENT' | 'PARENT' | 'ADMIN')[]) {
+export async function requireRole(allowedRoles: ('TEACHER' | 'STUDENT' | 'ADMIN')[]) {
   const user = await getCurrentUser();
   if (!user || !allowedRoles.includes(user.role)) {
     try {
