@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { generateRandomPin } from '@/lib/utils';
 
 export async function createClassroom(name: string, subject: string, teacherId: string) {
   // Enforce Teacher Role
@@ -60,7 +61,7 @@ export async function createStudentAction(formData: {
     const cleanParent = formData.parentPhone?.trim() || formData.parentWhatsapp?.trim() || cleanPhone;
     const cleanGrade = formData.grade || formData.gradeLevel || 'الصف الثالث الإعدادي';
     const targetClassroomId = formData.classroom || formData.classroomId || '';
-    const defaultPassword = formData.password?.trim() || '1234';
+    const defaultPassword = formData.password?.trim() || generateRandomPin();
     const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     const newStudent = {
@@ -154,7 +155,7 @@ export async function addStudentToClassroom(
   let parentPhone = '';
   let grade = '';
   let classroom = '';
-  let password = '1234';
+  let password = '';
 
   if (typeof nameOrData === 'object' && nameOrData !== null) {
     name = nameOrData.name || '';
@@ -162,7 +163,7 @@ export async function addStudentToClassroom(
     parentPhone = nameOrData.parentWhatsapp || nameOrData.parentPhone || '';
     grade = nameOrData.gradeLevel || nameOrData.grade || 'الصف الثالث الإعدادي';
     classroom = nameOrData.classroom || nameOrData.classroomId || '';
-    password = nameOrData.password || '1234';
+    password = nameOrData.password || generateRandomPin();
   } else {
     name = nameOrData || '';
     phone = phoneArg || '';
@@ -170,11 +171,12 @@ export async function addStudentToClassroom(
       parentPhone = parentWhatsappOrClassroomId || '';
       grade = gradeLevelArg;
       classroom = classroomIdArg;
-      password = passwordArg || '1234';
+      password = passwordArg || generateRandomPin();
     } else {
       classroom = parentWhatsappOrClassroomId || '';
       parentPhone = phone;
       grade = gradeLevelArg || 'الصف الثالث الإعدادي';
+      password = generateRandomPin();
     }
   }
 

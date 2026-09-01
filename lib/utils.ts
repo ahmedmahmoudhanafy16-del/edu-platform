@@ -65,3 +65,23 @@ export function relativeTimeAr(date: Date | string | number): { label: string; l
   }
   return { label: `متبقي ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'}`, late: false }
 }
+
+export function generateRandomPin(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+/**
+ * Deterministically derives a unique 4-digit PIN for a student based on their ID/Code
+ * if they do not yet have a custom PIN stored, ensuring no student shows static '1234'.
+ */
+export function getConsistentStudentPin(identifier: string): string {
+  if (!identifier) return generateRandomPin();
+  let hash = 0;
+  for (let i = 0; i < identifier.length; i++) {
+    hash = (hash << 5) - hash + identifier.charCodeAt(i);
+    hash |= 0;
+  }
+  const pin = Math.abs(hash % 9000) + 1000;
+  return pin.toString();
+}
+

@@ -7,7 +7,7 @@ import {
   Copy, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
-import { formatDateShort } from '@/lib/utils';
+import { formatDateShort, getConsistentStudentPin } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent } from '@/actions/student';
 import { getSubmissions } from '@/lib/store';
@@ -63,8 +63,17 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
         );
       });
 
+      const studentPin =
+        student.defaultPassword && student.defaultPassword !== '1234'
+          ? student.defaultPassword
+          : student.password && student.password !== '1234'
+          ? student.password
+          : getConsistentStudentPin(student.studentCode || student.id);
+
       return {
         ...student,
+        defaultPassword: studentPin,
+        password: studentPin,
         avgScore: latest ? latest.percentage : null,
         latestScore: latest ? latest.score : null,
         latestMaxScore: latest ? latest.maxScore : null,
@@ -74,7 +83,14 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
       };
     });
   } catch {
-    return studentList.map((s) => ({ ...s, avgScore: null }));
+    return studentList.map((s) => ({
+      ...s,
+      defaultPassword:
+        s.defaultPassword && s.defaultPassword !== '1234'
+          ? s.defaultPassword
+          : getConsistentStudentPin(s.studentCode || s.id),
+      avgScore: null,
+    }));
   }
 }
 
@@ -132,10 +148,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               } else {
                 const existing = localMap.get(s.id);
                 if (existing) {
-                  if (!existing.defaultPassword && s.defaultPassword) {
+                  if ((!existing.defaultPassword || existing.defaultPassword === '1234') && s.defaultPassword && s.defaultPassword !== '1234') {
                     existing.defaultPassword = s.defaultPassword;
                   }
-                  if (!existing.password && s.password) {
+                  if ((!existing.password || existing.password === '1234') && s.password && s.password !== '1234') {
                     existing.password = s.password;
                   }
                 }
@@ -246,7 +262,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
-        password: s.defaultPassword || s.password || '1234',
+        password: s.defaultPassword || s.password || getConsistentStudentPin(s.studentCode || s.id),
         phone: s.phone || '',
         status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
         avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
@@ -349,7 +365,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                       </div>
                     </td>
                     <td className={tdClass + ' text-center'}>
-                      <PasswordCell password={s.defaultPassword || s.password || '1234'} />
+                      <PasswordCell password={s.defaultPassword || s.password || getConsistentStudentPin(s.studentCode || s.id)} />
                     </td>
                     <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
                     <td className={tdClass}>

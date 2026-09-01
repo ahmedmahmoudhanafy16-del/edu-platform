@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createStudentAction, addStudentToClassroom } from '@/actions/classroom';
 import { saveStudentToStore } from '@/lib/store';
+import { generateRandomPin } from '@/lib/utils';
 import { toast } from 'sonner';
 
 interface AddStudentModalProps {
@@ -27,8 +28,6 @@ const ACADEMIC_GRADES = [
   'الصف الخامس الابتدائي',
   'الصف الرابع الابتدائي',
 ];
-
-const generateRandomPin = () => Math.floor(1000 + Math.random() * 9000).toString();
 
 export function AddStudentModal({
   classrooms,

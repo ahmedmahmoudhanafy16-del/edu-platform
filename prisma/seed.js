@@ -7,12 +7,16 @@ async function main() {
   console.log('Seeding initial production data for Vercel/Local deployment...');
 
   const teacherHash = bcrypt.hashSync('teacher123', 10);
-  const studentHash = bcrypt.hashSync('1234', 10);
+  const pin1 = '3842';
+  const pin2 = '7195';
+  const student1Hash = bcrypt.hashSync(pin1, 10);
+  const student2Hash = bcrypt.hashSync(pin2, 10);
 
   // 1. Teacher Account
   const teacher = await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
     update: {
+      password: teacherHash,
       passwordHash: teacherHash,
       name: 'أ/ سارة أحمد',
       role: 'TEACHER',
@@ -21,17 +25,20 @@ async function main() {
     create: {
       name: 'أ/ سارة أحمد',
       email: 'teacher@school.com',
+      password: teacherHash,
       passwordHash: teacherHash,
       role: 'TEACHER',
       phone: '01011112222',
     },
   });
 
-  // 2. Student 1 (أحمد محمد علي)
+  // 2. Student 1 (أحمد محمد علي) - Unique PIN: 3842
   const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
-      passwordHash: studentHash,
+      password: student1Hash,
+      passwordHash: student1Hash,
+      defaultPassword: pin1,
       name: 'أحمد محمد علي',
       role: 'STUDENT',
       phone: '01099998888',
@@ -41,7 +48,9 @@ async function main() {
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
-      passwordHash: studentHash,
+      password: student1Hash,
+      passwordHash: student1Hash,
+      defaultPassword: pin1,
       role: 'STUDENT',
       phone: '01099998888',
       parentPhone: '01012345678',
@@ -49,11 +58,13 @@ async function main() {
     },
   });
 
-  // 3. Student 2 (زياد طارق)
+  // 3. Student 2 (زياد طارق) - Unique PIN: 7195
   const student2 = await prisma.user.upsert({
     where: { studentCode: 'STU-777' },
     update: {
-      passwordHash: studentHash,
+      password: student2Hash,
+      passwordHash: student2Hash,
+      defaultPassword: pin2,
       name: 'زياد طارق إبراهيم',
       role: 'STUDENT',
       phone: '01055554444',
@@ -63,7 +74,9 @@ async function main() {
     create: {
       name: 'زياد طارق إبراهيم',
       studentCode: 'STU-777',
-      passwordHash: studentHash,
+      password: student2Hash,
+      passwordHash: student2Hash,
+      defaultPassword: pin2,
       role: 'STUDENT',
       phone: '01055554444',
       parentPhone: '01099998888',
