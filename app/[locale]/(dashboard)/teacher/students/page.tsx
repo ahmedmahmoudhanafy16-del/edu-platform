@@ -19,7 +19,7 @@ export default async function TeacherStudentsPage({
     teacher = await getAuthenticatedTeacher();
   } catch (e) {}
 
-  const teacherId = teacher?.id || 'demo-teacher-1';
+  const teacherId = teacher?.id || '';
 
   let classrooms: any[] = [];
   let students: any[] = [];
@@ -33,10 +33,20 @@ export default async function TeacherStudentsPage({
       }),
       prisma.user.findMany({
         where: { role: 'STUDENT' },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          studentCode: true,
+          phone: true,
+          parentPhone: true,
+          grade: true,
+          isActive: true,
+          defaultPassword: true,
+          password: true,
           submissions: true,
           quizResults: true,
           attendance: true,
+          createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -58,52 +68,7 @@ export default async function TeacherStudentsPage({
     if (results[1].status === 'fulfilled') students = results[1].value || [];
     if (results[2].status === 'fulfilled') dbQuizSubmissions = results[2].value || [];
   } catch (err) {
-    console.warn('[Teacher Students] DB query skipped:', err);
-  }
-
-  if (!classrooms || classrooms.length === 0) {
-    classrooms = [{ id: 'class-math-3', name: 'الصف الثالث الإعدادي - رياضيات' }];
-  }
-
-  if (!students || students.length === 0) {
-    students = [
-      {
-        id: 'STU-633',
-        name: 'أحمد محمود أحمد',
-        studentCode: 'STU-633',
-        phone: '01012345678',
-        parentPhone: '01012345678',
-        grade: 'الصف الثالث الإعدادي',
-        defaultPassword: '9715',
-        submissions: [],
-        quizResults: [],
-        attendance: [1, 2, 3],
-      },
-      {
-        id: 'student-1',
-        name: 'أحمد محمد علي',
-        studentCode: 'STU-001',
-        phone: '01099998888',
-        parentPhone: '01012345678',
-        grade: 'الصف الثالث الإعدادي',
-        defaultPassword: '4829',
-        submissions: [],
-        quizResults: [],
-        attendance: [1, 2, 3],
-      },
-      {
-        id: 'student-2',
-        name: 'زياد طارق إبراهيم',
-        studentCode: 'STU-777',
-        phone: '01055554444',
-        parentPhone: '01087654321',
-        grade: 'الصف الثالث الإعدادي',
-        defaultPassword: '6341',
-        submissions: [],
-        quizResults: [],
-        attendance: [1, 2],
-      },
-    ];
+    console.warn('[Teacher Students] DB query error:', err);
   }
 
   // Merge database quiz results with serverless in-memory store
@@ -138,8 +103,8 @@ export default async function TeacherStudentsPage({
     const combinedResults = [...(s.quizResults || []), ...studentSubs];
     const latestSubmission = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
 
-    // READ defaultPassword DIRECTLY from the database — NEVER generate or modify it
-    const studentPin = s.defaultPassword ?? '1234';
+    // Read defaultPassword directly from the real database record
+    const studentPin = s.defaultPassword ?? s.password ?? '1234';
 
     return {
       id: s.id,
