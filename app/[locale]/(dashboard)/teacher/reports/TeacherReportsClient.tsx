@@ -33,14 +33,45 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
   const [reports, setReports] = useState<StudentReportItem[]>(initialReports);
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(RESULTS_KEY);
-      if (stored) {
-        const parsedRes: any[] = JSON.parse(stored);
-        if (Array.isArray(parsedRes) && parsedRes.length > 0) {
-          setReports((prev) =>
-            prev.map((student) => {
-              // Find matching student submissions
+    function syncReports() {
+      try {
+        let baseList = initialReports;
+        const storedStudents = localStorage.getItem('edu_students');
+        if (storedStudents) {
+          const parsedStudents: any[] = JSON.parse(storedStudents);
+          if (Array.isArray(parsedStudents) && parsedStudents.length > 0) {
+            const map = new Map(initialReports.map((r) => [r.studentCode || r.id, r]));
+            parsedStudents.forEach((s) => {
+              const code = s.studentCode || s.id;
+              if (!map.has(code)) {
+                map.set(code, {
+                  id: s.id,
+                  name: s.name,
+                  studentCode: s.studentCode || s.id,
+                  phone: s.phone || '—',
+                  parentPhone: s.parentPhone || s.parentWhatsapp || '—',
+                  grade: s.grade || s.gradeLevel || 'الصف الثالث الإعدادي',
+                  avgScore: 0,
+                  latestScore: null,
+                  latestMaxScore: null,
+                  latestPercentage: null,
+                  hasSubmissions: false,
+                  examsCompleted: 0,
+                  homeworkCompleted: 0,
+                  attendanceCount: 0,
+                  status: 'يحتاج متابعة',
+                });
+              }
+            });
+            baseList = Array.from(map.values());
+          }
+        }
+
+        const storedResults = localStorage.getItem(RESULTS_KEY);
+        if (storedResults) {
+          const parsedRes: any[] = JSON.parse(storedResults);
+          if (Array.isArray(parsedRes) && parsedRes.length > 0) {
+            baseList = baseList.map((student) => {
               const studentSubmissions = parsedRes.filter(
                 (r) =>
                   r.studentId === student.id ||
@@ -52,7 +83,6 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
               const latest = getLatestStudentSubmission(student.studentCode || student.id, studentSubmissions);
               if (latest) {
                 const totalExams = Math.max(student.examsCompleted, studentSubmissions.length);
-
                 return {
                   ...student,
                   avgScore: latest.percentage,
@@ -64,15 +94,25 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                   status: latest.percentage >= 65 ? 'ممتاز' : 'يحتاج متابعة',
                 };
               }
-
               return student;
-            })
-          );
+            });
+          }
         }
+
+        setReports(baseList);
+      } catch (err) {
+        console.warn('[TeacherReportsClient] Sync error:', err);
       }
-    } catch (err) {
-      console.warn('[TeacherReportsClient] LocalStorage sync error:', err);
     }
+
+    syncReports();
+    window.addEventListener('edu_store_updated', syncReports);
+    window.addEventListener('storage', syncReports);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncReports);
+      window.removeEventListener('storage', syncReports);
+    };
   }, [initialReports]);
 
   const filtered = reports.filter((r) =>

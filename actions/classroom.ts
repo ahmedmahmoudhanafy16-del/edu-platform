@@ -21,7 +21,13 @@ export async function createClassroom(name: string, subject: string, teacherId: 
       teacherId,
     },
   });
-  revalidatePath('/[locale]/teacher/classrooms');
+
+  try {
+    revalidatePath('/ar/teacher/classrooms');
+    revalidatePath('/en/teacher/classrooms');
+    revalidatePath('/', 'layout');
+  } catch (e) {}
+
   return classroom;
 }
 
@@ -37,8 +43,17 @@ export async function createStudentAction(formData: {
   password?: string;
 }) {
   try {
-    const studentCode = `STU-${Math.floor(100 + Math.random() * 900)}`;
+    // Sequential Student Code: STU-001, STU-002, STU-003...
+    let count = 0;
+    try {
+      count = await prisma.user.count({ where: { role: 'STUDENT' } });
+    } catch (e) {
+      console.warn('[createStudentAction] Could not count students from DB, checking fallback count:', e);
+      count = 2;
+    }
+    const studentCode = `STU-${String(count + 1).padStart(3, '0')}`;
     const studentId = studentCode;
+
     const cleanName = formData.name?.trim() || '';
     const cleanPhone = formData.phone?.trim() || '';
     const cleanParent = formData.parentPhone?.trim() || formData.parentWhatsapp?.trim() || cleanPhone;
@@ -93,13 +108,13 @@ export async function createStudentAction(formData: {
       console.warn('Server DB write failed, fallback handled gracefully:', dbError);
     }
 
-    // 2. Safe Path Revalidation
+    // 2. Safe Path Revalidation across all locales and layouts
     try {
-      revalidatePath('/[locale]/teacher/students');
-      revalidatePath('/teacher/students');
-      revalidatePath('/[locale]/teacher');
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
+      revalidatePath('/', 'layout');
     } catch (revalErr) {
       // Silently catch edge revalidation errors
     }
@@ -198,11 +213,11 @@ export async function toggleClassroomStatus(classroomId: string, isActive: boole
     }
 
     try {
-      revalidatePath('/[locale]/teacher/classrooms');
-      revalidatePath('/[locale]/teacher');
-      revalidatePath('/[locale]/student');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/ar/teacher/students');
+      revalidatePath('/en/teacher/students');
+      revalidatePath('/', 'layout');
     } catch (e) {}
 
     return {
@@ -254,10 +269,9 @@ export async function deleteClassroom(classroomId: string) {
     }
 
     try {
-      revalidatePath('/[locale]/teacher/classrooms');
-      revalidatePath('/[locale]/teacher');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/', 'layout');
     } catch (e) {}
 
     return {
