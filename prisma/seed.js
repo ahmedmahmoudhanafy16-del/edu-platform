@@ -32,7 +32,7 @@ async function main() {
     },
   });
 
-  // 2. Student 1 (أحمد محمد علي) - Unique PIN: 3842
+  // 2. Student 1 (أحمد محمد علي) - Unique PIN: 6576
   const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
@@ -53,6 +53,34 @@ async function main() {
       defaultPassword: pin1,
       role: 'STUDENT',
       phone: '01099998888',
+      parentPhone: '01012345678',
+      grade: 'الصف الثالث الإعدادي',
+    },
+  });
+
+  // 2.5 Student STU-633 (أحمد محمود أحمد) - Unique PIN: 9715
+  const pin633 = '9715';
+  const student633Hash = bcrypt.hashSync(pin633, 10);
+  const student633 = await prisma.user.upsert({
+    where: { studentCode: 'STU-633' },
+    update: {
+      password: student633Hash,
+      passwordHash: student633Hash,
+      defaultPassword: pin633,
+      name: 'أحمد محمود أحمد',
+      role: 'STUDENT',
+      phone: '01012345678',
+      parentPhone: '01012345678',
+      grade: 'الصف الثالث الإعدادي',
+    },
+    create: {
+      name: 'أحمد محمود أحمد',
+      studentCode: 'STU-633',
+      password: student633Hash,
+      passwordHash: student633Hash,
+      defaultPassword: pin633,
+      role: 'STUDENT',
+      phone: '01012345678',
       parentPhone: '01012345678',
       grade: 'الصف الثالث الإعدادي',
     },

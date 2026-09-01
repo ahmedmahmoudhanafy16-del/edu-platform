@@ -519,13 +519,105 @@ export function toggleAssignmentLock(assignmentId: string, isClosed: boolean): b
   return isClosed;
 }
 
+export const DEFAULT_INITIAL_STUDENTS = [
+  {
+    id: 'STU-633',
+    name: 'أحمد محمود أحمد',
+    studentCode: 'STU-633',
+    code: 'STU-633',
+    phone: '01012345678',
+    parentPhone: '01012345678',
+    parentWhatsapp: '01012345678',
+    grade: 'الصف الثالث الإعدادي',
+    gradeLevel: 'الصف الثالث الإعدادي',
+    classroomId: 'class-math-3',
+    avgScore: null,
+    submissionsCount: 0,
+    attendanceCount: 0,
+    lastActive: new Date().toISOString(),
+    isActive: true,
+    defaultPassword: '9715',
+    password: '9715',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'STU-001',
+    name: 'أحمد محمد علي',
+    studentCode: 'STU-001',
+    code: 'STU-001',
+    phone: '01099998888',
+    parentPhone: '01012345678',
+    parentWhatsapp: '01012345678',
+    grade: 'الصف الثالث الإعدادي',
+    gradeLevel: 'الصف الثالث الإعدادي',
+    classroomId: 'class-math-3',
+    avgScore: null,
+    submissionsCount: 0,
+    attendanceCount: 0,
+    lastActive: new Date().toISOString(),
+    isActive: true,
+    defaultPassword: '6576',
+    password: '6576',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'STU-645',
+    name: 'علي حسين',
+    studentCode: 'STU-645',
+    code: 'STU-645',
+    phone: '01066667777',
+    parentPhone: '01066667777',
+    parentWhatsapp: '01066667777',
+    grade: 'الصف الثالث الإعدادي',
+    gradeLevel: 'الصف الثالث الإعدادي',
+    classroomId: 'class-math-3',
+    avgScore: null,
+    submissionsCount: 0,
+    attendanceCount: 0,
+    lastActive: new Date().toISOString(),
+    isActive: true,
+    defaultPassword: '9682',
+    password: '9682',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'STU-777',
+    name: 'زياد طارق إبراهيم',
+    studentCode: 'STU-777',
+    code: 'STU-777',
+    phone: '01055554444',
+    parentPhone: '01099998888',
+    parentWhatsapp: '01099998888',
+    grade: 'الصف الثالث الإعدادي',
+    gradeLevel: 'الصف الثالث الإعدادي',
+    classroomId: 'class-math-3',
+    avgScore: null,
+    submissionsCount: 0,
+    attendanceCount: 0,
+    lastActive: new Date().toISOString(),
+    isActive: true,
+    defaultPassword: '8626',
+    password: '8626',
+    createdAt: new Date().toISOString(),
+  },
+];
+
 export function getStudentsFromStore(): any[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return DEFAULT_INITIAL_STUDENTS;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_INITIAL_STUDENTS));
+      return DEFAULT_INITIAL_STUDENTS;
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_INITIAL_STUDENTS));
+      return DEFAULT_INITIAL_STUDENTS;
+    }
+    return parsed;
   } catch {
-    return [];
+    return DEFAULT_INITIAL_STUDENTS;
   }
 }
 

@@ -20,30 +20,9 @@ export function normalizeArabic(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
-const defaultStudentsList = [
-  {
-    id: 'student-1',
-    name: 'أحمد محمد علي',
-    studentCode: 'STU-001',
-    code: 'STU-001',
-    phone: '01099998888',
-    password: '3842',
-    defaultPassword: '3842',
-    role: 'STUDENT',
-    grade: 'الصف الثالث الإعدادي',
-  },
-  {
-    id: 'student-2',
-    name: 'زياد طارق إبراهيم',
-    studentCode: 'STU-777',
-    code: 'STU-777',
-    phone: '01055554444',
-    password: '7195',
-    defaultPassword: '7195',
-    role: 'STUDENT',
-    grade: 'الصف الثالث الإعدادي',
-  },
-];
+import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
+
+const defaultStudentsList = DEFAULT_INITIAL_STUDENTS;
 
 /**
  * Flexible Dynamic Student Authentication:
