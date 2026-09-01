@@ -23,8 +23,10 @@ model User {
   role          String   @default("STUDENT") // STUDENT | TEACHER | PARENT | ADMIN
   phone         String?
   parentPhone   String?
+  parentWhatsapp String?
   governorate   String?  @default("Cairo")
   grade         String?  @default("الصف الثالث الإعدادي")
+  gradeLevel    String?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

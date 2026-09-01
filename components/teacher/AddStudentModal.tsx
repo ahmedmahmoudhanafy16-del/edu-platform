@@ -36,8 +36,8 @@ export function AddStudentModal({
 }: AddStudentModalProps) {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [parentPhone, setParentPhone] = useState('');
-  const [grade, setGrade] = useState(ACADEMIC_GRADES[0]);
+  const [parentWhatsapp, setParentWhatsapp] = useState('');
+  const [gradeLevel, setGradeLevel] = useState(ACADEMIC_GRADES[0]);
   const [classroomId, setClassroomId] = useState(defaultClassroomId || classrooms[0]?.id || '');
   const [password, setPassword] = useState('1234');
   const [loading, setLoading] = useState(false);
@@ -53,19 +53,20 @@ export function AddStudentModal({
 
     setLoading(true);
     try {
-      const student = await addStudentToClassroom({
-        name: name.trim(),
-        phone: phone.trim(),
-        parentPhone: parentPhone.trim() || phone.trim(),
-        grade,
+      const student = await addStudentToClassroom(
+        name.trim(),
+        phone.trim(),
+        parentWhatsapp.trim() || phone.trim(),
+        gradeLevel,
         classroomId,
-        password: password.trim() || '1234',
-      });
+        password.trim() || '1234'
+      );
 
       toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode} 🎓`);
       setName('');
       setPhone('');
-      setParentPhone('');
+      setParentWhatsapp('');
+      setPassword('1234');
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -142,8 +143,8 @@ export function AddStudentModal({
               <div className="relative">
                 <Input
                   type="tel"
-                  value={parentPhone}
-                  onChange={(e) => setParentPhone(e.target.value)}
+                  value={parentWhatsapp}
+                  onChange={(e) => setParentWhatsapp(e.target.value)}
                   placeholder="01099998888"
                   className="pe-8 font-mono text-xs"
                 />
@@ -158,8 +159,8 @@ export function AddStudentModal({
                 الصف الدراسي:
               </label>
               <select
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
+                value={gradeLevel}
+                onChange={(e) => setGradeLevel(e.target.value)}
                 className="w-full h-9 px-3 rounded-md border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
               >
                 {ACADEMIC_GRADES.map((g) => (
