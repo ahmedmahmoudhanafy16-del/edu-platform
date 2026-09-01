@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   let body: any = {};
   try {
@@ -16,25 +18,29 @@ export async function POST(req: NextRequest) {
     received: { studentCode, password },
   };
 
-  // Step 1: find user
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { studentCode },
-        { studentCode: studentCode.toUpperCase() },
-        { phone: studentCode },
-        { id: studentCode },
-      ],
-    },
-    select: {
-      id: true,
-      name: true,
-      studentCode: true,
-      role: true,
-      password: true,
-      defaultPassword: true,
-    },
-  });
+  let user: any = null;
+  try {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { studentCode },
+          { studentCode: studentCode.toUpperCase() },
+          { phone: studentCode },
+          { id: studentCode },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        studentCode: true,
+        role: true,
+        password: true,
+        defaultPassword: true,
+      },
+    });
+  } catch (err: any) {
+    steps.dbError = err?.message || String(err);
+  }
 
   if (!user) {
     return NextResponse.json({ ...steps, error: 'USER NOT FOUND' });
@@ -64,41 +70,50 @@ export async function POST(req: NextRequest) {
   }
 
   // Step 4: trimmed check
-  steps.trimmedBcryptMatch = await bcrypt.compare(
-    String(password).trim(),
-    String(user.password || '').trim()
-  ).catch(() => false);
+  try {
+    steps.trimmedBcryptMatch = await bcrypt.compare(
+      String(password).trim(),
+      String(user.password || '').trim()
+    );
+  } catch (e: any) {
+    steps.trimmedBcryptError = e.message;
+  }
 
   return NextResponse.json(steps);
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const studentCode = searchParams.get('studentCode') || searchParams.get('code') || 'STU-633';
-  const password = searchParams.get('password') || searchParams.get('pass') || '9715';
+  const studentCode = searchParams.get('studentCode') || searchParams.get('code') || 'STU-001';
+  const password = searchParams.get('password') || searchParams.get('pass') || '1234';
 
   const steps: any = {
     received: { studentCode, password },
   };
 
-  const user = await prisma.user.findFirst({
-    where: {
-      OR: [
-        { studentCode },
-        { studentCode: studentCode.toUpperCase() },
-        { phone: studentCode },
-        { id: studentCode },
-      ],
-    },
-    select: {
-      id: true,
-      name: true,
-      studentCode: true,
-      role: true,
-      password: true,
-      defaultPassword: true,
-    },
-  });
+  let user: any = null;
+  try {
+    user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { studentCode },
+          { studentCode: studentCode.toUpperCase() },
+          { phone: studentCode },
+          { id: studentCode },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        studentCode: true,
+        role: true,
+        password: true,
+        defaultPassword: true,
+      },
+    });
+  } catch (err: any) {
+    steps.dbError = err?.message || String(err);
+  }
 
   if (!user) {
     return NextResponse.json({ ...steps, error: 'USER NOT FOUND' });
@@ -125,10 +140,14 @@ export async function GET(req: NextRequest) {
     steps.bcryptError = e.message;
   }
 
-  steps.trimmedBcryptMatch = await bcrypt.compare(
-    String(password).trim(),
-    String(user.password || '').trim()
-  ).catch(() => false);
+  try {
+    steps.trimmedBcryptMatch = await bcrypt.compare(
+      String(password).trim(),
+      String(user.password || '').trim()
+    );
+  } catch (e: any) {
+    steps.trimmedBcryptError = e.message;
+  }
 
   return NextResponse.json(steps);
 }
