@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, UserPlus, Phone, User, BookOpen, KeyRound, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UserPlus, Phone, User, BookOpen, KeyRound, MessageSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createStudentAction, addStudentToClassroom } from '@/actions/classroom';
@@ -28,6 +28,8 @@ const ACADEMIC_GRADES = [
   'الصف الرابع الابتدائي',
 ];
 
+const generateRandomPin = () => Math.floor(1000 + Math.random() * 9000).toString();
+
 export function AddStudentModal({
   classrooms,
   defaultClassroomId,
@@ -40,8 +42,14 @@ export function AddStudentModal({
   const [parentWhatsapp, setParentWhatsapp] = useState('');
   const [gradeLevel, setGradeLevel] = useState(ACADEMIC_GRADES[0]);
   const [classroomId, setClassroomId] = useState(defaultClassroomId || classrooms[0]?.id || '');
-  const [password, setPassword] = useState('1234');
+  const [password, setPassword] = useState(() => generateRandomPin());
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPassword(generateRandomPin());
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -84,7 +92,7 @@ export function AddStudentModal({
       setName('');
       setPhone('');
       setParentWhatsapp('');
-      setPassword('1234');
+      setPassword(generateRandomPin());
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -208,19 +216,44 @@ export function AddStudentModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              كلمة المرور الافتراضية:
-            </label>
-            <div className="relative">
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-n-700 dark:text-n-600">
+                كلمة المرور / الباسورد (4 أرقام):
+              </label>
+              <button
+                type="button"
+                onClick={() => setPassword(generateRandomPin())}
+                className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
+                title="توليد كود عشوائي جديد"
+              >
+                <RefreshCw className="h-3 w-3" />
+                توليد كود جديد
+              </button>
+            </div>
+            <div className="relative flex items-center">
               <Input
                 type="text"
+                maxLength={4}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="1234"
-                className="pe-8 font-mono text-xs"
+                placeholder="2458"
+                className="pe-16 font-mono text-sm tracking-widest font-bold bg-slate-50 dark:bg-slate-800"
               />
-              <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
+              <div className="absolute end-2 flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => setPassword(generateRandomPin())}
+                  title="إعادة توليد كلمة المرور"
+                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+                <KeyRound className="h-4 w-4 text-slate-400" />
+              </div>
             </div>
+            <p className="text-[10px] text-slate-400 mt-1">
+              رمز مرور عشوائي مكوّن من 4 أرقام لتسهيل دخول الطالب
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-100 dark:border-n-200">

@@ -11,6 +11,7 @@ interface StudentItem {
   id: string;
   name: string;
   studentCode: string;
+  password?: string;
   phone: string | null;
   avgScore: number | null;
   submissionsCount: number;

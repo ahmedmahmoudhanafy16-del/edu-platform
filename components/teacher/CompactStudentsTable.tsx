@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import {
   ChevronUp, ChevronDown, Download, ShieldAlert,
-  ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2
+  ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2,
+  Copy, KeyRound
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
 import { formatDateShort } from '@/lib/utils';
@@ -17,6 +18,7 @@ export interface Student {
   id: string;
   name: string;
   studentCode: string;
+  password?: string;
   phone: string | null;
   avgScore: number | null;
   latestScore?: number | null;
@@ -96,6 +98,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             initialStudents.forEach((s) => {
               if (!localMap.has(s.id)) {
                 localMap.set(s.id, s);
+              } else {
+                const existing = localMap.get(s.id);
+                if (existing && !existing.password && s.password) {
+                  existing.password = s.password;
+                }
               }
             });
             baseList = Array.from(localMap.values());
@@ -129,6 +136,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       (s) =>
         s.name.includes(query) ||
         (s.studentCode || '').toLowerCase().includes(query.toLowerCase()) ||
+        (s.password || '').includes(query) ||
         (s.phone || '').includes(query)
     )
     .sort((a, b) => {
@@ -202,6 +210,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
+        password: s.password || '1234',
         phone: s.phone || '',
         status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
         avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
@@ -212,6 +221,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       {
         name: 'اسم الطالب',
         studentCode: 'كود الطالب',
+        password: 'كلمة المرور',
         phone: 'رقم الهاتف',
         status: 'حالة الحساب',
         avgScore: 'آخر امتحان',
@@ -232,7 +242,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="بحث بالاسم أو الكود أو رقم الهاتف..."
+          placeholder="بحث بالاسم أو الكود أو رقم الهاتف أو كلمة المرور..."
           className="flex-1 h-8 px-3 rounded-md border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent"
         />
         <span className="text-xs text-n-400 tabular-nums">{sorted.length} طالب</span>
@@ -252,6 +262,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               <th className={thClass}>#</th>
               <th className={thClass} onClick={() => toggleSort('name')}>الاسم</th>
               <th className={thClass} onClick={() => toggleSort('studentCode')}>الكود</th>
+              <th className={thClass + ' text-center'}>كلمة المرور</th>
               <th className={thClass}>الهاتف</th>
               <th className={thClass}>الحالة</th>
               <th className={thClass} onClick={() => toggleSort('avgScore')}>آخر امتحان</th>
@@ -264,7 +275,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-xs text-n-400">
+                <td colSpan={11} className="px-4 py-8 text-center text-xs text-n-400">
                   لا توجد نتائج
                 </td>
               </tr>
@@ -286,7 +297,38 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                       {s.name}
                     </td>
                     <td className={tdClass}>
-                      <code className="font-mono font-bold text-accent">{s.studentCode}</code>
+                      <div className="inline-flex items-center gap-1">
+                        <code className="font-mono font-bold text-accent">{s.studentCode}</code>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(s.studentCode);
+                            toast.success(`تم نسخ كود الطالب (${s.studentCode})`);
+                          }}
+                          title="نسخ كود الطالب"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-accent transition-colors"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className={tdClass + ' text-center'}>
+                      <div className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
+                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs tracking-wider">
+                          {s.password || '1234'}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(s.password || '1234');
+                            toast.success(`تم نسخ كلمة مرور الطالب ${s.name} (${s.password || '1234'})`);
+                          }}
+                          title="نسخ كلمة المرور"
+                          className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
                     </td>
                     <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
                     <td className={tdClass}>
