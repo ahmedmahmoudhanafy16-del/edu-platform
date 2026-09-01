@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
+import bcrypt from 'bcryptjs';
 
 export async function createClassroom(name: string, subject: string, teacherId: string) {
   // Enforce Teacher Role
@@ -43,7 +44,7 @@ export async function createStudentAction(formData: {
   password?: string;
 }) {
   try {
-    // Sequential Student Code: STU-001, STU-002, STU-003...
+    // 1. Sequential Student Code: STU-001, STU-002, STU-003...
     let count = 0;
     try {
       count = await prisma.user.count({ where: { role: 'STUDENT' } });
@@ -59,7 +60,8 @@ export async function createStudentAction(formData: {
     const cleanParent = formData.parentPhone?.trim() || formData.parentWhatsapp?.trim() || cleanPhone;
     const cleanGrade = formData.grade || formData.gradeLevel || 'الصف الثالث الإعدادي';
     const targetClassroomId = formData.classroom || formData.classroomId || '';
-    const cleanPassword = formData.password || '1234';
+    const defaultPassword = formData.password?.trim() || '1234';
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10);
 
     const newStudent = {
       id: studentId,
@@ -72,13 +74,13 @@ export async function createStudentAction(formData: {
       gradeLevel: cleanGrade,
       classroom: targetClassroomId,
       classroomId: targetClassroomId,
-      password: cleanPassword,
+      defaultPassword,
       role: 'STUDENT',
       isActive: true,
       createdAt: new Date().toISOString(),
     };
 
-    // 1. Safe Database Attempt (Bypass if serverless read-only fails)
+    // 2. Safe Database Attempt (Bypass if serverless read-only fails)
     try {
       await prisma.user.create({
         data: {
@@ -90,7 +92,8 @@ export async function createStudentAction(formData: {
           grade: newStudent.grade,
           gradeLevel: newStudent.gradeLevel,
           studentCode: newStudent.studentCode,
-          password: newStudent.password,
+          password: hashedPassword,
+          defaultPassword: defaultPassword,
           role: 'STUDENT',
           isActive: true,
           ...(newStudent.classroomId
@@ -108,7 +111,7 @@ export async function createStudentAction(formData: {
       console.warn('Server DB write failed, fallback handled gracefully:', dbError);
     }
 
-    // 2. Safe Path Revalidation across all locales and layouts
+    // 3. Safe Path Revalidation across all locales and layouts
     try {
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');

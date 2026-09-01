@@ -19,6 +19,7 @@ model User {
   studentCode   String?  @unique // e.g. STU-001
   password      String?
   passwordHash  String   @default("")
+  defaultPassword String?
   name          String
   role          String   @default("STUDENT") // STUDENT | TEACHER | PARENT | ADMIN
   phone         String?

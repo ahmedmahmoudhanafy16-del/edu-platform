@@ -89,7 +89,8 @@ export async function POST(req: NextRequest) {
     // 3. Password Verification
     const isMatch =
       password === user.password ||
-      (user.password ? await bcrypt.compare(password, user.password).catch(() => false) : false);
+      (user.password ? await bcrypt.compare(password, user.password).catch(() => false) : false) ||
+      (user.defaultPassword && password === user.defaultPassword);
 
     if (!isMatch) {
       console.log(`[Auth Login] Invalid password for User ID=${user.id}`);

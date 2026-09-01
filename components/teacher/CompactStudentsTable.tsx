@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import {
   ChevronUp, ChevronDown, Download, ShieldAlert,
   ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2,
-  Copy, KeyRound
+  Copy, KeyRound, Eye, EyeOff
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
 import { formatDateShort } from '@/lib/utils';
@@ -18,6 +18,7 @@ export interface Student {
   id: string;
   name: string;
   studentCode: string;
+  defaultPassword?: string;
   password?: string;
   phone: string | null;
   avgScore: number | null;
@@ -77,6 +78,36 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   }
 }
 
+function PasswordCell({ password }: { password: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
+      <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider">
+        {visible ? password : '••••'}
+      </span>
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        title={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+        className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+      >
+        {visible ? <EyeOff size={12} /> : <Eye size={12} />}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          navigator.clipboard.writeText(password);
+          toast.success('تم نسخ كلمة المرور');
+        }}
+        title="نسخ كلمة المرور"
+        className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+      >
+        <Copy size={12} />
+      </button>
+    </div>
+  );
+}
+
 export function CompactStudentsTable({ students: initialStudents, classroomName, onRefresh }: Props) {
   const [students, setStudents] = useState<Student[]>(() => computeDynamicAverages(initialStudents));
   const [sortKey, setSortKey] = useState<SortKey>('name');
@@ -100,8 +131,13 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                 localMap.set(s.id, s);
               } else {
                 const existing = localMap.get(s.id);
-                if (existing && !existing.password && s.password) {
-                  existing.password = s.password;
+                if (existing) {
+                  if (!existing.defaultPassword && s.defaultPassword) {
+                    existing.defaultPassword = s.defaultPassword;
+                  }
+                  if (!existing.password && s.password) {
+                    existing.password = s.password;
+                  }
                 }
               }
             });
@@ -210,7 +246,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
-        password: s.password || '1234',
+        password: s.defaultPassword || s.password || '1234',
         phone: s.phone || '',
         status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
         avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
@@ -313,22 +349,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                       </div>
                     </td>
                     <td className={tdClass + ' text-center'}>
-                      <div className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
-                        <span className="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs tracking-wider">
-                          {s.password || '1234'}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(s.password || '1234');
-                            toast.success(`تم نسخ كلمة مرور الطالب ${s.name} (${s.password || '1234'})`);
-                          }}
-                          title="نسخ كلمة المرور"
-                          className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </button>
-                      </div>
+                      <PasswordCell password={s.defaultPassword || s.password || '1234'} />
                     </td>
                     <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
                     <td className={tdClass}>
