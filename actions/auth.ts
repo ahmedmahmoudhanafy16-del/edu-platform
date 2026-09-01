@@ -1,7 +1,5 @@
 'use client';
 
-import { getConsistentStudentPin } from '@/lib/utils';
-
 export interface StudentAuthResult {
   success: boolean;
   error?: string;
@@ -90,15 +88,13 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       return { success: false, error: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.' };
     }
 
-    // Verify Password (direct check, defaultPassword, consistent hash derived PIN, or fallback)
-    const storedPassword = String(matchedStudent.password || matchedStudent.defaultPassword || '').trim();
-    const storedDefPassword = String(matchedStudent.defaultPassword || matchedStudent.password || '').trim();
-    const derivedPin = getConsistentStudentPin(matchedStudent.studentCode || matchedStudent.code || matchedStudent.id);
+    // Verify Password (direct check, defaultPassword, or 1234 fallback)
+    const storedPassword = String(matchedStudent.password || matchedStudent.defaultPassword || '1234').trim();
+    const storedDefPassword = String(matchedStudent.defaultPassword || matchedStudent.password || '1234').trim();
 
     const isPinMatch =
       storedPassword === cleanPin ||
       storedDefPassword === cleanPin ||
-      derivedPin === cleanPin ||
       cleanPin === '1234';
 
     if (!isPinMatch) {

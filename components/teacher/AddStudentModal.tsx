@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Phone, User, BookOpen, KeyRound, MessageSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createStudentAction, addStudentToClassroom } from '@/actions/classroom';
+import { createStudentAction } from '@/actions/classroom';
 import { saveStudentToStore } from '@/lib/store';
 import { generateRandomPin } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -41,12 +41,13 @@ export function AddStudentModal({
   const [parentWhatsapp, setParentWhatsapp] = useState('');
   const [gradeLevel, setGradeLevel] = useState(ACADEMIC_GRADES[0]);
   const [classroomId, setClassroomId] = useState(defaultClassroomId || classrooms[0]?.id || '');
-  const [password, setPassword] = useState(() => generateRandomPin());
+  const [password, setPassword] = useState('1234');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setPassword(generateRandomPin());
+      // Default to '1234' — teacher can change or click "توليد كود جديد"
+      setPassword('1234');
     }
   }, [isOpen]);
 
@@ -61,6 +62,9 @@ export function AddStudentModal({
 
     setLoading(true);
     try {
+      // password is EXACTLY what the teacher typed — it goes to the server as-is
+      const plainPassword = password.trim() || '1234';
+
       const result = await createStudentAction({
         name: name.trim(),
         phone: phone.trim(),
@@ -70,7 +74,7 @@ export function AddStudentModal({
         gradeLevel,
         classroom: classroomId,
         classroomId,
-        password: password.trim() || '1234',
+        password: plainPassword,
       });
 
       if (!result.success || !result.student) {
@@ -87,11 +91,11 @@ export function AddStudentModal({
         window.dispatchEvent(new Event('storage'));
       }
 
-      toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} 🎓`);
+      toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} — كلمة المرور: ${plainPassword} 🎓`);
       setName('');
       setPhone('');
       setParentWhatsapp('');
-      setPassword(generateRandomPin());
+      setPassword('1234');
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -217,7 +221,7 @@ export function AddStudentModal({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600">
-                كلمة المرور / الباسورد (4 أرقام):
+                كلمة المرور (4 أرقام):
               </label>
               <button
                 type="button"
@@ -235,7 +239,7 @@ export function AddStudentModal({
                 maxLength={4}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="2458"
+                placeholder="1234"
                 className="pe-16 font-mono text-sm tracking-widest font-bold bg-slate-50 dark:bg-slate-800"
               />
               <div className="absolute end-2 flex items-center gap-1">
@@ -251,7 +255,7 @@ export function AddStudentModal({
               </div>
             </div>
             <p className="text-[10px] text-slate-400 mt-1">
-              رمز مرور عشوائي مكوّن من 4 أرقام لتسهيل دخول الطالب
+              كلمة مرور الطالب — يمكنك تغييرها أو توليد كود عشوائي
             </p>
           </div>
 

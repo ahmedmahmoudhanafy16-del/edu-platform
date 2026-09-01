@@ -14,7 +14,6 @@ function normalizeArabic(text: string): string {
     .replace(/\s+/g, ' ');
 }
 
-// Pre-seeded fallback user directory (guarantees Vercel serverless demo login NEVER fails)
 const DEMO_USERS = [
   {
     id: 'demo-student-1',
@@ -50,7 +49,7 @@ export async function POST(req: NextRequest) {
   try {
     const { email, studentCode, password, role, localStudent } = await req.json();
 
-    const cleanPassword = (password?.toString() || '').trim();
+    const raw = String(password ?? '').trim();
     let user: any = null;
 
     // 1. Try resolving user from Prisma DB
@@ -80,7 +79,7 @@ export async function POST(req: NextRequest) {
         });
       }
     } catch (dbErr) {
-      console.warn('[Auth Login] Database lookup failed, falling back to static directory:', dbErr);
+      console.warn('[Auth Login] Database lookup failed:', dbErr);
     }
 
     // 1.5 Try resolving from localStudent if provided by client store
@@ -103,10 +102,7 @@ export async function POST(req: NextRequest) {
       const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '1234').trim();
       const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '1234').trim();
 
-      if (
-        isIdentifierMatch &&
-        (sPass === cleanPassword || sDefPass === cleanPassword || cleanPassword === '1234')
-      ) {
+      if (isIdentifierMatch && (sPass === raw || sDefPass === raw)) {
         user = {
           id: localStudent.id || sCode,
           name: localStudent.name,
@@ -121,7 +117,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Fallback to Demo Directory if user not found in DB
+    // 2. Fallback to Demo Directory
     if (!user) {
       if (role === 'TEACHER') {
         const cleanEmail = email?.toString().trim().toLowerCase();
@@ -155,33 +151,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
     }
 
-    // 3. Dual Password Check: Support plain text AND bcrypt
+    // 3. Password verification: plain text first, then bcrypt
+    const stored = String(user.password ?? '');
     let isMatch = false;
 
-    // Check plain text (old accounts or defaultPassword)
-    if (cleanPassword === user.password || (user.defaultPassword && cleanPassword === user.defaultPassword)) {
+    // Plain text match against password or defaultPassword
+    if (raw === stored || (user.defaultPassword && raw === user.defaultPassword)) {
       isMatch = true;
-    } else {
-      // Check bcrypt hash (new accounts created with hashing)
+    }
+
+    // Bcrypt match
+    if (!isMatch && stored.startsWith('$2')) {
       try {
-        isMatch = await bcrypt.compare(cleanPassword, user.password);
+        isMatch = await bcrypt.compare(raw, stored);
       } catch {
         isMatch = false;
       }
     }
 
     // Check passwordHash column if present
-    if (!isMatch && user.passwordHash) {
+    if (!isMatch && user.passwordHash && user.passwordHash.startsWith('$2')) {
       try {
-        isMatch = await bcrypt.compare(cleanPassword, user.passwordHash);
+        isMatch = await bcrypt.compare(raw, user.passwordHash);
       } catch {
         isMatch = false;
       }
-    }
-
-    // Master fallback for 1234
-    if (!isMatch && cleanPassword === '1234') {
-      isMatch = true;
     }
 
     if (!isMatch) {
@@ -191,7 +185,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3.5 Check if user is suspended / inactive
+    // 3.5 Check if user is suspended
     if (user.role === 'STUDENT' && user.isActive === false) {
       return NextResponse.json(
         {
@@ -220,7 +214,7 @@ export async function POST(req: NextRequest) {
     response.cookies.set('user_session', JSON.stringify(sessionPayload), {
       httpOnly: false,
       path: '/',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
     });
 

@@ -46,7 +46,6 @@ export function calcStudentAvg(results: {
 
 /**
  * Returns a compact Arabic relative-time label for a future/past due date.
- * e.g.  "متبقي 3 أيام"  |  "متبقي 48 ساعة"  |  "اليوم"  |  "متأخر 2 أيام"
  */
 export function relativeTimeAr(date: Date | string | number): { label: string; late: boolean } {
   const now = Date.now()
@@ -66,10 +65,11 @@ export function relativeTimeAr(date: Date | string | number): { label: string; l
   return { label: `متبقي ${diffDays} ${diffDays === 1 ? 'يوم' : 'أيام'}`, late: false }
 }
 
+/**
+ * Generate a random 4-digit PIN for NEW students only.
+ * This is ONLY used in AddStudentModal as a suggestion.
+ * The generated PIN is saved to the DB as defaultPassword — it is NEVER re-generated on display.
+ */
 export function generateRandomPin(): string {
-  return '1234';
-}
-
-export function getConsistentStudentPin(identifier?: string): string {
-  return '1234';
+  return Math.floor(1000 + Math.random() * 9000).toString();
 }

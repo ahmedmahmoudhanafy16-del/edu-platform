@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
 import { normalizeArabic } from '@/actions/auth';
-import { getConsistentStudentPin } from '@/lib/utils';
 
 export function LoginForm() {
   const params = useParams();
@@ -100,7 +99,6 @@ export function LoginForm() {
       // 4. Exact Password Match (handles string/number format differences and consistent fallbacks)
       const expectedPin = String(student.password || student.defaultPassword || '1234').trim();
       const expectedDefPin = String(student.defaultPassword || student.password || '1234').trim();
-      const derivedPin = getConsistentStudentPin(student.studentCode || student.code || student.id);
 
       const isPinValid =
         inputPin === expectedPin ||
