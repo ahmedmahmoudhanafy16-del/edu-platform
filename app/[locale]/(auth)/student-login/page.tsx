@@ -13,8 +13,8 @@ export default function StudentLoginPage() {
   const locale = useLocale();
   const router = useRouter();
 
-  const [studentCode, setStudentCode] = useState('STU-001');
-  const [password, setPassword] = useState('1234');
+  const [studentCode, setStudentCode] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 

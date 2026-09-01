@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
   Lock, Mail, KeyRound, Phone, GraduationCap,
-  Users, ShieldAlert, CheckCircle2, UserCheck
+  Users, UserCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,16 +22,16 @@ export default function LoginPage() {
   const [role, setRole] = useState<'STUDENT' | 'TEACHER' | 'PARENT'>('STUDENT');
 
   // Teacher fields
-  const [teacherEmail, setTeacherEmail] = useState('teacher@school.com');
-  const [teacherPassword, setTeacherPassword] = useState('teacher123');
+  const [teacherEmail, setTeacherEmail] = useState('');
+  const [teacherPassword, setTeacherPassword] = useState('');
 
   // Student fields
-  const [studentCode, setStudentCode] = useState('STU-001');
-  const [studentPassword, setStudentPassword] = useState('1234');
+  const [studentCode, setStudentCode] = useState('');
+  const [studentPassword, setStudentPassword] = useState('');
 
   // Parent fields
-  const [parentStudentCode, setParentStudentCode] = useState('STU-001');
-  const [parentPhone, setParentPhone] = useState('01012345678');
+  const [parentStudentCode, setParentStudentCode] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -149,52 +149,56 @@ export default function LoginPage() {
               {role === 'PARENT' && <UserCheck className="h-6 w-6" />}
             </div>
             <h1 className="text-xl font-bold text-n-800 dark:text-n-700">
-              {isAr ? 'تسجيل الدخول للمنصة' : 'Sign in to Platform'}
+              {role === 'STUDENT' && (isAr ? 'تسجيل دخول الطالب' : 'Student Login')}
+              {role === 'TEACHER' && (isAr ? 'تسجيل دخول المعلم' : 'Teacher Login')}
+              {role === 'PARENT' && (isAr ? 'بوابة ولي الأمر الأكاديمية' : 'Parent Portal')}
             </h1>
-            <p className="text-xs text-n-500 dark:text-n-400">
-              {isAr
-                ? 'اختر نوع حسابك للمتابعة إلى لوحة التحكم الخاصة بك'
-                : 'Select your account role to proceed to your dashboard'}
+            <p className="text-xs text-n-400">
+              {role === 'STUDENT' && (isAr ? 'أدخل كود الطالب وكلمة المرور للوصول لحصصك وامتحاناتك' : 'Enter your student code and password')}
+              {role === 'TEACHER' && (isAr ? 'أدخل البريد الإلكتروني للمتابعة وإدارة المحتوى والطلاب' : 'Enter your teacher credentials')}
+              {role === 'PARENT' && (isAr ? 'أدخل كود الطالب ورقم هاتفك للاستعلام المباشر عن النتائج' : 'Enter student code and phone number')}
             </p>
           </div>
 
-          {/* Role Selector Tabs */}
-          <div className="grid grid-cols-3 bg-n-100 dark:bg-n-200 p-1.5 rounded-xl border border-n-200 dark:border-n-300 gap-1">
+          {/* Role Tabs Switcher */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-n-100 dark:bg-n-200 rounded-xl border border-n-200 dark:border-n-300 text-xs font-semibold">
             <button
               type="button"
               onClick={() => { setRole('STUDENT'); setError(''); }}
-              className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 role === 'STUDENT'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-n-600 dark:text-n-400 hover:text-n-800 hover:bg-white/50 dark:hover:bg-n-100/50'
+                  ? 'bg-white dark:bg-n-100 text-accent shadow-sm border border-n-200/60 dark:border-n-300'
+                  : 'text-n-500 hover:text-n-700'
               }`}
             >
-              <GraduationCap className="h-4 w-4" />
-              {isAr ? 'دخول الطالب' : 'Student'}
+              <GraduationCap className="h-3.5 w-3.5" />
+              {isAr ? 'طالب' : 'Student'}
             </button>
+
             <button
               type="button"
               onClick={() => { setRole('TEACHER'); setError(''); }}
-              className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 role === 'TEACHER'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-n-600 dark:text-n-400 hover:text-n-800 hover:bg-white/50 dark:hover:bg-n-100/50'
+                  ? 'bg-white dark:bg-n-100 text-accent shadow-sm border border-n-200/60 dark:border-n-300'
+                  : 'text-n-500 hover:text-n-700'
               }`}
             >
-              <Users className="h-4 w-4" />
-              {isAr ? 'لوحة المعلم' : 'Teacher'}
+              <Users className="h-3.5 w-3.5" />
+              {isAr ? 'معلم' : 'Teacher'}
             </button>
+
             <button
               type="button"
               onClick={() => { setRole('PARENT'); setError(''); }}
-              className={`py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+              className={`py-2 rounded-lg transition-all flex items-center justify-center gap-1.5 ${
                 role === 'PARENT'
-                  ? 'bg-accent text-white shadow-sm'
-                  : 'text-n-600 dark:text-n-400 hover:text-n-800 hover:bg-white/50 dark:hover:bg-n-100/50'
+                  ? 'bg-white dark:bg-n-100 text-accent shadow-sm border border-n-200/60 dark:border-n-300'
+                  : 'text-n-500 hover:text-n-700'
               }`}
             >
-              <UserCheck className="h-4 w-4" />
-              {isAr ? 'ولي الأمر' : 'Parent'}
+              <UserCheck className="h-3.5 w-3.5" />
+              {isAr ? 'ولي أمر' : 'Parent'}
             </button>
           </div>
 
@@ -218,7 +222,7 @@ export default function LoginPage() {
                     required
                     value={studentCode}
                     onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                    placeholder="STU-001 أو 01099998888"
+                    placeholder={isAr ? 'كود الطالب أو رقم الهاتف' : 'Student code or phone'}
                     className="pe-9 font-mono font-bold tracking-wider text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -227,7 +231,7 @@ export default function LoginPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1.5">
-                  {isAr ? 'كلمة المرور (الافتراضية: 1234):' : 'Password:'}
+                  {isAr ? 'كلمة المرور:' : 'Password:'}
                 </label>
                 <div className="relative">
                   <Input
@@ -235,7 +239,7 @@ export default function LoginPage() {
                     required
                     value={studentPassword}
                     onChange={(e) => setStudentPassword(e.target.value)}
-                    placeholder="••••"
+                    placeholder="••••••••"
                     className="pe-9"
                   />
                   <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -261,7 +265,7 @@ export default function LoginPage() {
                     required
                     value={teacherEmail}
                     onChange={(e) => setTeacherEmail(e.target.value)}
-                    placeholder="teacher@school.com"
+                    placeholder={isAr ? 'example@domain.com' : 'teacher@example.com'}
                     className="pe-9"
                   />
                   <Mail className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -304,7 +308,7 @@ export default function LoginPage() {
                     required
                     value={parentStudentCode}
                     onChange={(e) => setParentStudentCode(e.target.value.toUpperCase())}
-                    placeholder="STU-001"
+                    placeholder={isAr ? 'كود الطالب' : 'Student code'}
                     className="pe-9 font-mono font-bold tracking-wider text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -321,7 +325,7 @@ export default function LoginPage() {
                     required
                     value={parentPhone}
                     onChange={(e) => setParentPhone(e.target.value)}
-                    placeholder="01012345678"
+                    placeholder="010xxxxxxxx"
                     className="pe-9 font-mono"
                   />
                   <Phone className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -333,15 +337,6 @@ export default function LoginPage() {
               </Button>
             </form>
           )}
-
-          {/* Quick Demo Credentials Footer Note */}
-          <div className="pt-3 border-t border-n-100 dark:border-n-200 text-center">
-            <p className="text-[11px] text-n-400 leading-relaxed">
-              {isAr
-                ? 'الحسابات التجريبية جاهزة مسبقاً: الطالب (STU-001 / 1234) · المعلم (teacher@school.com / teacher123)'
-                : 'Demo credentials prefilled: Student (STU-001 / 1234) · Teacher (teacher@school.com / teacher123)'}
-            </p>
-          </div>
         </div>
       </main>
 

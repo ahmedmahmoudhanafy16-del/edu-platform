@@ -12,8 +12,8 @@ export default function ParentLoginPage() {
   const locale = useLocale();
   const router = useRouter();
 
-  const [phone, setPhone] = useState('01099998888');
-  const [studentCode, setStudentCode] = useState('STU-001');
+  const [phone, setPhone] = useState('');
+  const [studentCode, setStudentCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
