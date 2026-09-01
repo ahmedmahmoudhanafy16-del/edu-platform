@@ -185,21 +185,20 @@ export async function notifyParentQuizCompleted({
   isPassed: boolean;
   status: string;
 }) {
+  const exactPct = percentage !== undefined ? percentage : (maxScore > 0 ? Math.round((score / maxScore) * 100) : 0);
   const resultText = status === 'PENDING'
     ? 'قيد مراجعة الأسئلة المقالية من قبل المعلم'
     : isPassed
-    ? `ناجح بنسبة (${percentage}%) 🎉`
-    : `غير مجتاز (${percentage}%) - يرجى المتابعة ⚠️`;
+    ? `ناجح بنسبة (${exactPct}%) 🎉`
+    : `غير مجتاز (${exactPct}%) - يرجى المتابعة ⚠️`;
 
   const message = `السلام عليكم ولي أمر الطالب/ة: *${studentName}* 📝
 
 أتم الطالب للتو امتحان: *${quizTitle}*
-- النتيجة: *${score} / ${maxScore}*
+- النتيجة: *${score} / ${maxScore}* (${exactPct}%)
 - الحالة: *${resultText}*
-- وقت التسليم: ${new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-
-تفاصيل الأسئلة والتصحيح متاحة على حساب الطالب بالمنصة.
-شكراً لحرصكم على متابعة ابنكم 🎓`;
+يمكنكم الاطلاع على تفاصيل الإجابات ومستوى الطالب عبر رابط بوابة ولي الأمر.
+مع تحيات إدارة المنصة التعليمية 🎓`;
 
   return await sendWhatsAppMessage({
     toPhone: parentPhone,

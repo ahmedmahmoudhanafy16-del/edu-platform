@@ -54,20 +54,27 @@ export default async function StudentGradesPage({
 
   const allResults = [...dbResults, ...memoryStudentResults];
 
-  const formattedResults: GradeResultItem[] = (allResults || []).map((r) => ({
-    id: r.id || `res-${r.quizId}`,
-    quizId: r.quizId,
-    totalScore: r.totalScore ?? r.autoScore ?? 0,
-    autoScore: r.autoScore ?? 0,
-    maxScore: r.maxScore || 100,
-    isPassed: Boolean(r.isPassed),
-    submittedAt: r.submittedAt ? new Date(r.submittedAt) : new Date(),
-    quiz: {
-      id: r.quiz?.id || r.quizId,
-      title: r.quiz?.title || 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-      type: r.quiz?.type || 'WEEKLY',
-    },
-  }));
+  const formattedResults: GradeResultItem[] = (allResults || []).map((r) => {
+    const s = r.totalScore ?? r.autoScore ?? 0;
+    const m = r.maxScore || 100;
+    const p = r.percentage !== undefined ? r.percentage : Math.round((s / m) * 100);
+
+    return {
+      id: r.id || `res-${r.quizId}`,
+      quizId: r.quizId,
+      totalScore: s,
+      autoScore: r.autoScore ?? 0,
+      maxScore: m,
+      percentage: p,
+      isPassed: Boolean(r.isPassed),
+      submittedAt: r.submittedAt ? new Date(r.submittedAt) : new Date(),
+      quiz: {
+        id: r.quiz?.id || r.quizId,
+        title: r.quiz?.title || 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        type: r.quiz?.type || 'WEEKLY',
+      },
+    };
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir="rtl">

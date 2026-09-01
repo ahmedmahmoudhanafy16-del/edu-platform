@@ -14,6 +14,7 @@ export interface GradeResultItem {
   totalScore: number | null;
   autoScore: number | null;
   maxScore: number;
+  percentage?: number;
   isPassed: boolean;
   submittedAt: string | Date;
   quiz: {
@@ -47,12 +48,17 @@ export function StudentGradesClient({
         if (storedSubmissions && storedSubmissions.length > 0) {
           const mapped: GradeResultItem[] = storedSubmissions.map((p, idx) => {
             const quizMatch = storedQuizzes.find((q) => q.id === p.quizId || q.accessCode === p.quizId);
+            const scoreVal = p.totalScore ?? p.autoScore ?? p.score ?? 0;
+            const maxScoreVal = p.maxScore && p.maxScore > 0 ? p.maxScore : 100;
+            const pctVal = p.percentage !== undefined ? p.percentage : Math.round((scoreVal / maxScoreVal) * 100);
+
             return {
               id: (p as any).id || `res-${p.quizId || idx}`,
               quizId: p.quizId,
-              totalScore: p.totalScore ?? p.autoScore ?? p.score ?? 0,
+              totalScore: scoreVal,
               autoScore: p.autoScore ?? 0,
-              maxScore: p.maxScore && p.maxScore > 0 ? p.maxScore : 100,
+              maxScore: maxScoreVal,
+              percentage: pctVal,
               isPassed: Boolean(p.isPassed),
               submittedAt: p.submittedAt ? new Date(p.submittedAt) : new Date(),
               quiz: {
@@ -147,7 +153,7 @@ export function StudentGradesClient({
             {results.map((r, i) => {
               const score = r.totalScore ?? r.autoScore ?? 0;
               const max = r.maxScore || 100;
-              const pct = calculatePercentage(score, max);
+              const pct = r.percentage !== undefined ? r.percentage : calculatePercentage(score, max);
               const qId = r.quizId || r.quiz?.id || r.id;
 
               return (
