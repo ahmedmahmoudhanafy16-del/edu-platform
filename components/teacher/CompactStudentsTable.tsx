@@ -90,17 +90,21 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
 function PasswordCell({ password }: { password: string }) {
   const [visible, setVisible] = useState(false);
   return (
-    <div className="inline-flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
-      <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider">
+    <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
+      <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider min-w-[32px] text-center">
         {visible ? password : '••••'}
       </span>
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
-        title={visible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+        title={visible ? 'إخفاء' : 'إظهار'}
         className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
       >
-        {visible ? <EyeOff size={12} /> : <Eye size={12} />}
+        {visible ? (
+          <EyeOff size={13} className="text-muted-foreground" />
+        ) : (
+          <Eye size={13} className="text-muted-foreground" />
+        )}
       </button>
       <button
         type="button"
@@ -108,10 +112,10 @@ function PasswordCell({ password }: { password: string }) {
           navigator.clipboard.writeText(password);
           toast.success('تم نسخ كلمة المرور');
         }}
-        title="نسخ كلمة المرور"
+        title="نسخ"
         className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
       >
-        <Copy size={12} />
+        <Copy size={13} className="text-muted-foreground" />
       </button>
     </div>
   );
