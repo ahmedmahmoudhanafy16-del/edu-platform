@@ -281,21 +281,7 @@ export function getSubmissions(studentId?: string): QuizSubmissionData[] {
       const sId = (s.studentId || (s as any).studentCode || '').trim();
       const sCode = ((s as any).studentCode || s.studentId || '').trim();
 
-      if (sId === cleanTarget || sCode === cleanTarget) return true;
-
-      if (
-        (cleanTarget === 'STU-001' || cleanTarget === 'demo-student-1' || cleanTarget === 'student-1') &&
-        (sId === 'STU-001' || sId === 'demo-student-1' || sId === 'student-1' || sCode === 'STU-001')
-      ) {
-        return true;
-      }
-      if (
-        (cleanTarget === 'STU-777' || cleanTarget === 'demo-student-2' || cleanTarget === 'student-2') &&
-        (sId === 'STU-777' || sId === 'demo-student-2' || sId === 'student-2' || sCode === 'STU-777')
-      ) {
-        return true;
-      }
-      return false;
+      return sId === cleanTarget || sCode === cleanTarget;
     });
   } catch {
     return [];
@@ -308,17 +294,13 @@ export function saveSubmission(submission: QuizSubmissionData): void {
     const raw = localStorage.getItem(STORAGE_KEYS.RESULTS);
     const current: any[] = raw ? JSON.parse(raw) : [];
     const targetQuizId = submission.quizId;
-    const targetStudentId = submission.studentId || 'STU-001';
+    const targetStudentId = submission.studentId;
 
     const filtered = current.filter(
       (s: any) =>
         !(
           (s.quizId === targetQuizId || s.id === targetQuizId || (s as any).accessCode === targetQuizId) &&
-          (s.studentId === targetStudentId ||
-            (targetStudentId === 'STU-001' &&
-              (s.studentId === 'demo-student-1' || s.studentId === 'student-1' || s.studentId === 'STU-001')) ||
-            (targetStudentId === 'demo-student-1' &&
-              (s.studentId === 'STU-001' || s.studentId === 'student-1' || s.studentId === 'demo-student-1')))
+          (s.studentId === targetStudentId || (s as any).studentCode === targetStudentId)
         )
     );
 
@@ -337,10 +319,7 @@ export function saveSubmission(submission: QuizSubmissionData): void {
       maxScore,
       percentage,
       studentId: targetStudentId,
-      studentCode:
-        targetStudentId === 'demo-student-1' || targetStudentId === 'student-1'
-          ? 'STU-001'
-          : targetStudentId,
+      studentCode: (submission as any).studentCode || targetStudentId,
       submittedAt: submission.submittedAt || new Date().toISOString(),
     };
 

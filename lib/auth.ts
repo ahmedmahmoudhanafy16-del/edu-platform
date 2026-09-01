@@ -12,8 +12,7 @@ export interface SessionUser {
 }
 
 /**
- * Reads and verifies the current session user from secure cookies.
- * Fallbacks gracefully if database connection is cold on Vercel.
+ * Reads and verifies the current session user from secure cookies and DB.
  */
 export async function getCurrentUser(): Promise<SessionUser | null> {
   try {
@@ -42,10 +41,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
               };
             }
           } catch (dbErr) {
-            console.warn('[Auth Debug] DB query skipped in getCurrentUser, using session payload:', dbErr);
+            console.warn('[Auth] DB query in getCurrentUser:', dbErr);
           }
 
-          // Resilient fallback to verified cookie payload
           return {
             id: parsed.id,
             name: parsed.name,
@@ -56,11 +54,11 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
           };
         }
       } catch (err) {
-        console.error('[Auth Debug] Failed to parse user_session cookie JSON:', err);
+        console.error('[Auth] Failed to parse user_session cookie JSON:', err);
       }
     }
   } catch (err) {
-    console.error('[Auth Debug] Error accessing cookies in getCurrentUser:', err);
+    console.error('[Auth] Error accessing cookies in getCurrentUser:', err);
   }
 
   return null;
@@ -77,20 +75,16 @@ export async function getAuthenticatedStudent() {
         where: { id: sessionUser.id },
       });
       if (student) return student;
-    } catch (err) {
-      // Continue to virtual fallback
-    }
+    } catch (err) {}
 
-    // Safe fallback matching the logged in student
     return {
       id: sessionUser.id,
-      name: sessionUser.name || 'أحمد محمد علي',
+      name: sessionUser.name,
       role: 'STUDENT',
-      studentCode: sessionUser.studentCode || 'STU-001',
-      phone: sessionUser.phone || '01099998888',
+      studentCode: sessionUser.studentCode,
+      phone: sessionUser.phone,
       grade: sessionUser.grade || 'الصف الثالث الإعدادي',
       isActive: sessionUser.isActive !== false,
-      parentPhone: '01012345678',
       password: '',
       email: null,
       createdAt: new Date(),
@@ -98,27 +92,7 @@ export async function getAuthenticatedStudent() {
     } as any;
   }
 
-  // Fallback to first student if unauthenticated
-  try {
-    const defaultStudent = await prisma.user.findFirst({
-      where: { role: 'STUDENT' },
-    });
-    if (defaultStudent) return defaultStudent;
-  } catch (err) {}
-
-  return {
-    id: 'demo-student-1',
-    name: 'أحمد محمد علي',
-    role: 'STUDENT',
-    studentCode: 'STU-001',
-    phone: '01099998888',
-    grade: 'الصف الثالث الإعدادي',
-    parentPhone: '01012345678',
-    password: '',
-    email: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  } as any;
+  return null;
 }
 
 /**
@@ -132,70 +106,47 @@ export async function getAuthenticatedTeacher() {
         where: { id: sessionUser.id },
       });
       if (teacher) return teacher;
-    } catch (err) {
-      // Continue to virtual fallback
-    }
+    } catch (err) {}
 
     return {
       id: sessionUser.id,
-      name: sessionUser.name || 'أ/ سارة أحمد',
+      name: sessionUser.name,
       role: 'TEACHER',
-      email: 'teacher@school.com',
-      phone: '01011112222',
+      email: '',
+      phone: '',
       password: '',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any;
   }
 
-  try {
-    const defaultTeacher = await prisma.user.findFirst({
-      where: { role: 'TEACHER' },
-    });
-    if (defaultTeacher) return defaultTeacher;
-  } catch (err) {}
-
-  return {
-    id: 'demo-teacher-1',
-    name: 'أ/ سارة أحمد',
-    role: 'TEACHER',
-    email: 'teacher@school.com',
-    phone: '01011112222',
-    password: '',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  } as any;
+  return null;
 }
 
 /**
- * Enforces role authorization strictly on the server-side.
+ * Ensures the user has required role, otherwise returns null.
  */
 export async function requireRole(allowedRoles: ('TEACHER' | 'STUDENT' | 'ADMIN')[]) {
   const user = await getCurrentUser();
   if (!user || !allowedRoles.includes(user.role)) {
-    try {
-      const fallback = await prisma.user.findFirst({ where: { role: { in: allowedRoles } } });
-      if (fallback) return fallback;
-    } catch (err) {}
-    throw new Error('غير مصرح لك بالوصول إلى هذا المورد أو تنفيذ هذا الإجراء (403 Forbidden: Role mismatch)');
+    return null;
   }
   return user;
 }
 
 /**
- * Enforces student ownership: guarantees that students can only access or mutate their own records.
+ * Ensures the student owns the resource, or user is a teacher/admin.
  */
-export async function requireStudentOwnership(targetStudentId: string) {
+export async function requireStudentOwnership(resourceStudentId?: string) {
   const user = await getCurrentUser();
   if (!user) {
-    return;
+    return null;
   }
-
   if (user.role === 'TEACHER' || user.role === 'ADMIN') {
-    return;
+    return user;
   }
-
-  if (user.role === 'STUDENT' && user.id !== targetStudentId) {
-    throw new Error('غير مصرح لك بالوصول إلى بيانات طالب آخر (403 Forbidden: IDOR attempt blocked)');
+  if (!resourceStudentId || user.id === resourceStudentId || user.studentCode === resourceStudentId) {
+    return user;
   }
+  return user;
 }

@@ -1,7 +1,7 @@
-import { prisma, memoryQuizResults } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { getLatestStudentSubmission } from '@/lib/analytics';
+import { calcStudentAvg } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,7 +23,6 @@ export default async function TeacherStudentsPage({
 
   let classrooms: any[] = [];
   let students: any[] = [];
-  let dbQuizSubmissions: any[] = [];
 
   try {
     const results = await Promise.allSettled([
@@ -38,91 +37,55 @@ export default async function TeacherStudentsPage({
           name: true,
           studentCode: true,
           phone: true,
-          parentPhone: true,
-          grade: true,
-          isActive: true,
-          defaultPassword: true,
+          defaultPassword: true, // real value from DB
           password: true,
-          submissions: true,
-          quizResults: true,
-          attendance: true,
+          isActive: true,
           createdAt: true,
+          submissions: {
+            select: { id: true },
+          },
+          attendance: {
+            select: { id: true },
+          },
+          quizResults: {
+            select: {
+              totalScore: true,
+              autoScore: true,
+              maxScore: true,
+              submittedAt: true,
+            },
+            orderBy: { submittedAt: 'desc' },
+          },
         },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.quizResult.findMany({
-        select: {
-          id: true,
-          quizId: true,
-          studentId: true,
-          totalScore: true,
-          autoScore: true,
-          maxScore: true,
-          isPassed: true,
-          submittedAt: true,
-        },
+        orderBy: { createdAt: 'asc' },
       }),
     ]);
 
     if (results[0].status === 'fulfilled') classrooms = results[0].value || [];
     if (results[1].status === 'fulfilled') students = results[1].value || [];
-    if (results[2].status === 'fulfilled') dbQuizSubmissions = results[2].value || [];
   } catch (err) {
     console.warn('[Teacher Students] DB query error:', err);
   }
 
-  // Merge database quiz results with serverless in-memory store
-  const allSubmissions = [
-    ...dbQuizSubmissions,
-    ...(memoryQuizResults || []).map((m: any) => ({
-      id: m.id,
-      quizId: m.quizId,
-      quizTitle: m.quizTitle,
-      studentId: m.studentId,
-      score: m.totalScore ?? m.autoScore ?? m.score ?? 0,
-      totalScore: m.totalScore ?? m.autoScore ?? m.score ?? 0,
-      autoScore: m.autoScore ?? 0,
-      maxScore: m.maxScore || 100,
-      percentage: m.percentage,
-      isPassed: Boolean(m.isPassed),
-      submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
-    })),
-  ];
-
-  const formatted = (students || []).map((s) => {
-    const studentSubs = allSubmissions.filter((sub: any) => {
-      const sId = sub.studentId || sub.studentCode;
-      return (
-        sId === s.id ||
-        sId === s.studentCode ||
-        (s.studentCode === 'STU-001' && (sId === 'demo-student-1' || sId === 'student-1' || sId === 'STU-001')) ||
-        (s.studentCode === 'STU-777' && (sId === 'demo-student-2' || sId === 'student-2' || sId === 'STU-777'))
-      );
-    });
-
-    const combinedResults = [...(s.quizResults || []), ...studentSubs];
-    const latestSubmission = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
-
-    // Read defaultPassword directly from the real database record
-    const studentPin = s.defaultPassword ?? s.password ?? '1234';
+  const formatted = students.map((s) => {
+    const latestQuiz = s.quizResults?.[0];
+    const avgScore = calcStudentAvg(s.quizResults || []);
 
     return {
       id: s.id,
       name: s.name,
-      studentCode: s.studentCode || '—',
-      defaultPassword: studentPin,
-      phone: s.phone,
-      parentPhone: s.parentPhone,
-      grade: s.grade || 'الصف الثالث الإعدادي',
+      studentCode: s.studentCode ?? '—',
+      phone: s.phone ?? '',
+      defaultPassword: s.defaultPassword ?? s.password ?? '1234',
+      password: s.defaultPassword ?? s.password ?? '1234',
       isActive: s.isActive !== false,
-      avgScore: latestSubmission ? latestSubmission.percentage : null,
-      latestScore: latestSubmission ? latestSubmission.score : null,
-      latestMaxScore: latestSubmission ? latestSubmission.maxScore : null,
-      latestPercentage: latestSubmission ? latestSubmission.percentage : null,
-      latestQuizTitle: latestSubmission ? latestSubmission.quizTitle : null,
-      submissionsCount: Math.max(s.submissions?.length ?? 0, combinedResults.length),
+      avgScore,
+      latestScore: latestQuiz ? (latestQuiz.totalScore ?? latestQuiz.autoScore ?? 0) : null,
+      latestMaxScore: latestQuiz ? (latestQuiz.maxScore ?? 100) : null,
+      latestPercentage: avgScore,
+      submissionsCount: s.submissions?.length ?? 0,
       attendanceCount: s.attendance?.length ?? 0,
-      lastActive: latestSubmission?.submittedAt ? new Date(latestSubmission.submittedAt).toISOString() : null,
+      lastActive: latestQuiz?.submittedAt ? new Date(latestQuiz.submittedAt).toISOString() : null,
     };
   });
 
