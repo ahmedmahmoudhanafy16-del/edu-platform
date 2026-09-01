@@ -63,8 +63,10 @@ export async function createStudentAction(formData: {
     const targetClassroomId = formData.classroom || formData.classroomId || '';
     
     // The defaultPassword saved to DB must ALWAYS equal the plain-text password before hashing
-    const plainPassword = formData.password?.trim() || generateRandomPin();
+    const plainPassword = (formData.password?.toString() || '').trim() || generateRandomPin();
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    console.log(`[Add Student] Name: "${cleanName}", Plain Password: "${plainPassword}", Hashed: "${hashedPassword.substring(0, 15)}..."`);
 
     const newStudent = {
       id: studentId,
@@ -77,7 +79,8 @@ export async function createStudentAction(formData: {
       gradeLevel: cleanGrade,
       classroom: targetClassroomId,
       classroomId: targetClassroomId,
-      defaultPassword: plainPassword,
+      password: plainPassword,        // Plain text for client-side localStorage/display
+      defaultPassword: plainPassword, // exactly what teacher sees in table
       role: 'STUDENT',
       isActive: true,
       createdAt: new Date().toISOString(),
@@ -95,8 +98,9 @@ export async function createStudentAction(formData: {
           grade: newStudent.grade,
           gradeLevel: newStudent.gradeLevel,
           studentCode: newStudent.studentCode,
-          password: hashedPassword,       // bcrypt hash for login verification
-          defaultPassword: plainPassword, // exactly what teacher sees
+          password: hashedPassword,       // bcrypt hash for secure login verification
+          passwordHash: hashedPassword,
+          defaultPassword: plainPassword, // plain text for teacher display & fallback
           role: 'STUDENT',
           isActive: true,
           ...(newStudent.classroomId

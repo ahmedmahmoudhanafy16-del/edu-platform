@@ -51,12 +51,13 @@ export async function POST(req: NextRequest) {
   try {
     const { email, studentCode, password, role, localStudent } = await req.json();
 
+    const cleanPassword = (password?.toString() || '').trim();
     let user: any = null;
 
     // 1. Try resolving user from Prisma DB
     try {
       if (role === 'TEACHER') {
-        const cleanEmail = email?.trim();
+        const cleanEmail = email?.toString().trim();
         user = await prisma.user.findFirst({
           where: {
             role: 'TEACHER',
@@ -64,8 +65,8 @@ export async function POST(req: NextRequest) {
           },
         });
       } else {
-        const cleanInput = studentCode?.trim();
-        const cleanUpper = cleanInput?.toUpperCase();
+        const cleanInput = (studentCode?.toString() || '').trim();
+        const cleanUpper = cleanInput.toUpperCase();
         user = await prisma.user.findFirst({
           where: {
             role: 'STUDENT',
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
 
     // 1.5 Try resolving from localStudent if provided by client store
     if (!user && localStudent && role !== 'TEACHER') {
-      const cleanInput = (studentCode || '').trim();
+      const cleanInput = (studentCode?.toString() || '').trim();
       const cleanUpper = cleanInput.toUpperCase();
       const normInput = normalizeArabic(cleanInput);
 
@@ -102,11 +103,10 @@ export async function POST(req: NextRequest) {
 
       const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '').trim();
       const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '').trim();
-      const inputPass = String(password || '').trim();
 
       if (
         isIdentifierMatch &&
-        (sPass === inputPass || sDefPass === inputPass || getConsistentStudentPin(sCode || sPhone) === inputPass || inputPass === '1234')
+        (sPass === cleanPassword || sDefPass === cleanPassword || getConsistentStudentPin(sCode || sPhone) === cleanPassword || cleanPassword === '1234')
       ) {
         user = {
           id: localStudent.id || sCode,
@@ -125,12 +125,12 @@ export async function POST(req: NextRequest) {
     // 2. Fallback to Demo Directory if user not found in DB or DB cold
     if (!user) {
       if (role === 'TEACHER') {
-        const cleanEmail = email?.trim()?.toLowerCase();
+        const cleanEmail = email?.toString().trim().toLowerCase();
         user = DEMO_USERS.find(
           (u) => u.role === 'TEACHER' && ((u.email && u.email.toLowerCase() === cleanEmail) || u.phone === cleanEmail)
         );
       } else {
-        const cleanInput = (studentCode || '').trim();
+        const cleanInput = (studentCode?.toString() || '').trim();
         const cleanUpper = cleanInput.toUpperCase();
         const cleanLower = cleanInput.toLowerCase();
         const normInput = normalizeArabic(cleanInput);
@@ -157,14 +157,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'لم يتم العثور على حساب بهذا الاسم أو الكود أو رقم الهاتف' }, { status: 401 });
     }
 
-    // 3. Password Verification (supports unique PINs, plain text, defaultPassword match, bcrypt hash, and fallback)
-    const isMatch =
-      password === user.password ||
-      (user.defaultPassword && password === user.defaultPassword) ||
-      (user.password ? await bcrypt.compare(password, user.password).catch(() => false) : false) ||
-      (user.studentCode ? getConsistentStudentPin(user.studentCode) === password : false) ||
-      (user.id ? getConsistentStudentPin(user.id) === password : false) ||
-      password === '1234';
+    // Debugging logs as requested
+    console.log(`[Auth Login] Verifying user: ID=${user.id}, Name=${user.name}, Role=${user.role}`);
+    console.log(`[Auth Login] DB password: ${user.password ? (user.password.startsWith('$2') ? user.password.substring(0, 15) + '...' : user.password) : 'none'}`);
+    console.log(`[Auth Login] DB defaultPassword: ${user.defaultPassword}`);
+    console.log(`[Auth Login] Input password: ${cleanPassword}`);
+    console.log(`[Auth Login] Is hashed: ${user.password ? user.password.startsWith('$2') : false}`);
+
+    // 3. Robust Password Verification (Supports Bcrypt Hashing, Plaintext fallbacks, and multi-credential safety)
+    let isMatch = false;
+
+    // A) If stored as bcrypt hash
+    if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$') || user.password.startsWith('$2y$') || user.password.startsWith('$2$'))) {
+      isMatch = await bcrypt.compare(cleanPassword, user.password).catch(() => false);
+    } else if (user.password) {
+      // B) If stored as plain text
+      isMatch = cleanPassword === user.password.trim();
+    }
+
+    // C) Match against defaultPassword (plain text)
+    if (!isMatch && user.defaultPassword) {
+      isMatch = cleanPassword === user.defaultPassword.trim();
+    }
+
+    // D) Match against passwordHash column
+    if (!isMatch && user.passwordHash) {
+      isMatch = await bcrypt.compare(cleanPassword, user.passwordHash).catch(() => false);
+    }
+
+    // E) Fallback to consistent derived PIN or master 1234
+    if (!isMatch && (user.studentCode || user.id)) {
+      isMatch = getConsistentStudentPin(user.studentCode || user.id) === cleanPassword;
+    }
+    if (!isMatch && cleanPassword === '1234') {
+      isMatch = true;
+    }
 
     if (!isMatch) {
       console.log(`[Auth Login] Invalid password for User ID=${user.id}`);

@@ -548,18 +548,8 @@ export function saveStudentToStore(student: any): any {
       attendanceCount: 0,
       lastActive: new Date().toISOString(),
       isActive: true,
-      defaultPassword:
-        student.defaultPassword && student.defaultPassword !== '1234'
-          ? student.defaultPassword
-          : student.password && student.password !== '1234'
-          ? student.password
-          : generateRandomPin(),
-      password:
-        student.defaultPassword && student.defaultPassword !== '1234'
-          ? student.defaultPassword
-          : student.password && student.password !== '1234'
-          ? student.password
-          : generateRandomPin(),
+      defaultPassword: String(student.defaultPassword || student.password || generateRandomPin()).trim(),
+      password: String(student.defaultPassword || student.password || generateRandomPin()).trim(),
       createdAt: student.createdAt || new Date().toISOString(),
     };
 
