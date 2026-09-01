@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
+import { saveSubmission } from '@/lib/store';
 import { shuffleArray } from '@/lib/shuffle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -294,24 +295,35 @@ export function QuizRunner({
 
         try {
           localStorage.removeItem(autosaveKey);
-          const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
+          const earnedScoreVal = res.totalScore ?? res.autoScore ?? calculatedEarned;
+          const maxScoreVal = res.maxScore ?? calculatedMax ?? 20;
+          const percentageVal =
+            res.percentage ??
+            (maxScoreVal > 0 ? Math.round((earnedScoreVal / maxScoreVal) * 100) : 100);
+
           const newEntry = {
             id: res.id || `res-${Date.now()}`,
             quizId: activeQuiz.id || quiz.id,
             quizTitle: activeQuiz.title || quiz.title,
-            studentId,
-            autoScore: res.autoScore ?? calculatedEarned,
-            totalScore: res.totalScore ?? res.autoScore ?? calculatedEarned,
-            maxScore: res.maxScore ?? calculatedMax ?? 20,
-            percentage: res.percentage ?? (calculatedMax ? Math.round((calculatedEarned / calculatedMax) * 100) : 100),
+            studentId: studentId || 'STU-001',
+            studentCode:
+              studentId === 'demo-student-1' || studentId === 'student-1'
+                ? 'STU-001'
+                : studentId || 'STU-001',
+            score: earnedScoreVal,
+            autoScore: earnedScoreVal,
+            totalScore: earnedScoreVal,
+            maxScore: maxScoreVal,
+            percentage: percentageVal,
             isPassed: Boolean(res.isPassed),
             status: res.status || 'AUTO_GRADED',
             submittedAt: new Date().toISOString(),
             reviewQuestions: finalReviewQuestions,
           };
-          const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
-          localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
-        } catch (e) {}
+          saveSubmission(newEntry);
+        } catch (e) {
+          console.warn('[QuizRunner] saveSubmission error:', e);
+        }
 
         setResult({
           ...res,
@@ -354,12 +366,16 @@ export function QuizRunner({
           reviewQuestions: clientReviewQuestions,
         };
         try {
-          const currentResList: any[] = JSON.parse(localStorage.getItem('edu_quiz_results') || '[]');
-          const newEntry = {
+          const fallbackEntry = {
             id: `res-${Date.now()}`,
             quizId: activeQuiz.id || quiz.id,
             quizTitle: activeQuiz.title || quiz.title,
-            studentId,
+            studentId: studentId || 'STU-001',
+            studentCode:
+              studentId === 'demo-student-1' || studentId === 'student-1'
+                ? 'STU-001'
+                : studentId || 'STU-001',
+            score: 10,
             autoScore: 10,
             totalScore: 10,
             maxScore: 10,
@@ -369,8 +385,7 @@ export function QuizRunner({
             submittedAt: new Date().toISOString(),
             reviewQuestions: clientReviewQuestions,
           };
-          const updated = [newEntry, ...currentResList.filter((r: any) => r.quizId !== newEntry.quizId)];
-          localStorage.setItem('edu_quiz_results', JSON.stringify(updated));
+          saveSubmission(fallbackEntry);
         } catch (err) {}
 
         setResult(fallbackRes);
