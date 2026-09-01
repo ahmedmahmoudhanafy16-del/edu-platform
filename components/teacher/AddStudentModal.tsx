@@ -4,7 +4,8 @@ import React, { useState } from 'react';
 import { X, UserPlus, Phone, User, BookOpen, KeyRound, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { addStudentToClassroom } from '@/actions/classroom';
+import { createStudentAction, addStudentToClassroom } from '@/actions/classroom';
+import { saveStudentToStore } from '@/lib/store';
 import { toast } from 'sonner';
 
 interface AddStudentModalProps {
@@ -53,16 +54,31 @@ export function AddStudentModal({
 
     setLoading(true);
     try {
-      const student = await addStudentToClassroom(
-        name.trim(),
-        phone.trim(),
-        parentWhatsapp.trim() || phone.trim(),
+      const result = await createStudentAction({
+        name: name.trim(),
+        phone: phone.trim(),
+        parentPhone: parentWhatsapp.trim() || phone.trim(),
+        parentWhatsapp: parentWhatsapp.trim() || phone.trim(),
+        grade: gradeLevel,
         gradeLevel,
+        classroom: classroomId,
         classroomId,
-        password.trim() || '1234'
-      );
+        password: password.trim() || '1234',
+      });
 
-      toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode} 🎓`);
+      if (!result.success || !result.student) {
+        toast.error(result.error || 'تعذر إضافة الطالب. يرجى المحاولة مرة أخرى.');
+        return;
+      }
+
+      const student = result.student;
+
+      // Immediately save to client-side localStorage store for zero-latency UI update
+      if (typeof window !== 'undefined') {
+        saveStudentToStore(student);
+      }
+
+      toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} 🎓`);
       setName('');
       setPhone('');
       setParentWhatsapp('');

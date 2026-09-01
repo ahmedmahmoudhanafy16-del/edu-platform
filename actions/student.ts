@@ -109,3 +109,30 @@ export async function deleteStudent(studentId: string) {
     };
   }
 }
+
+import {
+  createStudentAction as createStudentActionCls,
+  addStudentToClassroom as addStudentToClassroomCls
+} from './classroom';
+
+export async function createStudentAction(formData: any) {
+  return createStudentActionCls(formData);
+}
+
+export async function addStudentToClassroom(
+  nameOrData: any,
+  phoneArg?: string,
+  parentWhatsappOrClassroomId?: string,
+  gradeLevelArg?: string,
+  classroomIdArg?: string,
+  passwordArg?: string
+) {
+  return (addStudentToClassroomCls as any)(
+    nameOrData,
+    phoneArg,
+    parentWhatsappOrClassroomId,
+    gradeLevelArg,
+    classroomIdArg,
+    passwordArg
+  );
+}

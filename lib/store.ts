@@ -518,3 +518,56 @@ export function toggleAssignmentLock(assignmentId: string, isClosed: boolean): b
   return isClosed;
 }
 
+export function getStudentsFromStore(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStudentToStore(student: any): any {
+  if (typeof window === 'undefined') return student;
+  try {
+    const current = getStudentsFromStore();
+    const formatted = {
+      id: student.id || student.studentCode || `STU-${Math.floor(100 + Math.random() * 900)}`,
+      name: student.name,
+      studentCode: student.studentCode || student.id,
+      phone: student.phone || null,
+      parentPhone: student.parentPhone || student.parentWhatsapp || null,
+      parentWhatsapp: student.parentWhatsapp || student.parentPhone || null,
+      grade: student.grade || student.gradeLevel || 'الصف الثالث الإعدادي',
+      gradeLevel: student.gradeLevel || student.grade || 'الصف الثالث الإعدادي',
+      classroomId: student.classroom || student.classroomId || '',
+      avgScore: null,
+      submissionsCount: 0,
+      attendanceCount: 0,
+      lastActive: new Date().toISOString(),
+      isActive: true,
+      createdAt: student.createdAt || new Date().toISOString(),
+    };
+
+    const existingIndex = current.findIndex(
+      (s: any) => s.id === formatted.id || s.studentCode === formatted.studentCode
+    );
+
+    let updatedList;
+    if (existingIndex !== -1) {
+      updatedList = [...current];
+      updatedList[existingIndex] = { ...updatedList[existingIndex], ...formatted };
+    } else {
+      updatedList = [formatted, ...current];
+    }
+
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
+    notifyStoreUpdated();
+    return formatted;
+  } catch (err) {
+    console.warn('[saveStudentToStore] LocalStorage write error:', err);
+    return student;
+  }
+}
+
