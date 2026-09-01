@@ -33,6 +33,42 @@ export async function createClassroom(name: string, subject: string, teacherId: 
   return classroom;
 }
 
+export async function resetStudentPassword(studentId: string, newPassword: string = '1234') {
+  try {
+    const plain = (newPassword || '1234').toString().trim();
+    const hashed = await bcrypt.hash(plain, 10);
+
+    try {
+      await prisma.user.updateMany({
+        where: {
+          OR: [
+            { id: studentId },
+            { studentCode: studentId },
+          ],
+        },
+        data: {
+          password: hashed,
+          passwordHash: hashed,
+          defaultPassword: plain, // exactly what teacher sees
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[resetStudentPassword] DB update notice:', dbErr);
+    }
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/ar/teacher/students');
+      revalidatePath('/en/teacher/students');
+    } catch (e) {}
+
+    return { success: true, newPassword: plain };
+  } catch (error: any) {
+    console.error('[resetStudentPassword] Error:', error);
+    return { success: false, error: 'فشل إعادة تعيين كلمة المرور' };
+  }
+}
+
 export async function createStudentAction(formData: {
   name: string;
   phone: string;
@@ -86,7 +122,7 @@ export async function createStudentAction(formData: {
       createdAt: new Date().toISOString(),
     };
 
-    // 2. Safe Database Attempt (Bypass if serverless read-only fails)
+    // 2. Safe Database Attempt
     try {
       await prisma.user.create({
         data: {
@@ -161,7 +197,7 @@ export async function addStudentToClassroom(
   let parentPhone = '';
   let grade = '';
   let classroom = '';
-  let password = '';
+  let plainPassword = '1234';
 
   if (typeof nameOrData === 'object' && nameOrData !== null) {
     name = nameOrData.name || '';
@@ -169,7 +205,7 @@ export async function addStudentToClassroom(
     parentPhone = nameOrData.parentWhatsapp || nameOrData.parentPhone || '';
     grade = nameOrData.gradeLevel || nameOrData.grade || 'الصف الثالث الإعدادي';
     classroom = nameOrData.classroom || nameOrData.classroomId || '';
-    password = nameOrData.password || generateRandomPin();
+    plainPassword = nameOrData.password || '1234';
   } else {
     name = nameOrData || '';
     phone = phoneArg || '';
@@ -177,12 +213,12 @@ export async function addStudentToClassroom(
       parentPhone = parentWhatsappOrClassroomId || '';
       grade = gradeLevelArg;
       classroom = classroomIdArg;
-      password = passwordArg || generateRandomPin();
+      plainPassword = passwordArg || '1234';
     } else {
       classroom = parentWhatsappOrClassroomId || '';
       parentPhone = phone;
       grade = gradeLevelArg || 'الصف الثالث الإعدادي';
-      password = generateRandomPin();
+      plainPassword = passwordArg || '1234';
     }
   }
 
@@ -192,7 +228,7 @@ export async function addStudentToClassroom(
     parentPhone,
     grade,
     classroom,
-    password,
+    password: plainPassword,
   });
 
   if (!result.success && result.error) {

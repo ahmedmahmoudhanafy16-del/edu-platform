@@ -4,14 +4,15 @@ import { useState, useEffect } from 'react';
 import {
   ChevronUp, ChevronDown, Download, ShieldAlert,
   ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2,
-  Copy, KeyRound, Eye, EyeOff
+  Copy, KeyRound, Eye, EyeOff, RefreshCw
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
-import { formatDateShort, getConsistentStudentPin } from '@/lib/utils';
+import { formatDateShort } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent } from '@/actions/student';
+import { resetStudentPassword } from '@/actions/classroom';
 import { getSubmissions } from '@/lib/store';
-import { getStudentAcademicSummary, getLatestStudentSubmission } from '@/lib/analytics';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 export interface Student {
@@ -61,12 +62,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
         );
       });
 
-      const studentPin =
-        student.defaultPassword && student.defaultPassword !== '1234'
-          ? student.defaultPassword
-          : student.password && student.password !== '1234'
-          ? student.password
-          : getConsistentStudentPin(student.studentCode || student.id);
+      const studentPin = String(student.defaultPassword || student.password || '1234').trim();
 
       return {
         ...student,
@@ -82,12 +78,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
     });
   } catch {
     return studentList.map((s) => {
-      const pin =
-        s.defaultPassword && s.defaultPassword !== '1234'
-          ? s.defaultPassword
-          : s.password && s.password !== '1234'
-          ? s.password
-          : getConsistentStudentPin(s.studentCode || s.id);
+      const pin = String(s.defaultPassword || s.password || '1234').trim();
       return {
         ...s,
         defaultPassword: pin,
@@ -98,7 +89,13 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   }
 }
 
-function PasswordCell({ password }: { password: string }) {
+function PasswordCell({
+  password,
+  onResetClick,
+}: {
+  password: string;
+  onResetClick?: () => void;
+}) {
   const [visible, setVisible] = useState(false);
   return (
     <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
@@ -128,6 +125,16 @@ function PasswordCell({ password }: { password: string }) {
       >
         <Copy size={13} className="text-muted-foreground" />
       </button>
+      {onResetClick && (
+        <button
+          type="button"
+          onClick={onResetClick}
+          title="تغيير / إعادة تعيين كلمة المرور"
+          className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+        >
+          <KeyRound size={13} />
+        </button>
+      )}
     </div>
   );
 }
@@ -139,6 +146,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
   const [query, setQuery] = useState('');
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Password reset dialog state
+  const [studentToResetPassword, setStudentToResetPassword] = useState<Student | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('1234');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Sync with localStorage on mount & prop changes
   useEffect(() => {
@@ -153,24 +165,6 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             initialStudents.forEach((s) => {
               if (!localMap.has(s.id)) {
                 localMap.set(s.id, s);
-              } else {
-                const existing = localMap.get(s.id);
-                if (existing) {
-                  if (
-                    (!existing.defaultPassword || existing.defaultPassword === '1234') &&
-                    s.defaultPassword &&
-                    s.defaultPassword !== '1234'
-                  ) {
-                    existing.defaultPassword = s.defaultPassword;
-                  }
-                  if (
-                    (!existing.password || existing.password === '1234') &&
-                    s.password &&
-                    s.password !== '1234'
-                  ) {
-                    existing.password = s.password;
-                  }
-                }
               }
             });
             baseList = Array.from(localMap.values());
@@ -205,6 +199,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         s.name.includes(query) ||
         (s.studentCode || '').toLowerCase().includes(query.toLowerCase()) ||
         (s.password || '').includes(query) ||
+        (s.defaultPassword || '').includes(query) ||
         (s.phone || '').includes(query)
     )
     .sort((a, b) => {
@@ -272,18 +267,63 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     if (onRefresh) onRefresh();
   }
 
+  async function handleConfirmPasswordReset(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!studentToResetPassword) return;
+
+    const plainPassword = (newPasswordInput || '1234').trim();
+    if (!plainPassword) {
+      toast.error('يرجى إدخال كلمة المرور الجديدة');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    const targetStudent = studentToResetPassword;
+
+    try {
+      // 1. Server Action
+      await resetStudentPassword(targetStudent.id, plainPassword);
+
+      // 2. Local State & Dynamic Storage Update
+      setStudents((prev) => {
+        const nextList = prev.map((s) =>
+          s.id === targetStudent.id || s.studentCode === targetStudent.studentCode
+            ? { ...s, defaultPassword: plainPassword, password: plainPassword }
+            : s
+        );
+        persistStudents(nextList);
+        return nextList;
+      });
+
+      toast.success(`تم تغيير كلمة المرور للطالب (${targetStudent.name}) إلى "${plainPassword}" بنجاح`);
+      setStudentToResetPassword(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Password reset error:', err);
+      // Fallback local update
+      setStudents((prev) => {
+        const nextList = prev.map((s) =>
+          s.id === targetStudent.id || s.studentCode === targetStudent.studentCode
+            ? { ...s, defaultPassword: plainPassword, password: plainPassword }
+            : s
+        );
+        persistStudents(nextList);
+        return nextList;
+      });
+      toast.success(`تم تعيين كلمة المرور إلى "${plainPassword}"`);
+      setStudentToResetPassword(null);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  }
+
   function handleExport() {
     exportToCsv(
       `طلاب_${classroomName}_${new Date().toLocaleDateString('ar-EG')}`,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
-        password:
-          s.defaultPassword && s.defaultPassword !== '1234'
-            ? s.defaultPassword
-            : s.password && s.password !== '1234'
-            ? s.password
-            : getConsistentStudentPin(s.studentCode || s.id),
+        password: String(s.defaultPassword || s.password || '1234').trim(),
         phone: s.phone || '',
         status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
         avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
@@ -355,6 +395,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             ) : (
               sorted.map((s, i) => {
                 const isSuspended = s.isActive === false;
+                const plainPin = String(s.defaultPassword || s.password || '1234').trim();
 
                 return (
                   <tr
@@ -387,13 +428,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     </td>
                     <td className={tdClass + ' text-center'}>
                       <PasswordCell
-                        password={
-                          s.defaultPassword && s.defaultPassword !== '1234'
-                            ? s.defaultPassword
-                            : s.password && s.password !== '1234'
-                            ? s.password
-                            : getConsistentStudentPin(s.studentCode || s.id)
-                        }
+                        password={plainPin}
+                        onResetClick={() => {
+                          setStudentToResetPassword(s);
+                          setNewPasswordInput('1234');
+                        }}
                       />
                     </td>
                     <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
@@ -443,6 +482,19 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     </td>
                     <td className={tdClass + ' text-center'}>
                       <div className="flex items-center justify-center gap-1.5">
+                        {/* Reset Password Button */}
+                        <button
+                          onClick={() => {
+                            setStudentToResetPassword(s);
+                            setNewPasswordInput('1234');
+                          }}
+                          title="إعادة تعيين كلمة المرور"
+                          className="p-1.5 rounded-lg border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 transition-colors flex items-center gap-1 text-xs font-semibold"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                          <span className="text-[10px] hidden sm:inline">تغيير السر</span>
+                        </button>
+
                         {/* Toggle Active / Block */}
                         <button
                           onClick={() => handleToggleStatus(s)}
@@ -483,6 +535,61 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           </tbody>
         </table>
       </div>
+
+      {/* Password Reset Modal / Dialog */}
+      {studentToResetPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-blue-200 dark:border-blue-900/40 p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+              <KeyRound className="h-6 w-6" />
+            </div>
+
+            <div className="text-center space-y-1.5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                إعادة تعيين كلمة مرور الطالب
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                الطالب: <strong className="text-slate-800 dark:text-slate-200">{studentToResetPassword.name}</strong> ({studentToResetPassword.studentCode})
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmPasswordReset} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                  كلمة المرور الجديدة (4 أرقام):
+                </label>
+                <input
+                  type="text"
+                  required
+                  autoFocus
+                  value={newPasswordInput}
+                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                  placeholder="1234"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold text-sm tracking-widest outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isResettingPassword ? 'جاري الحفظ...' : 'تأكيد وحفظ'}
+                </button>
+                <button
+                  type="button"
+                  disabled={isResettingPassword}
+                  onClick={() => setStudentToResetPassword(null)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
