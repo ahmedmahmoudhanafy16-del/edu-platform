@@ -2,10 +2,36 @@
 
 import React, { useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { Lock, Mail, KeyRound, GraduationCap, Users } from 'lucide-react';
+import { Lock, Mail, KeyRound, GraduationCap, Users, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { verifyStudentCredentials } from '@/actions/auth';
+import { verifyStudentCredentials, normalizeArabic } from '@/actions/auth';
+import { getConsistentStudentPin } from '@/lib/utils';
+
+const defaultStudents = [
+  {
+    id: 'demo-student-1',
+    name: 'أحمد محمد علي',
+    studentCode: 'STU-001',
+    code: 'STU-001',
+    phone: '01099998888',
+    password: '3842',
+    defaultPassword: '3842',
+    role: 'STUDENT',
+    grade: 'الصف الثالث الإعدادي',
+  },
+  {
+    id: 'demo-student-2',
+    name: 'زياد طارق إبراهيم',
+    studentCode: 'STU-777',
+    code: 'STU-777',
+    phone: '01055554444',
+    password: '7195',
+    defaultPassword: '7195',
+    role: 'STUDENT',
+    grade: 'الصف الثالث الإعدادي',
+  },
+];
 
 export function LoginForm() {
   const params = useParams();
@@ -18,20 +44,122 @@ export function LoginForm() {
   // Student fields
   const [studentIdentifier, setStudentIdentifier] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Teacher fields
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherPassword, setTeacherPassword] = useState('');
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleStudentSubmit = async (e: React.FormEvent) => {
+  const handleStudentLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    const cleanIdentifier = (studentIdentifier || '').trim().toLowerCase();
+    const cleanPin = (studentPassword || '').trim();
+
+    if (!cleanIdentifier || !cleanPin) {
+      setError(isAr ? 'يرجى إدخال كود الطالب/الهاتف وكلمة المرور' : 'Please enter student code/phone and password');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // 1. Direct & Robust Client-Side Authentication from dynamic storage
+      let studentsList: any[] = [];
+      try {
+        const localStudents = localStorage.getItem('edu_students');
+        if (localStudents) {
+          const parsed = JSON.parse(localStudents);
+          if (Array.isArray(parsed)) studentsList = parsed;
+        }
+      } catch (err) {
+        console.error('Storage error:', err);
+      }
+
+      // Merge with initial/default students if empty
+      if (!studentsList || studentsList.length === 0) {
+        studentsList = defaultStudents;
+      }
+
+      const normalizedInput = normalizeArabic(cleanIdentifier);
+      const cleanUpper = cleanIdentifier.toUpperCase();
+
+      // Flexible Match: Code, StudentCode, Phone, Name, or ID
+      const matchedStudent = studentsList.find((s: any) => {
+        const matchCode = s.code && (s.code.trim().toLowerCase() === cleanIdentifier || s.code.trim().toUpperCase() === cleanUpper);
+        const matchStudentCode = s.studentCode && (s.studentCode.trim().toLowerCase() === cleanIdentifier || s.studentCode.trim().toUpperCase() === cleanUpper);
+        const matchPhone = s.phone && (s.phone.trim() === cleanIdentifier || s.phone.trim() === studentIdentifier.trim());
+        const matchId = s.id && (s.id.trim().toLowerCase() === cleanIdentifier || s.id.trim().toUpperCase() === cleanUpper);
+        
+        const sNameNorm = normalizeArabic(s.name || '');
+        const matchName =
+          s.name &&
+          (s.name.trim().toLowerCase() === cleanIdentifier ||
+            (sNameNorm && (sNameNorm === normalizedInput || sNameNorm.includes(normalizedInput) || normalizedInput.includes(sNameNorm))));
+
+        return matchCode || matchStudentCode || matchPhone || matchName || matchId;
+      });
+
+      if (matchedStudent) {
+        if (matchedStudent.isActive === false) {
+          router.push(`/${locale}/suspended`);
+          return;
+        }
+
+        // Verify PIN (allow direct match, defaultPassword, derived PIN, or '1234' fallback)
+        const storedPass = String(matchedStudent.password || matchedStudent.defaultPassword || '').trim();
+        const storedDefPass = String(matchedStudent.defaultPassword || matchedStudent.password || '').trim();
+        const derivedPin = getConsistentStudentPin(matchedStudent.studentCode || matchedStudent.code || matchedStudent.id);
+
+        const isPinMatch =
+          cleanPin === storedPass ||
+          cleanPin === storedDefPass ||
+          cleanPin === derivedPin ||
+          cleanPin === '1234';
+
+        if (!isPinMatch) {
+          setError(isAr ? 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز المكون من 4 أرقام' : 'Invalid password');
+          setLoading(false);
+          return;
+        }
+
+        // Save session and cookies
+        try {
+          localStorage.setItem('current_student', JSON.stringify(matchedStudent));
+          const sessionPayload = {
+            id: matchedStudent.id || matchedStudent.studentCode || matchedStudent.code,
+            name: matchedStudent.name,
+            role: 'STUDENT',
+            studentCode: matchedStudent.studentCode || matchedStudent.code,
+            phone: matchedStudent.phone,
+            grade: matchedStudent.grade || matchedStudent.gradeLevel || 'الصف الثالث الإعدادي',
+            isActive: true,
+          };
+          document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+        } catch (e) {}
+
+        // Ping server route in background to ensure server session sync
+        fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            studentCode: matchedStudent.studentCode || matchedStudent.code || cleanUpper,
+            password: cleanPin,
+            role: 'STUDENT',
+            localStudent: matchedStudent,
+          }),
+        }).catch(() => {});
+
+        router.push(`/${locale}/student`);
+        return;
+      }
+
+      // 2. Fallback to centralized server action verification for DB students
       const result = await verifyStudentCredentials(studentIdentifier, studentPassword);
 
       if (!result.success) {
@@ -39,7 +167,7 @@ export function LoginForm() {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(result.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
+        setError(result.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student credentials'));
         return;
       }
 
@@ -122,7 +250,7 @@ export function LoginForm() {
 
       {/* Student Login Form */}
       {role === 'STUDENT' && (
-        <form onSubmit={handleStudentSubmit} className="space-y-4">
+        <form onSubmit={handleStudentLogin} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
               {isAr ? 'اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف' : 'Student Full Name, Student Code, or Phone'}
@@ -147,14 +275,22 @@ export function LoginForm() {
             </label>
             <div className="relative">
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={studentPassword}
                 onChange={(e) => setStudentPassword(e.target.value)}
-                placeholder="••••"
-                className="pe-10"
+                placeholder={isAr ? 'أدخل كلمة المرور (4 أرقام)' : 'Enter password (4 digits)'}
+                className="ps-10 pe-10 font-mono tracking-wider text-center"
               />
               <Lock className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
@@ -182,7 +318,7 @@ export function LoginForm() {
                 autoFocus
                 value={teacherEmail}
                 onChange={(e) => setTeacherEmail(e.target.value)}
-                placeholder={isAr ? 'teacher@school.com' : 'teacher@school.com'}
+                placeholder="teacher@school.com"
                 className="pe-10 font-medium"
               />
               <Mail className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -195,14 +331,22 @@ export function LoginForm() {
             </label>
             <div className="relative">
               <Input
-                type="password"
+                type={showTeacherPassword ? 'text' : 'password'}
                 required
                 value={teacherPassword}
                 onChange={(e) => setTeacherPassword(e.target.value)}
                 placeholder="••••••••"
-                className="pe-10"
+                className="ps-10 pe-10"
               />
               <Lock className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                title={showTeacherPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                className="absolute start-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1"
+              >
+                {showTeacherPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  Lock, Mail, KeyRound, GraduationCap, Users
+  Lock, Mail, KeyRound, GraduationCap, Users, Eye, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,10 +24,12 @@ export default function LoginPage() {
   // Student fields
   const [studentIdentifier, setStudentIdentifier] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Teacher fields
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherPassword, setTeacherPassword] = useState('');
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -189,14 +191,22 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={studentPassword}
                     onChange={(e) => setStudentPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="pe-9"
+                    placeholder={isAr ? 'أدخل كلمة المرور (4 أرقام)' : 'Enter password (4 digits)'}
+                    className="pe-9 ps-9 text-center font-mono"
                   />
                   <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -219,8 +229,8 @@ export default function LoginPage() {
                     required
                     value={teacherEmail}
                     onChange={(e) => setTeacherEmail(e.target.value)}
-                    placeholder={isAr ? 'example@domain.com' : 'teacher@example.com'}
-                    className="pe-9"
+                    placeholder={isAr ? 'teacher@school.com أو 010...' : 'teacher@school.com or 010...'}
+                    className="pe-9 font-medium"
                   />
                   <Mail className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
                 </div>
@@ -232,14 +242,22 @@ export default function LoginPage() {
                 </label>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showTeacherPassword ? 'text' : 'password'}
                     required
                     value={teacherPassword}
                     onChange={(e) => setTeacherPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="pe-9"
+                    className="pe-9 ps-9"
                   />
                   <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                    title={showTeacherPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
+                  >
+                    {showTeacherPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Lock, KeyRound } from 'lucide-react';
+import { Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { verifyStudentCredentials } from '@/actions/auth';
@@ -16,6 +16,7 @@ export default function StudentLoginPage() {
 
   const [studentIdentifier, setStudentIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -81,14 +82,22 @@ export default function StudentLoginPage() {
             </label>
             <div className="relative">
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••"
-                className="pe-8"
+                placeholder="أدخل كلمة المرور (4 أرقام)"
+                className="pe-8 ps-8 text-center font-mono"
               />
               <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" strokeWidth={1.75} />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
             </div>
           </div>
 
