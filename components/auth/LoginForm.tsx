@@ -105,9 +105,7 @@ export function LoginForm() {
       const isPinValid =
         inputPin === expectedPin ||
         inputPin === expectedDefPin ||
-        inputPin === derivedPin ||
-        inputPin === '1234' ||
-        (student.studentCode === 'STU-633' && inputPin === '9715');
+        inputPin === '1234';
 
       if (!isPinValid) {
         setError(isAr ? 'كلمة المرور غير صحيحة، تأكد من كتابة الـ 4 أرقام بدقة' : 'Incorrect password');

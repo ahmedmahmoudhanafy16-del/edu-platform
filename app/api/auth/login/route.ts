@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { getConsistentStudentPin } from '@/lib/utils';
 
 function normalizeArabic(text: string): string {
   if (!text) return '';
@@ -22,8 +21,8 @@ const DEMO_USERS = [
     name: 'أحمد محمد علي',
     studentCode: 'STU-001',
     phone: '01099998888',
-    password: '3842',
-    defaultPassword: '3842',
+    password: '1234',
+    defaultPassword: '1234',
     role: 'STUDENT',
     grade: 'الصف الثالث الإعدادي',
   },
@@ -32,8 +31,8 @@ const DEMO_USERS = [
     name: 'زياد طارق إبراهيم',
     studentCode: 'STU-777',
     phone: '01055554444',
-    password: '7195',
-    defaultPassword: '7195',
+    password: '1234',
+    defaultPassword: '1234',
     role: 'STUDENT',
     grade: 'الصف الثالث الإعدادي',
   },
@@ -101,12 +100,12 @@ export async function POST(req: NextRequest) {
         sName.toLowerCase() === cleanInput.toLowerCase() ||
         (sNameNorm && (sNameNorm === normInput || sNameNorm.includes(normInput) || normInput.includes(sNameNorm)));
 
-      const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '').trim();
-      const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '').trim();
+      const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '1234').trim();
+      const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '1234').trim();
 
       if (
         isIdentifierMatch &&
-        (sPass === cleanPassword || sDefPass === cleanPassword || getConsistentStudentPin(sCode || sPhone) === cleanPassword || cleanPassword === '1234')
+        (sPass === cleanPassword || sDefPass === cleanPassword || cleanPassword === '1234')
       ) {
         user = {
           id: localStudent.id || sCode,
@@ -122,7 +121,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Fallback to Demo Directory if user not found in DB or DB cold
+    // 2. Fallback to Demo Directory if user not found in DB
     if (!user) {
       if (role === 'TEACHER') {
         const cleanEmail = email?.toString().trim().toLowerCase();
@@ -153,27 +152,17 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user) {
-      console.log(`[Auth Login] User not found: "${role === 'TEACHER' ? email : studentCode}"`);
       return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
     }
 
-    // Debugging logs as requested
-    console.log(`[Auth Login] Verifying user: ID=${user.id}, Name=${user.name}, Role=${user.role}`);
-    console.log(`[Auth Login] DB password: ${user.password ? (user.password.startsWith('$2') ? user.password.substring(0, 15) + '...' : user.password) : 'none'}`);
-    console.log(`[Auth Login] DB defaultPassword: ${user.defaultPassword}`);
-    console.log(`[Auth Login] Input password: ${cleanPassword}`);
-    console.log(`[Auth Login] Is hashed: ${user.password ? user.password.startsWith('$2') : false}`);
-
-    // 3. Password Verification (supports bcrypt hashing, plain text, and defaultPassword)
+    // 3. Dual Password Check: Support plain text AND bcrypt
     let isMatch = false;
 
-    // Check plain text first (old students)
+    // Check plain text (old accounts or defaultPassword)
     if (cleanPassword === user.password || (user.defaultPassword && cleanPassword === user.defaultPassword)) {
       isMatch = true;
-    }
-
-    // Check bcrypt hash (new students created with hashing)
-    if (!isMatch && user.password) {
+    } else {
+      // Check bcrypt hash (new accounts created with hashing)
       try {
         isMatch = await bcrypt.compare(cleanPassword, user.password);
       } catch {
@@ -190,16 +179,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Fallbacks
-    if (!isMatch && (user.studentCode || user.id)) {
-      isMatch = getConsistentStudentPin(user.studentCode || user.id) === cleanPassword;
-    }
+    // Master fallback for 1234
     if (!isMatch && cleanPassword === '1234') {
       isMatch = true;
     }
 
     if (!isMatch) {
-      console.log(`[Auth Login] Invalid password for User ID=${user.id}`);
       return NextResponse.json(
         { error: 'كود الطالب أو كلمة المرور غير صحيحة' },
         { status: 401 }
@@ -208,7 +193,6 @@ export async function POST(req: NextRequest) {
 
     // 3.5 Check if user is suspended / inactive
     if (user.role === 'STUDENT' && user.isActive === false) {
-      console.log(`[Auth Login] Blocked access for suspended Student ID=${user.id}`);
       return NextResponse.json(
         {
           error: 'SUSPENDED',
@@ -217,8 +201,6 @@ export async function POST(req: NextRequest) {
         { status: 403 }
       );
     }
-
-    console.log(`[Auth Login] SUCCESS! Logged in: ID=${user.id}, Name=${user.name}, Role=${user.role}`);
 
     // 4. Session Payload
     const sessionPayload = {

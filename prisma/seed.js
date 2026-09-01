@@ -7,10 +7,8 @@ async function main() {
   console.log('Seeding initial production data for Vercel/Local deployment...');
 
   const teacherHash = bcrypt.hashSync('teacher123', 10);
-  const pin1 = '3842';
-  const pin2 = '7195';
-  const student1Hash = bcrypt.hashSync(pin1, 10);
-  const student2Hash = bcrypt.hashSync(pin2, 10);
+  const defaultStudentPin = '1234';
+  const defaultStudentHash = bcrypt.hashSync(defaultStudentPin, 10);
 
   // 1. Teacher Account
   const teacher = await prisma.user.upsert({
@@ -32,13 +30,13 @@ async function main() {
     },
   });
 
-  // 2. Student 1 (أحمد محمد علي) - Unique PIN: 6576
+  // 2. Student 1 (أحمد محمد علي) - PIN: 1234
   const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
-      password: student1Hash,
-      passwordHash: student1Hash,
-      defaultPassword: pin1,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       name: 'أحمد محمد علي',
       role: 'STUDENT',
       phone: '01099998888',
@@ -48,9 +46,9 @@ async function main() {
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
-      password: student1Hash,
-      passwordHash: student1Hash,
-      defaultPassword: pin1,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       role: 'STUDENT',
       phone: '01099998888',
       parentPhone: '01012345678',
@@ -58,15 +56,13 @@ async function main() {
     },
   });
 
-  // 2.5 Student STU-633 (أحمد محمود أحمد) - Unique PIN: 9715
-  const pin633 = '9715';
-  const student633Hash = bcrypt.hashSync(pin633, 10);
+  // 2.5 Student STU-633 (أحمد محمود أحمد) - PIN: 1234
   const student633 = await prisma.user.upsert({
     where: { studentCode: 'STU-633' },
     update: {
-      password: student633Hash,
-      passwordHash: student633Hash,
-      defaultPassword: pin633,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       name: 'أحمد محمود أحمد',
       role: 'STUDENT',
       phone: '01012345678',
@@ -76,9 +72,9 @@ async function main() {
     create: {
       name: 'أحمد محمود أحمد',
       studentCode: 'STU-633',
-      password: student633Hash,
-      passwordHash: student633Hash,
-      defaultPassword: pin633,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       role: 'STUDENT',
       phone: '01012345678',
       parentPhone: '01012345678',
@@ -86,13 +82,13 @@ async function main() {
     },
   });
 
-  // 3. Student 2 (زياد طارق) - Unique PIN: 7195
+  // 3. Student 2 (زياد طارق) - PIN: 1234
   const student2 = await prisma.user.upsert({
     where: { studentCode: 'STU-777' },
     update: {
-      password: student2Hash,
-      passwordHash: student2Hash,
-      defaultPassword: pin2,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       name: 'زياد طارق إبراهيم',
       role: 'STUDENT',
       phone: '01055554444',
@@ -102,9 +98,9 @@ async function main() {
     create: {
       name: 'زياد طارق إبراهيم',
       studentCode: 'STU-777',
-      password: student2Hash,
-      passwordHash: student2Hash,
-      defaultPassword: pin2,
+      password: defaultStudentHash,
+      passwordHash: defaultStudentHash,
+      defaultPassword: defaultStudentPin,
       role: 'STUDENT',
       phone: '01055554444',
       parentPhone: '01099998888',
@@ -112,64 +108,79 @@ async function main() {
     },
   });
 
-  // 3.5 Patch all existing student records to assign unique PINs
+  // Reset all student accounts in DB to clean '1234'
   try {
-    const allStudents = await prisma.user.findMany({
+    await prisma.user.updateMany({
       where: { role: 'STUDENT' },
-      select: { id: true, studentCode: true, defaultPassword: true },
-    });
-
-    for (const s of allStudents) {
-      if (!s.defaultPassword || s.defaultPassword === '1234') {
-        let hash = 0;
-        const idStr = s.studentCode || s.id || 'STU-001';
-        for (let i = 0; i < idStr.length; i++) {
-          hash = (hash << 5) - hash + idStr.charCodeAt(i);
-          hash |= 0;
-        }
-        const uniquePin = (Math.abs(hash % 9000) + 1000).toString();
-        const pinHash = bcrypt.hashSync(uniquePin, 10);
-
-        await prisma.user.update({
-          where: { id: s.id },
-          data: {
-            defaultPassword: uniquePin,
-            password: pinHash,
-          },
-        });
-      }
-    }
-  } catch (patchErr) {
-    console.warn('[Seed Warning] Student patch skipped:', patchErr.message);
-  }
-
-  // 4. Classrooms
-  const classroomsList = await prisma.classroom.findMany({ take: 1 });
-  let classroom = classroomsList[0];
-  if (!classroom) {
-    classroom = await prisma.classroom.create({
       data: {
-        id: 'class-math-3',
-        name: 'الصف الثالث الإعدادي - رياضيات',
-        subject: 'الرياضيات والجبر',
-        grade: 'PREP_3',
-        teacherId: teacher.id,
+        password: defaultStudentHash,
+        passwordHash: defaultStudentHash,
+        defaultPassword: defaultStudentPin,
       },
     });
-  }
+  } catch (e) {}
+
+  // 4. Sample Classrooms
+  const class1 = await prisma.classroom.upsert({
+    where: { id: 'class-math-3a' },
+    update: {
+      name: 'فصل الرياضيات (3ع - أ)',
+      subject: 'رياضيات',
+      code: 'MATH3A',
+      teacherId: teacher.id,
+    },
+    create: {
+      id: 'class-math-3a',
+      name: 'فصل الرياضيات (3ع - أ)',
+      subject: 'رياضيات',
+      code: 'MATH3A',
+      teacherId: teacher.id,
+    },
+  });
+
+  const class2 = await prisma.classroom.upsert({
+    where: { id: 'class-math-3b' },
+    update: {
+      name: 'فصل الرياضيات (3ع - ب)',
+      subject: 'رياضيات',
+      code: 'MATH3B',
+      teacherId: teacher.id,
+    },
+    create: {
+      id: 'class-math-3b',
+      name: 'فصل الرياضيات (3ع - ب)',
+      subject: 'رياضيات',
+      code: 'MATH3B',
+      teacherId: teacher.id,
+    },
+  });
 
   // 5. Enrollments
   await prisma.enrollment.upsert({
     where: {
       userId_classroomId: {
         userId: student1.id,
-        classroomId: classroom.id,
+        classroomId: class1.id,
       },
     },
     update: {},
     create: {
       userId: student1.id,
-      classroomId: classroom.id,
+      classroomId: class1.id,
+    },
+  });
+
+  await prisma.enrollment.upsert({
+    where: {
+      userId_classroomId: {
+        userId: student633.id,
+        classroomId: class1.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: student633.id,
+      classroomId: class1.id,
     },
   });
 
@@ -177,22 +188,27 @@ async function main() {
     where: {
       userId_classroomId: {
         userId: student2.id,
-        classroomId: classroom.id,
+        classroomId: class1.id,
       },
     },
     update: {},
     create: {
       userId: student2.id,
-      classroomId: classroom.id,
+      classroomId: class1.id,
     },
   });
 
-  // 6. Quiz & Questions (Passcode Protected)
-  await prisma.quiz.upsert({
+  // 6. Sample Quiz
+  const quiz = await prisma.quiz.upsert({
     where: { id: 'sample-quiz-1' },
     update: {
-      accessCode: 'QUIZ-MATH-2026',
-      isCodeRequired: true,
+      title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+      type: 'WEEKLY',
+      duration: 20,
+      passingScore: 60,
+      isPublished: true,
+      accessCode: 'MATH2026',
+      classroomId: class1.id,
     },
     create: {
       id: 'sample-quiz-1',
@@ -200,74 +216,84 @@ async function main() {
       type: 'WEEKLY',
       duration: 20,
       passingScore: 60,
-      classroomId: classroom.id,
       isPublished: true,
-      accessCode: 'QUIZ-MATH-2026',
-      isCodeRequired: true,
-      questions: {
-        create: [
-          {
-            text: 'إذا كانت س + 5 = 12، فإن قيمة س تساوي:',
-            type: 'MCQ',
-            options: JSON.stringify(['5', '7', '12', '17']),
-            correctAnswer: '7',
-            maxScore: 5,
-            order: 1,
-            difficulty: 'EASY',
-          },
-          {
-            text: 'المعادلة 2س - 4 = 10، حل المعادلة هو:',
-            type: 'MCQ',
-            options: JSON.stringify(['3', '5', '7', '8']),
-            correctAnswer: '7',
-            maxScore: 5,
-            order: 2,
-            difficulty: 'MEDIUM',
-          },
-        ],
-      },
+      accessCode: 'MATH2026',
+      classroomId: class1.id,
     },
   });
 
-  // 8. Live Session
-  const liveSession = await prisma.liveSession.upsert({
-    where: { roomCode: 'LIVE-MATH1' },
-    update: {},
+  // 7. Questions
+  await prisma.question.upsert({
+    where: { id: 'sample-q1' },
+    update: {
+      text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
+      type: 'MCQ',
+      options: JSON.stringify(['6', '8', '10', '12']),
+      correctAnswer: '8',
+      maxScore: 5,
+      order: 1,
+      quizId: quiz.id,
+    },
     create: {
-      title: 'مراجعة شاملة للوحدة الأولى والبث المباشر',
-      roomCode: 'LIVE-MATH1',
-      isActive: true,
-      classroomId: classroom.id,
+      id: 'sample-q1',
+      text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
+      type: 'MCQ',
+      options: JSON.stringify(['6', '8', '10', '12']),
+      correctAnswer: '8',
+      maxScore: 5,
+      order: 1,
+      quizId: quiz.id,
     },
   });
 
-  // 9. Class Resource
-  const existingResources = await prisma.classResource.count({ where: { classroomId: classroom.id } });
-  if (existingResources === 0) {
-    await prisma.classResource.createMany({
-      data: [
-        {
-          title: 'ملخص الوحدة الأولى – المعادلات الخطية',
-          type: 'SUMMARY',
-          fileUrl: '#',
-          classroomId: classroom.id,
-        },
-        {
-          title: 'نموذج اختبار أسبوعي – الجبر',
-          type: 'PDF',
-          fileUrl: '#',
-          classroomId: classroom.id,
-        },
-      ],
-    });
-  }
+  await prisma.question.upsert({
+    where: { id: 'sample-q2' },
+    update: {
+      text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
+      type: 'MCQ',
+      options: JSON.stringify(['{3}', '{-3}', '{3, -3}', '∅']),
+      correctAnswer: '{3, -3}',
+      maxScore: 5,
+      order: 2,
+      quizId: quiz.id,
+    },
+    create: {
+      id: 'sample-q2',
+      text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
+      type: 'MCQ',
+      options: JSON.stringify(['{3}', '{-3}', '{3, -3}', '∅']),
+      correctAnswer: '{3, -3}',
+      maxScore: 5,
+      order: 2,
+      quizId: quiz.id,
+    },
+  });
 
-  console.log('✅ Seeding completed successfully on build!');
+  // 8. Sample Assignment
+  await prisma.assignment.upsert({
+    where: { id: 'sample-hw-1' },
+    update: {
+      title: 'واجب الدرس الأول: الدوال الخطية',
+      description: 'حل تمارين كتاب الوزارة صفحة 14 و 15 كاملة وإرفاق صورة للحل.',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      classroomId: class1.id,
+    },
+    create: {
+      id: 'sample-hw-1',
+      title: 'واجب الدرس الأول: الدوال الخطية',
+      description: 'حل تمارين كتاب الوزارة صفحة 14 و 15 كاملة وإرفاق صورة للحل.',
+      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      classroomId: class1.id,
+    },
+  });
+
+  console.log('✅ Production Seeding Completed with Clean 1234 Student Passwords!');
 }
 
 main()
   .catch((e) => {
     console.error('Seed Error:', e);
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

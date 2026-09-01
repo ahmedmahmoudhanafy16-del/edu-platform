@@ -4,7 +4,6 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import { generateRandomPin } from '@/lib/utils';
 
 export async function createClassroom(name: string, subject: string, teacherId: string) {
   // Enforce Teacher Role
@@ -33,40 +32,36 @@ export async function createClassroom(name: string, subject: string, teacherId: 
   return classroom;
 }
 
-export async function resetStudentPassword(studentId: string, newPassword: string = '1234') {
+export async function resetStudentPassword(studentId: string, newPassword: string) {
+  const plain = (newPassword || '1234').toString().trim() || '1234';
+  // NEVER generate random numbers here — use exactly what was passed
+  const hashed = await bcrypt.hash(plain, 10);
+  
   try {
-    const plain = (newPassword || '1234').toString().trim();
-    const hashed = await bcrypt.hash(plain, 10);
-
-    try {
-      await prisma.user.updateMany({
-        where: {
-          OR: [
-            { id: studentId },
-            { studentCode: studentId },
-          ],
-        },
-        data: {
-          password: hashed,
-          passwordHash: hashed,
-          defaultPassword: plain, // exactly what teacher sees
-        },
-      });
-    } catch (dbErr) {
-      console.warn('[resetStudentPassword] DB update notice:', dbErr);
-    }
-
-    try {
-      revalidatePath('/', 'layout');
-      revalidatePath('/ar/teacher/students');
-      revalidatePath('/en/teacher/students');
-    } catch (e) {}
-
-    return { success: true, newPassword: plain };
-  } catch (error: any) {
-    console.error('[resetStudentPassword] Error:', error);
-    return { success: false, error: 'فشل إعادة تعيين كلمة المرور' };
+    await prisma.user.updateMany({
+      where: {
+        OR: [
+          { id: studentId },
+          { studentCode: studentId },
+        ],
+      },
+      data: {
+        password: hashed,
+        passwordHash: hashed,
+        defaultPassword: plain, // EXACT same string, no modification
+      },
+    });
+  } catch (dbErr) {
+    console.warn('[resetStudentPassword] DB update notice:', dbErr);
   }
+
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/ar/teacher/students');
+    revalidatePath('/en/teacher/students');
+  } catch (e) {}
+
+  return { success: true, newPassword: plain };
 }
 
 export async function createStudentAction(formData: {
@@ -81,28 +76,24 @@ export async function createStudentAction(formData: {
   password?: string;
 }) {
   try {
-    // 1. Sequential Student Code: STU-001, STU-002, STU-003...
-    let count = 0;
-    try {
-      count = await prisma.user.count({ where: { role: 'STUDENT' } });
-    } catch (e) {
-      console.warn('[createStudentAction] Could not count students from DB, checking fallback count:', e);
-      count = 2;
-    }
-    const studentCode = `STU-${String(count + 1).padStart(3, '0')}`;
-    const studentId = studentCode;
-
     const cleanName = formData.name?.trim() || '';
     const cleanPhone = formData.phone?.trim() || '';
     const cleanParent = formData.parentPhone?.trim() || formData.parentWhatsapp?.trim() || cleanPhone;
     const cleanGrade = formData.grade || formData.gradeLevel || 'الصف الثالث الإعدادي';
     const targetClassroomId = formData.classroom || formData.classroomId || '';
     
-    // The defaultPassword saved to DB must ALWAYS equal the plain-text password before hashing
-    const plainPassword = (formData.password?.toString() || '').trim() || generateRandomPin();
+    // plainPassword comes directly from the form input — default strictly to '1234'
+    const plainPassword = (formData.password?.toString() || '').trim() || '1234';
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    console.log(`[Add Student] Name: "${cleanName}", Plain Password: "${plainPassword}", Hashed: "${hashedPassword.substring(0, 15)}..."`);
+    let count = 0;
+    try {
+      count = await prisma.user.count({ where: { role: 'STUDENT' } });
+    } catch (e) {
+      count = 2;
+    }
+    const studentCode = `STU-${String(count + 1).padStart(3, '0')}`;
+    const studentId = studentCode;
 
     const newStudent = {
       id: studentId,
@@ -122,7 +113,7 @@ export async function createStudentAction(formData: {
       createdAt: new Date().toISOString(),
     };
 
-    // 2. Safe Database Attempt
+    // Safe Database Attempt
     try {
       await prisma.user.create({
         data: {
@@ -154,16 +145,13 @@ export async function createStudentAction(formData: {
       console.warn('Server DB write failed, fallback handled gracefully:', dbError);
     }
 
-    // 3. Safe Path Revalidation across all locales and layouts
     try {
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
       revalidatePath('/ar/teacher/reports');
       revalidatePath('/en/teacher/reports');
       revalidatePath('/', 'layout');
-    } catch (revalErr) {
-      // Silently catch edge revalidation errors
-    }
+    } catch (revalErr) {}
 
     return { success: true, student: newStudent };
   } catch (error: any) {
@@ -173,69 +161,51 @@ export async function createStudentAction(formData: {
 }
 
 export async function addStudentToClassroom(
-  nameOrData:
-    | {
-        name: string;
-        phone?: string;
-        parentWhatsapp?: string;
-        parentPhone?: string;
-        gradeLevel?: string;
-        grade?: string;
-        classroomId?: string;
-        classroom?: string;
-        password?: string;
-      }
-    | string,
-  phoneArg?: string,
-  parentWhatsappOrClassroomId?: string,
-  gradeLevelArg?: string,
-  classroomIdArg?: string,
-  passwordArg?: string
+  name: string,
+  phone: string,
+  classroomId: string,
+  plainPassword: string = '1234'
 ) {
-  let name = '';
-  let phone = '';
-  let parentPhone = '';
-  let grade = '';
-  let classroom = '';
-  let plainPassword = '1234';
-
-  if (typeof nameOrData === 'object' && nameOrData !== null) {
-    name = nameOrData.name || '';
-    phone = nameOrData.phone || '';
-    parentPhone = nameOrData.parentWhatsapp || nameOrData.parentPhone || '';
-    grade = nameOrData.gradeLevel || nameOrData.grade || 'الصف الثالث الإعدادي';
-    classroom = nameOrData.classroom || nameOrData.classroomId || '';
-    plainPassword = nameOrData.password || '1234';
-  } else {
-    name = nameOrData || '';
-    phone = phoneArg || '';
-    if (gradeLevelArg && classroomIdArg) {
-      parentPhone = parentWhatsappOrClassroomId || '';
-      grade = gradeLevelArg;
-      classroom = classroomIdArg;
-      plainPassword = passwordArg || '1234';
-    } else {
-      classroom = parentWhatsappOrClassroomId || '';
-      parentPhone = phone;
-      grade = gradeLevelArg || 'الصف الثالث الإعدادي';
-      plainPassword = passwordArg || '1234';
-    }
+  // plainPassword comes directly from the form input
+  // NEVER modify it, NEVER replace it with random numbers
+  const cleanPass = (plainPassword || '1234').toString().trim() || '1234';
+  const hashed = await bcrypt.hash(cleanPass, 10);
+  
+  let count = 0;
+  try {
+    count = await prisma.user.count({ where: { role: 'STUDENT' } });
+  } catch (e) {
+    count = 2;
   }
+  const studentCode = `STU-${String(count + 1).padStart(3, '0')}`;
 
-  const result = await createStudentAction({
-    name,
-    phone,
-    parentPhone,
-    grade,
-    classroom,
-    password: plainPassword,
+  const student = await prisma.user.create({
+    data: {
+      name: name.trim(),
+      phone: phone.trim() || null,
+      studentCode,
+      password: hashed,
+      defaultPassword: cleanPass, // EXACT copy — no changes
+      role: 'STUDENT',
+      ...(classroomId
+        ? {
+            enrollments: {
+              create: {
+                classroomId,
+              },
+            },
+          }
+        : {}),
+    },
   });
 
-  if (!result.success && result.error) {
-    throw new Error(result.error);
-  }
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/ar/teacher/students');
+    revalidatePath('/en/teacher/students');
+  } catch (e) {}
 
-  return result.student;
+  return student;
 }
 
 export async function toggleClassroomStatus(classroomId: string, isActive: boolean) {
@@ -295,7 +265,6 @@ export async function deleteClassroom(classroomId: string) {
     }
 
     try {
-      // Cascade delete classroom assignments and quizzes safely
       await prisma.assignment.deleteMany({
         where: { classroomId },
       }).catch(() => null);

@@ -536,8 +536,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '9715',
-    password: '9715',
+    defaultPassword: '1234',
+    password: '1234',
     createdAt: new Date().toISOString(),
   },
   {
@@ -556,8 +556,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '6576',
-    password: '6576',
+    defaultPassword: '1234',
+    password: '1234',
     createdAt: new Date().toISOString(),
   },
   {
@@ -576,8 +576,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '9682',
-    password: '9682',
+    defaultPassword: '1234',
+    password: '1234',
     createdAt: new Date().toISOString(),
   },
   {
@@ -596,8 +596,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '8626',
-    password: '8626',
+    defaultPassword: '1234',
+    password: '1234',
     createdAt: new Date().toISOString(),
   },
 ];
@@ -625,6 +625,7 @@ export function saveStudentToStore(student: any): any {
   if (typeof window === 'undefined') return student;
   try {
     const current = getStudentsFromStore();
+    const cleanPassword = String(student.defaultPassword || student.password || '1234').trim() || '1234';
     const formatted = {
       id: student.id || student.studentCode || `STU-${Math.floor(100 + Math.random() * 900)}`,
       name: student.name,
@@ -640,8 +641,8 @@ export function saveStudentToStore(student: any): any {
       attendanceCount: 0,
       lastActive: new Date().toISOString(),
       isActive: true,
-      defaultPassword: String(student.defaultPassword || student.password || generateRandomPin()).trim(),
-      password: String(student.defaultPassword || student.password || generateRandomPin()).trim(),
+      defaultPassword: cleanPassword,
+      password: cleanPassword,
       createdAt: student.createdAt || new Date().toISOString(),
     };
 
