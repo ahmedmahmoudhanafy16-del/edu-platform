@@ -42,15 +42,7 @@ export function getStudentAcademicSummary(
     if (!s) return false;
     if (!studentId) return true;
     const sId = s.studentId || s.studentCode || '';
-    return (
-      sId === studentId ||
-      (studentId === 'STU-001' &&
-        (sId === 'demo-student-1' || sId === 'STU-001' || sId === 'student-1')) ||
-      (studentId === 'STU-777' &&
-        (sId === 'demo-student-2' || sId === 'STU-777' || sId === 'student-2')) ||
-      (studentId === 'demo-student-1' &&
-        (sId === 'STU-001' || sId === 'student-1' || sId === 'demo-student-1'))
-    );
+    return sId === studentId || s.studentCode === studentId;
   });
 
   if (studentSubs.length === 0) {
@@ -139,15 +131,7 @@ export function getLatestStudentSubmission(
     return (
       sId === studentId ||
       s.studentCode === studentId ||
-      s.id === studentId ||
-      (studentId === 'STU-001' &&
-        (sId === 'demo-student-1' || sId === 'STU-001' || sId === 'student-1')) ||
-      (studentId === 'STU-777' &&
-        (sId === 'demo-student-2' || sId === 'STU-777' || sId === 'student-2')) ||
-      (studentId === 'demo-student-1' &&
-        (sId === 'STU-001' || sId === 'student-1' || sId === 'demo-student-1')) ||
-      (studentId === 'student-1' &&
-        (sId === 'STU-001' || sId === 'demo-student-1' || sId === 'student-1'))
+      s.id === studentId
     );
   });
 

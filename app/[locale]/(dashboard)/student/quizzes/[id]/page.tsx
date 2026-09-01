@@ -20,11 +20,20 @@ export default function StudentQuizPage() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const studentId = 'demo-student-1';
+  const [studentId, setStudentId] = useState<string>('');
 
   // 1. Ensure Client-Side Hydration
   useEffect(() => {
     setIsMounted(true);
+    try {
+      const stored = localStorage.getItem('current_student');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.id || parsed?.studentCode) {
+          setStudentId(parsed.id || parsed.studentCode);
+        }
+      }
+    } catch {}
   }, []);
 
   // 2. Client-Side Safe Fetching & Storage Synchronisation

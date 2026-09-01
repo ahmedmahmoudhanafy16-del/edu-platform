@@ -33,8 +33,8 @@ export default async function StudentDashboardPage({
     console.warn('[Student Dashboard] getAuthenticatedStudent error:', err);
   }
 
-  const studentId = student?.id ?? 'demo-student-1';
-  const studentName = student?.name ?? 'أحمد محمد علي';
+  const studentId = student?.id ?? '';
+  const studentName = student?.name ?? 'طالب';
 
   let activeLive: any[] = [];
   let assignments: any[] = [];

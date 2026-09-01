@@ -305,11 +305,8 @@ export function QuizRunner({
             id: res.id || `res-${Date.now()}`,
             quizId: activeQuiz.id || quiz.id,
             quizTitle: activeQuiz.title || quiz.title,
-            studentId: studentId || 'STU-001',
-            studentCode:
-              studentId === 'demo-student-1' || studentId === 'student-1'
-                ? 'STU-001'
-                : studentId || 'STU-001',
+            studentId: studentId,
+            studentCode: studentId,
             score: earnedScoreVal,
             autoScore: earnedScoreVal,
             totalScore: earnedScoreVal,
@@ -370,11 +367,8 @@ export function QuizRunner({
             id: `res-${Date.now()}`,
             quizId: activeQuiz.id || quiz.id,
             quizTitle: activeQuiz.title || quiz.title,
-            studentId: studentId || 'STU-001',
-            studentCode:
-              studentId === 'demo-student-1' || studentId === 'student-1'
-                ? 'STU-001'
-                : studentId || 'STU-001',
+            studentId: studentId,
+            studentCode: studentId,
             score: 10,
             autoScore: 10,
             totalScore: 10,

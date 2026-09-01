@@ -18,8 +18,8 @@ export default async function StudentAssignmentsPage({
     student = await getAuthenticatedStudent();
   } catch (e) {}
 
-  const studentId = student?.id || 'demo-student-1';
-  const studentName = student?.name || 'أحمد محمد علي';
+  const studentId = student?.id || '';
+  const studentName = student?.name || 'طالب';
 
   let assignments: any[] = [];
   try {

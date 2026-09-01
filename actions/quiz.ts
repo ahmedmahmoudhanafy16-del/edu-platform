@@ -221,7 +221,7 @@ function isAnswerCorrect(
  */
 export async function submitQuizAnswers(
   quizId: string,
-  studentId: string = 'demo-student-1',
+  studentId: string = '',
   answers: { questionId: string; answerText: string }[] | Record<string, any> = [],
   isAutoSubmitted: boolean = false,
   customQuestions?: any[]
@@ -531,7 +531,7 @@ export async function submitQuizAction(payload: {
 }) {
   return submitQuizAnswers(
     payload.quizId,
-    payload.studentId || 'demo-student-1',
+    payload.studentId || '',
     payload.answers,
     payload.isAutoSubmitted || false
   );

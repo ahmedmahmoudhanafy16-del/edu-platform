@@ -20,8 +20,8 @@ export default async function StudentQuizzesPage({
     student = await getAuthenticatedStudent();
   } catch (e) {}
 
-  const studentId = student?.id || 'demo-student-1';
-  const studentName = student?.name || 'أحمد محمد علي';
+  const studentId = student?.id || '';
+  const studentName = student?.name || 'طالب';
 
   let quizzes: any[] = [];
   let dbResults: any[] = [];

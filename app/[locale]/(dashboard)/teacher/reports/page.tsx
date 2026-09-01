@@ -62,15 +62,11 @@ export default async function TeacherReportsPage({
   const studentReports = (students || []).map((s) => {
     // Merge database results with in-memory store
     const dbQuizIds = new Set((s.quizResults || []).map((r: any) => r.quizId || r.id));
-    const memResults = (memoryQuizResults || [])
-      .filter(
-        (m: any) =>
-          (m.studentId === s.id ||
-            m.studentId === s.studentCode ||
-            (s.studentCode === 'STU-001' && (m.studentId === 'demo-student-1' || m.studentId === 'student-1' || m.studentId === 'STU-001')) ||
-            (s.studentCode === 'STU-777' && (m.studentId === 'demo-student-2' || m.studentId === 'student-2' || m.studentId === 'STU-777'))) &&
-          !dbQuizIds.has(m.quizId)
-      );
+    const memResults = (memoryQuizResults || []).filter(
+      (m: any) =>
+        (m.studentId === s.id || m.studentId === s.studentCode) &&
+        !dbQuizIds.has(m.quizId)
+    );
 
     const combinedResults = [...(s.quizResults || []), ...memResults];
     const latest = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);

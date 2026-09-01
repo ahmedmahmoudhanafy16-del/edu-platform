@@ -53,13 +53,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
       const latest = getLatestStudentSubmission(lookupCode, submissions);
       const studentSubs = submissions.filter((s) => {
         const sId = s.studentId || s.studentCode || '';
-        return (
-          sId === lookupCode ||
-          sId === student.id ||
-          sId === student.studentCode ||
-          (lookupCode === 'STU-001' && (sId === 'demo-student-1' || sId === 'student-1' || sId === 'STU-001')) ||
-          (lookupCode === 'STU-777' && (sId === 'demo-student-2' || sId === 'student-2' || sId === 'STU-777'))
-        );
+        return sId === lookupCode || sId === student.id || sId === student.studentCode;
       });
 
       const studentPin = String(student.defaultPassword || student.password || '1234').trim();

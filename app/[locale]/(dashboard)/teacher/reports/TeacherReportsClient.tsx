@@ -112,8 +112,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                 (r) =>
                   r.studentId === student.id ||
                   r.studentId === student.studentCode ||
-                  (student.studentCode === 'STU-001' && (!r.studentId || r.studentId === 'demo-student-1' || r.studentId === 'student-1' || r.studentId === 'STU-001')) ||
-                  (student.studentCode === 'STU-777' && (r.studentId === 'demo-student-2' || r.studentId === 'student-2' || r.studentId === 'STU-777'))
+                  r.studentCode === student.studentCode
               );
 
               const latest = getLatestStudentSubmission(student.studentCode || student.id, studentSubmissions);
