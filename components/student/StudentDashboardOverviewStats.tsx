@@ -1,22 +1,23 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, FileText, CalendarCheck, BarChart3 } from 'lucide-react';
-import { getStudentAcademicSummary } from '@/lib/analytics';
+import { ClipboardList, FileText, CalendarCheck, BarChart3, Trophy } from 'lucide-react';
+import { getStudentAcademicSummary, getLatestStudentSubmission } from '@/lib/analytics';
 import { getSubmissions, getAssignments } from '@/lib/store';
-import { calcStudentAvg } from '@/lib/utils';
 
 export function StudentDashboardOverviewStats({
   initialExamsCount = 0,
   initialPendingCount = 0,
   initialAttendancePct = 100,
-  initialAvgScore = null,
+  initialLatestScore = null,
+  initialLatestDetail = null,
   studentId,
 }: {
   initialExamsCount?: number;
   initialPendingCount?: number;
   initialAttendancePct?: number;
-  initialAvgScore?: number | null;
+  initialLatestScore?: number | null;
+  initialLatestDetail?: string | null;
   studentId: string;
 }) {
   const [stats, setStats] = useState(() => {
@@ -27,13 +28,14 @@ export function StudentDashboardOverviewStats({
       const pendingCount = assignments.filter(
         (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
       ).length;
-      const avgScore = calcStudentAvg(submissions);
+      const latest = getLatestStudentSubmission(studentId, submissions);
 
       return {
         completedExams: summary.totalExams,
         pendingAssignments: pendingCount,
         attendancePct: initialAttendancePct,
-        avgScore: avgScore !== null ? avgScore : initialAvgScore,
+        latestScore: latest ? latest.percentage : initialLatestScore,
+        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : initialLatestDetail,
       };
     }
 
@@ -41,7 +43,8 @@ export function StudentDashboardOverviewStats({
       completedExams: initialExamsCount,
       pendingAssignments: initialPendingCount,
       attendancePct: initialAttendancePct,
-      avgScore: initialAvgScore,
+      latestScore: initialLatestScore,
+      latestDetail: initialLatestDetail,
     };
   });
 
@@ -53,13 +56,14 @@ export function StudentDashboardOverviewStats({
       const pendingCount = assignments.filter(
         (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
       ).length;
-      const avgScore = calcStudentAvg(submissions);
+      const latest = getLatestStudentSubmission(studentId, submissions);
 
       setStats({
         completedExams: summary.totalExams,
         pendingAssignments: pendingCount,
         attendancePct: initialAttendancePct,
-        avgScore,
+        latestScore: latest ? latest.percentage : null,
+        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : null,
       });
     }
 
@@ -80,41 +84,52 @@ export function StudentDashboardOverviewStats({
     {
       label: 'الامتحانات المنجزة',
       value: stats.completedExams,
+      subtitle: null,
       icon: ClipboardList,
       warn: false,
     },
     {
       label: 'واجبات مطلوبة',
       value: stats.pendingAssignments,
+      subtitle: null,
       icon: FileText,
       warn: stats.pendingAssignments > 0,
     },
     {
       label: 'نسبة الحضور',
       value: `${stats.attendancePct}%`,
+      subtitle: null,
       icon: CalendarCheck,
       warn: false,
     },
     {
-      label: 'متوسط الدرجات',
-      value: stats.avgScore !== null && stats.avgScore !== undefined ? `${stats.avgScore}%` : '—',
-      icon: BarChart3,
+      label: 'نتيجة آخر اختبار',
+      value: stats.latestScore !== null && stats.latestScore !== undefined ? `${stats.latestScore}%` : '—',
+      subtitle: stats.latestDetail ? `(${stats.latestDetail})` : null,
+      icon: Trophy,
       warn: false,
     },
   ];
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {statItems.map(({ label, value, icon: Icon, warn }) => (
+      {statItems.map(({ label, value, subtitle, icon: Icon, warn }) => (
         <div key={label} className={`${card} p-4 flex items-center gap-3`}>
           <div className="w-10 h-10 rounded-lg bg-accent-light flex items-center justify-center flex-shrink-0">
             <Icon className="h-5 w-5 text-accent" strokeWidth={1.75} />
           </div>
           <div>
             <p className="text-xs text-n-500">{label}</p>
-            <p className={`text-lg font-bold leading-tight ${warn ? 'text-warn' : 'text-n-800 dark:text-n-700'}`}>
-              {value}
-            </p>
+            <div className="flex items-baseline gap-1.5">
+              <p className={`text-lg font-bold leading-tight ${warn ? 'text-warn' : 'text-n-800 dark:text-n-700'}`}>
+                {value}
+              </p>
+              {subtitle && (
+                <span className="text-[10px] text-n-400 font-mono">
+                  {subtitle}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       ))}

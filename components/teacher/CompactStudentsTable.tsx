@@ -19,6 +19,10 @@ export interface Student {
   studentCode: string;
   phone: string | null;
   avgScore: number | null;
+  latestScore?: number | null;
+  latestMaxScore?: number | null;
+  latestPercentage?: number | null;
+  latestQuizTitle?: string | null;
   submissionsCount: number;
   attendanceCount: number;
   lastActive: string | Date | null;
@@ -36,7 +40,7 @@ interface Props {
 
 const STORAGE_KEY = 'edu_students';
 
-import { calcStudentAvg } from '@/lib/utils';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 
 function computeDynamicAverages(studentList: Student[]): Student[] {
   if (typeof window === 'undefined') return studentList;
@@ -44,6 +48,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
     const submissions = getSubmissions();
     return studentList.map((student) => {
       const lookupCode = student.studentCode || student.id;
+      const latest = getLatestStudentSubmission(lookupCode, submissions);
       const studentSubs = submissions.filter((s) => {
         const sId = s.studentId || s.studentCode || '';
         return (
@@ -54,10 +59,14 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
           (lookupCode === 'STU-777' && (sId === 'demo-student-2' || sId === 'student-2' || sId === 'STU-777'))
         );
       });
-      const avg = calcStudentAvg(studentSubs);
+
       return {
         ...student,
-        avgScore: avg,
+        avgScore: latest ? latest.percentage : null,
+        latestScore: latest ? latest.score : null,
+        latestMaxScore: latest ? latest.maxScore : null,
+        latestPercentage: latest ? latest.percentage : null,
+        latestQuizTitle: latest ? latest.quizTitle : null,
         submissionsCount: Math.max(student.submissionsCount || 0, studentSubs.length),
       };
     });
@@ -205,7 +214,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         studentCode: 'كود الطالب',
         phone: 'رقم الهاتف',
         status: 'حالة الحساب',
-        avgScore: 'متوسط الدرجات',
+        avgScore: 'آخر امتحان',
         submissionsCount: 'الواجبات المُسلَّمة',
         attendanceCount: 'الحصص المحضورة',
         lastActive: 'آخر نشاط',
@@ -245,7 +254,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               <th className={thClass} onClick={() => toggleSort('studentCode')}>الكود</th>
               <th className={thClass}>الهاتف</th>
               <th className={thClass}>الحالة</th>
-              <th className={thClass} onClick={() => toggleSort('avgScore')}>متوسط الدرجات</th>
+              <th className={thClass} onClick={() => toggleSort('avgScore')}>آخر امتحان</th>
               <th className={thClass}>الواجبات</th>
               <th className={thClass}>الحضور</th>
               <th className={thClass}>واتساب</th>
@@ -293,9 +302,16 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     </td>
                     <td className={tdClass}>
                       {s.avgScore != null ? (
-                        <span className={s.avgScore >= 50 ? 'text-ok font-bold' : 'text-bad font-bold'}>
-                          {s.avgScore}%
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={s.avgScore >= 50 ? 'text-ok font-bold' : 'text-bad font-bold'}>
+                            {s.avgScore}%
+                          </span>
+                          {s.latestScore != null && s.latestMaxScore != null && (
+                            <span className="text-[10px] text-n-400 font-mono">
+                              ({s.latestScore} / {s.latestMaxScore})
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-n-400">—</span>
                       )}
@@ -308,6 +324,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                           name: s.name,
                           phone: s.phone,
                           avgScore: s.avgScore || 0,
+                          latestScore: s.latestScore ?? null,
+                          latestMaxScore: s.latestMaxScore ?? null,
+                          latestPercentage: s.latestPercentage ?? (s.avgScore || null),
+                          latestQuizTitle: s.latestQuizTitle ?? null,
                           submissionsCount: s.submissionsCount,
                           attendanceCount: s.attendanceCount,
                         }}

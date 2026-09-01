@@ -2,7 +2,7 @@ import React from 'react';
 import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { BarChart3 } from 'lucide-react';
 import { TeacherReportsClient } from './TeacherReportsClient';
-import { calcStudentAvg } from '@/lib/utils';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -72,7 +72,8 @@ export default async function TeacherReportsPage({
       );
 
     const combinedResults = [...(s.quizResults || []), ...memResults];
-    const avgScore = calcStudentAvg(combinedResults) ?? 0;
+    const latest = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
+    const scorePct = latest ? latest.percentage : 0;
 
     return {
       id: s.id,
@@ -81,11 +82,15 @@ export default async function TeacherReportsPage({
       phone: s.phone || '—',
       parentPhone: s.parentPhone || s.phone || '—',
       grade: s.grade || 'الصف الثالث الإعدادي',
-      avgScore,
+      avgScore: scorePct,
+      latestScore: latest ? latest.score : null,
+      latestMaxScore: latest ? latest.maxScore : null,
+      latestPercentage: latest ? latest.percentage : null,
+      hasSubmissions: Boolean(latest),
       examsCompleted: combinedResults.length,
       homeworkCompleted: s.submissions?.length ?? 0,
       attendanceCount: s.attendance?.length ?? 0,
-      status: avgScore >= 65 ? 'ممتاز' : 'يحتاج متابعة',
+      status: scorePct >= 65 ? 'ممتاز' : 'يحتاج متابعة',
     };
   });
 

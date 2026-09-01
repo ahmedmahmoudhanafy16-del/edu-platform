@@ -109,3 +109,72 @@ export function getStudentAcademicSummary(
     submissionsList: detailedList,
   };
 }
+
+export interface LatestSubmissionResult {
+  id?: string;
+  quizId?: string;
+  quizTitle?: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  isPassed: boolean;
+  submittedAt: string | Date;
+}
+
+/**
+ * Returns the student's most recent completed quiz submission.
+ */
+export function getLatestStudentSubmission(
+  studentId: string,
+  submissions: any[] = []
+): LatestSubmissionResult | null {
+  if (!submissions || !Array.isArray(submissions) || submissions.length === 0) {
+    return null;
+  }
+
+  const studentSubs = submissions.filter((s) => {
+    if (!s) return false;
+    if (!studentId) return true;
+    const sId = s.studentId || s.studentCode || '';
+    return (
+      sId === studentId ||
+      s.studentCode === studentId ||
+      s.id === studentId ||
+      (studentId === 'STU-001' &&
+        (sId === 'demo-student-1' || sId === 'STU-001' || sId === 'student-1')) ||
+      (studentId === 'STU-777' &&
+        (sId === 'demo-student-2' || sId === 'STU-777' || sId === 'student-2')) ||
+      (studentId === 'demo-student-1' &&
+        (sId === 'STU-001' || sId === 'student-1' || sId === 'demo-student-1')) ||
+      (studentId === 'student-1' &&
+        (sId === 'STU-001' || sId === 'demo-student-1' || sId === 'student-1'))
+    );
+  });
+
+  if (studentSubs.length === 0) return null;
+
+  const sorted = [...studentSubs].sort((a, b) => {
+    const timeA = new Date(a.submittedAt || 0).getTime();
+    const timeB = new Date(b.submittedAt || 0).getTime();
+    return timeB - timeA;
+  });
+
+  const latest = sorted[0];
+  const score = latest.totalScore ?? latest.autoScore ?? latest.score ?? 0;
+  const maxScore = Number(latest.maxScore) && Number(latest.maxScore) > 0 ? Number(latest.maxScore) : 100;
+  const percentage =
+    latest.percentage !== undefined
+      ? Number(latest.percentage)
+      : Math.round((score / maxScore) * 100);
+
+  return {
+    id: latest.id,
+    quizId: latest.quizId,
+    quizTitle: latest.quizTitle || latest.quiz?.title || 'الاختبار الأكاديمي',
+    score,
+    maxScore,
+    percentage,
+    isPassed: latest.isPassed !== undefined ? Boolean(latest.isPassed) : percentage >= 50,
+    submittedAt: latest.submittedAt || new Date().toISOString(),
+  };
+}

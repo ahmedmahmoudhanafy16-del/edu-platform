@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getStudentAcademicSummary } from '@/lib/analytics';
+import { getStudentAcademicSummary, getLatestStudentSubmission, LatestSubmissionResult } from '@/lib/analytics';
 import { getSubmissions } from '@/lib/store';
 import { calcStudentAvg } from '@/lib/utils';
 
@@ -33,6 +33,15 @@ export default function ParentDashboardPage() {
     }
     return { totalExams: 0, averagePercentage: 0, passedExams: 0, passRate: 0, submissionsList: [] };
   });
+  const [latestSubmission, setLatestSubmission] = useState<LatestSubmissionResult | null>(() => {
+    if (typeof window !== 'undefined') {
+      const auth = JSON.parse(sessionStorage.getItem('parent_auth') || '{}');
+      const code = auth.studentCode || 'STU-001';
+      const subs = getSubmissions(code);
+      return getLatestStudentSubmission(code, subs);
+    }
+    return null;
+  });
 
   useEffect(() => {
     try {
@@ -43,6 +52,7 @@ export default function ParentDashboardPage() {
       function syncStore() {
         const subs = getSubmissions(code);
         setAcademicSummary(getStudentAcademicSummary(code, subs));
+        setLatestSubmission(getLatestStudentSubmission(code, subs));
       }
 
       syncStore();
@@ -163,9 +173,9 @@ export default function ParentDashboardPage() {
             <Trophy className="h-5 w-5 text-amber-500" />
           </div>
           <div>
-            <p className="text-xs text-slate-500">متوسط الدرجات</p>
+            <p className="text-xs text-slate-500">نتيجة آخر اختبار</p>
             <p className="text-lg font-bold text-slate-900 dark:text-white">
-              {academicSummary.totalExams > 0 ? `${academicSummary.averagePercentage}%` : '—'}
+              {latestSubmission ? `${latestSubmission.percentage}%` : '—'}
             </p>
           </div>
         </div>

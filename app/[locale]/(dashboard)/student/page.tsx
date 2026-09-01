@@ -13,6 +13,7 @@ import { StudentQuizCard } from '@/components/student/StudentQuizCard';
 import { StudentDashboardQuizzesClient } from '@/components/student/StudentDashboardQuizzesClient';
 import { StudentDashboardAssignmentsClient } from '@/components/student/StudentDashboardAssignmentsClient';
 import { StudentDashboardOverviewStats } from '@/components/student/StudentDashboardOverviewStats';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -109,12 +110,11 @@ export default async function StudentDashboardPage({
   const quizResults = [...dbQuizResults, ...memoryStudentResults];
 
   /* ── Fallback Sample Data if DB is cold on Vercel ─────────────────── */
-  /* ── Stats ────────────────────────────────────────────────────────── */
   const pendingCount = (assignments || []).filter((a) => !a.submissions || a.submissions.length === 0).length;
   const attendancePct = attendance && attendance.length
     ? Math.min(100, Math.round((attendance.length / Math.max(1, activeLive.length || 1)) * 100))
     : 100;
-  const avgScore = calcStudentAvg(quizResults);
+  const latestSubmission = getLatestStudentSubmission(studentId, quizResults);
 
   /* ── Shared primitives ─────────────────────────────────────────────── */
   const section = 'space-y-4';
@@ -153,7 +153,8 @@ export default async function StudentDashboardPage({
         initialExamsCount={quizResults.length}
         initialPendingCount={pendingCount}
         initialAttendancePct={attendancePct}
-        initialAvgScore={quizResults.length > 0 ? avgScore : null}
+        initialLatestScore={latestSubmission ? latestSubmission.percentage : null}
+        initialLatestDetail={latestSubmission ? `${latestSubmission.score} / ${latestSubmission.maxScore}` : null}
         studentId={studentId}
       />
 

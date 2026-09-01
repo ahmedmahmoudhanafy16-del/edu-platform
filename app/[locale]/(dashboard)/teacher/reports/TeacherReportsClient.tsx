@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-
-import { calcStudentAvg } from '@/lib/utils';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 
 interface StudentReportItem {
   id: string;
@@ -17,6 +16,10 @@ interface StudentReportItem {
   parentPhone: string;
   grade: string;
   avgScore: number;
+  latestScore?: number | null;
+  latestMaxScore?: number | null;
+  latestPercentage?: number | null;
+  hasSubmissions?: boolean;
   examsCompleted: number;
   homeworkCompleted: number;
   attendanceCount: number;
@@ -46,16 +49,19 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                   (student.studentCode === 'STU-777' && (r.studentId === 'demo-student-2' || r.studentId === 'student-2' || r.studentId === 'STU-777'))
               );
 
-              if (studentSubmissions.length > 0) {
-                const avg = calcStudentAvg(studentSubmissions);
-                const computedAvg = avg !== null ? avg : student.avgScore;
+              const latest = getLatestStudentSubmission(student.studentCode || student.id, studentSubmissions);
+              if (latest) {
                 const totalExams = Math.max(student.examsCompleted, studentSubmissions.length);
 
                 return {
                   ...student,
-                  avgScore: computedAvg,
+                  avgScore: latest.percentage,
+                  latestScore: latest.score,
+                  latestMaxScore: latest.maxScore,
+                  latestPercentage: latest.percentage,
+                  hasSubmissions: true,
                   examsCompleted: totalExams,
-                  status: computedAvg >= 65 ? 'ممتاز' : 'يحتاج متابعة',
+                  status: latest.percentage >= 65 ? 'ممتاز' : 'يحتاج متابعة',
                 };
               }
 
@@ -76,14 +82,14 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
   );
 
   function exportToCSV() {
-    const headers = ['اسم الطالب', 'كود الطالب', 'الصف الدراسي', 'هاتف الطالب', 'واتساب ولي الأمر', 'متوسط الدرجات', 'الامتحانات المكتملة', 'الواجبات', 'مرات الحضور', 'الحالة'];
+    const headers = ['اسم الطالب', 'كود الطالب', 'الصف الدراسي', 'هاتف الطالب', 'واتساب ولي الأمر', 'آخر امتحان', 'الامتحانات المكتملة', 'الواجبات', 'مرات الحضور', 'الحالة'];
     const rows = filtered.map((r) => [
       `"${r.name}"`,
       `"${r.studentCode}"`,
       `"${r.grade}"`,
       `"${r.phone}"`,
       `"${r.parentPhone}"`,
-      `"${r.avgScore}%"`,
+      r.hasSubmissions !== false && r.avgScore > 0 ? `"${r.avgScore}%"` : `"لا توجد نتائج"`,
       r.examsCompleted,
       r.homeworkCompleted,
       r.attendanceCount,
@@ -107,6 +113,11 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
     toast.success(`جاري تجهيز وإرسال تقارير واتساب لـ ${filtered.length} ولي أمر! 📲`);
   }
 
+  const validScoreReports = reports.filter((r) => r.hasSubmissions !== false && r.avgScore > 0);
+  const avgPerformance = validScoreReports.length > 0
+    ? Math.round(validScoreReports.reduce((a, b) => a + b.avgScore, 0) / validScoreReports.length)
+    : 0;
+
   return (
     <div className="space-y-6">
       {/* Overview stats */}
@@ -121,9 +132,9 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
 
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">متوسط درجات الطلاب</p>
+            <p className="text-xs text-slate-500">متوسط نتائج آخر الاختبارات</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">
-              {reports.length > 0 ? Math.round(reports.reduce((a, b) => a + b.avgScore, 0) / reports.length) : 0}%
+              {avgPerformance}%
             </p>
           </div>
           <TrendingUp className="h-7 w-7 text-emerald-600" />
@@ -133,7 +144,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
           <div>
             <p className="text-xs text-slate-500">نسبة الطلاب المتفوقين</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
-              {reports.length > 0 ? Math.round((reports.filter((r) => r.avgScore >= 65).length / reports.length) * 100) : 0}%
+              {validScoreReports.length > 0 ? Math.round((validScoreReports.filter((r) => r.avgScore >= 65).length / validScoreReports.length) * 100) : 0}%
             </p>
           </div>
           <CheckCircle2 className="h-7 w-7 text-blue-600" />
@@ -174,7 +185,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                 <th className="py-3.5 px-4 text-start">الكود</th>
                 <th className="py-3.5 px-4 text-start">الصف الدراسي</th>
                 <th className="py-3.5 px-4 text-start">واتساب ولي الأمر</th>
-                <th className="py-3.5 px-4 text-center">متوسط الدرجات</th>
+                <th className="py-3.5 px-4 text-center">آخر امتحان</th>
                 <th className="py-3.5 px-4 text-center">الامتحانات</th>
                 <th className="py-3.5 px-4 text-center">الواجبات</th>
                 <th className="py-3.5 px-4 text-center">الحضور</th>
@@ -189,7 +200,18 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                   <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{s.grade}</td>
                   <td className="py-3.5 px-4 font-mono text-slate-500">{s.parentPhone}</td>
                   <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600">
-                    <span dir="ltr">{s.avgScore}%</span>
+                    {s.hasSubmissions !== false && s.avgScore > 0 ? (
+                      <div className="flex flex-col items-center">
+                        <span dir="ltr">{s.avgScore}%</span>
+                        {s.latestScore != null && s.latestMaxScore != null && (
+                          <span className="text-[10px] text-slate-400 font-mono font-normal">
+                            ({s.latestScore} / {s.latestMaxScore})
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 font-normal">—</span>
+                    )}
                   </td>
                   <td className="py-3.5 px-4 text-center">{s.examsCompleted}</td>
                   <td className="py-3.5 px-4 text-center">{s.homeworkCompleted}</td>

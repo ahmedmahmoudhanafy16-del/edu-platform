@@ -1,7 +1,7 @@
 import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { calcStudentAvg } from '@/lib/utils';
+import { getLatestStudentSubmission } from '@/lib/analytics';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -122,7 +122,7 @@ export default async function TeacherStudentsPage({
     });
 
     const combinedResults = [...(s.quizResults || []), ...studentSubs];
-    const avgScore = calcStudentAvg(combinedResults);
+    const latestSubmission = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
 
     return {
       id: s.id,
@@ -132,10 +132,14 @@ export default async function TeacherStudentsPage({
       parentPhone: s.parentPhone,
       grade: s.grade || 'الصف الثالث الإعدادي',
       isActive: s.isActive !== false,
-      avgScore,
+      avgScore: latestSubmission ? latestSubmission.percentage : null,
+      latestScore: latestSubmission ? latestSubmission.score : null,
+      latestMaxScore: latestSubmission ? latestSubmission.maxScore : null,
+      latestPercentage: latestSubmission ? latestSubmission.percentage : null,
+      latestQuizTitle: latestSubmission ? latestSubmission.quizTitle : null,
       submissionsCount: Math.max(s.submissions?.length ?? 0, combinedResults.length),
       attendanceCount: s.attendance?.length ?? 0,
-      lastActive: combinedResults[0]?.submittedAt ? new Date(combinedResults[0].submittedAt).toISOString() : null,
+      lastActive: latestSubmission?.submittedAt ? new Date(latestSubmission.submittedAt).toISOString() : null,
     };
   });
 
