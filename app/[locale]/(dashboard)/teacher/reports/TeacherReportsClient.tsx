@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 
+import { calcStudentAvg } from '@/lib/utils';
+
 interface StudentReportItem {
   id: string;
   name: string;
@@ -39,19 +41,14 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
               const studentSubmissions = parsedRes.filter(
                 (r) =>
                   r.studentId === student.id ||
-                  (student.studentCode === 'STU-001' && (!r.studentId || r.studentId === 'demo-student-1'))
+                  r.studentId === student.studentCode ||
+                  (student.studentCode === 'STU-001' && (!r.studentId || r.studentId === 'demo-student-1' || r.studentId === 'student-1' || r.studentId === 'STU-001')) ||
+                  (student.studentCode === 'STU-777' && (r.studentId === 'demo-student-2' || r.studentId === 'student-2' || r.studentId === 'STU-777'))
               );
 
               if (studentSubmissions.length > 0) {
-                const totalScore = studentSubmissions.reduce(
-                  (sum, sub) => sum + (sub.totalScore ?? sub.autoScore ?? 0),
-                  0
-                );
-                const maxScore = studentSubmissions.reduce(
-                  (sum, sub) => sum + (sub.maxScore ?? 100),
-                  0
-                );
-                const computedAvg = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : student.avgScore;
+                const avg = calcStudentAvg(studentSubmissions);
+                const computedAvg = avg !== null ? avg : student.avgScore;
                 const totalExams = Math.max(student.examsCompleted, studentSubmissions.length);
 
                 return {

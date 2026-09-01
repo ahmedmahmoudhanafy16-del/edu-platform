@@ -29,6 +29,21 @@ export function calculatePercentage(score: number, maxScore: number): number {
   return Math.min(100, Math.max(0, Math.round((score / maxScore) * 100)))
 }
 
+export function calcStudentAvg(results: {
+  totalScore?: number | null
+  autoScore?: number | null  
+  maxScore?: number | null
+}[]): number | null {
+  if (!results?.length) return null
+  const graded = results.filter(
+    r => (r.totalScore != null) || (r.autoScore != null && r.autoScore > 0)
+  )
+  if (!graded.length) return null
+  const earned = graded.reduce((a, r) => a + (r.totalScore ?? r.autoScore ?? 0), 0)
+  const possible = graded.reduce((a, r) => a + (r.maxScore || 1), 0)
+  return possible > 0 ? Math.round((earned / possible) * 100) : null
+}
+
 /**
  * Returns a compact Arabic relative-time label for a future/past due date.
  * e.g.  "متبقي 3 أيام"  |  "متبقي 48 ساعة"  |  "اليوم"  |  "متأخر 2 أيام"

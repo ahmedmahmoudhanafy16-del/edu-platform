@@ -1,7 +1,8 @@
 import React from 'react';
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { BarChart3 } from 'lucide-react';
 import { TeacherReportsClient } from './TeacherReportsClient';
+import { calcStudentAvg } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -39,8 +40,8 @@ export default async function TeacherReportsPage({
         phone: '01099998888',
         parentPhone: '01012345678',
         grade: 'الصف الثالث الإعدادي',
-        quizResults: [{ totalScore: 90, maxScore: 100 }],
-        submissions: [1, 2],
+        quizResults: [],
+        submissions: [],
         attendance: [1, 2, 3],
       },
       {
@@ -50,17 +51,28 @@ export default async function TeacherReportsPage({
         phone: '01055554444',
         parentPhone: '01087654321',
         grade: 'الصف الثالث الإعدادي',
-        quizResults: [{ totalScore: 85, maxScore: 100 }],
-        submissions: [1],
+        quizResults: [],
+        submissions: [],
         attendance: [1, 2],
       },
     ];
   }
 
   const studentReports = (students || []).map((s) => {
-    const totalScore = (s.quizResults || []).reduce((acc: number, r: any) => acc + (r.totalScore || 0), 0);
-    const maxPossible = (s.quizResults || []).reduce((acc: number, r: any) => acc + (r.maxScore || 1), 0);
-    const avgScore = maxPossible > 0 ? Math.round((totalScore / maxPossible) * 100) : 90;
+    // Merge database results with in-memory store
+    const dbQuizIds = new Set((s.quizResults || []).map((r: any) => r.quizId || r.id));
+    const memResults = (memoryQuizResults || [])
+      .filter(
+        (m: any) =>
+          (m.studentId === s.id ||
+            m.studentId === s.studentCode ||
+            (s.studentCode === 'STU-001' && (m.studentId === 'demo-student-1' || m.studentId === 'student-1' || m.studentId === 'STU-001')) ||
+            (s.studentCode === 'STU-777' && (m.studentId === 'demo-student-2' || m.studentId === 'student-2' || m.studentId === 'STU-777'))) &&
+          !dbQuizIds.has(m.quizId)
+      );
+
+    const combinedResults = [...(s.quizResults || []), ...memResults];
+    const avgScore = calcStudentAvg(combinedResults) ?? 0;
 
     return {
       id: s.id,
@@ -70,9 +82,9 @@ export default async function TeacherReportsPage({
       parentPhone: s.parentPhone || s.phone || '—',
       grade: s.grade || 'الصف الثالث الإعدادي',
       avgScore,
-      examsCompleted: s.quizResults?.length ?? 1,
-      homeworkCompleted: s.submissions?.length ?? 1,
-      attendanceCount: s.attendance?.length ?? 1,
+      examsCompleted: combinedResults.length,
+      homeworkCompleted: s.submissions?.length ?? 0,
+      attendanceCount: s.attendance?.length ?? 0,
       status: avgScore >= 65 ? 'ممتاز' : 'يحتاج متابعة',
     };
   });

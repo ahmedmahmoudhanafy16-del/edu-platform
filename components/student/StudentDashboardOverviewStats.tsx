@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ClipboardList, FileText, CalendarCheck, BarChart3 } from 'lucide-react';
 import { getStudentAcademicSummary } from '@/lib/analytics';
 import { getSubmissions, getAssignments } from '@/lib/store';
+import { calcStudentAvg } from '@/lib/utils';
 
 export function StudentDashboardOverviewStats({
   initialExamsCount = 0,
@@ -26,12 +27,13 @@ export function StudentDashboardOverviewStats({
       const pendingCount = assignments.filter(
         (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
       ).length;
+      const avgScore = calcStudentAvg(submissions);
 
       return {
         completedExams: summary.totalExams,
         pendingAssignments: pendingCount,
         attendancePct: initialAttendancePct,
-        avgScore: summary.totalExams > 0 ? summary.averagePercentage : initialAvgScore,
+        avgScore: avgScore !== null ? avgScore : initialAvgScore,
       };
     }
 
@@ -51,12 +53,13 @@ export function StudentDashboardOverviewStats({
       const pendingCount = assignments.filter(
         (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
       ).length;
+      const avgScore = calcStudentAvg(submissions);
 
       setStats({
         completedExams: summary.totalExams,
         pendingAssignments: pendingCount,
         attendancePct: initialAttendancePct,
-        avgScore: summary.totalExams > 0 ? summary.averagePercentage : null,
+        avgScore,
       });
     }
 

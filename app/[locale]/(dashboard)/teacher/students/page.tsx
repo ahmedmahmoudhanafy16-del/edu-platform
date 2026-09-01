@@ -1,7 +1,7 @@
 import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { getStudentAcademicSummary } from '@/lib/analytics';
+import { calcStudentAvg } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -122,7 +122,7 @@ export default async function TeacherStudentsPage({
     });
 
     const combinedResults = [...(s.quizResults || []), ...studentSubs];
-    const summary = getStudentAcademicSummary(s.studentCode || s.id, combinedResults);
+    const avgScore = calcStudentAvg(combinedResults);
 
     return {
       id: s.id,
@@ -132,8 +132,8 @@ export default async function TeacherStudentsPage({
       parentPhone: s.parentPhone,
       grade: s.grade || 'الصف الثالث الإعدادي',
       isActive: s.isActive !== false,
-      avgScore: summary.totalExams > 0 ? summary.averagePercentage : null,
-      submissionsCount: Math.max(s.submissions?.length ?? 0, summary.totalExams),
+      avgScore,
+      submissionsCount: Math.max(s.submissions?.length ?? 0, combinedResults.length),
       attendanceCount: s.attendance?.length ?? 0,
       lastActive: combinedResults[0]?.submittedAt ? new Date(combinedResults[0].submittedAt).toISOString() : null,
     };

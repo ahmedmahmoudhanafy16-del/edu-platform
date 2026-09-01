@@ -1,7 +1,4 @@
-/**
- * Unified Academic Analytics & Scoring Engine
- * Single source of truth for student quiz grades, percentages, and summaries.
- */
+import { calcStudentAvg } from './utils';
 
 export interface AcademicSummaryItem {
   id?: string;
@@ -100,8 +97,7 @@ export function getStudentAcademicSummary(
     };
   });
 
-  const totalPercentage = detailedList.reduce((acc, curr) => acc + curr.percentage, 0);
-  const averagePercentage = Math.round(totalPercentage / detailedList.length);
+  const averagePercentage = calcStudentAvg(detailedList) ?? 0;
   const passedCount = detailedList.filter((s) => s.isPassed).length;
   const passRate = Math.round((passedCount / detailedList.length) * 100);
 

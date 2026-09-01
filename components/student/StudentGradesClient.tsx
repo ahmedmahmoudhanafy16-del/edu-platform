@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trophy, Award, Calendar, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
-import { calculatePercentage } from '@/lib/utils';
+import { calculatePercentage, calcStudentAvg } from '@/lib/utils';
 import { getStudentAcademicSummary } from '@/lib/analytics';
 import { getSubmissions, getQuizzes } from '@/lib/store';
 import Link from 'next/link';
@@ -86,7 +86,7 @@ export function StudentGradesClient({
   const summary = getStudentAcademicSummary(studentId, results);
   const totalExams = summary.totalExams;
   const passedExams = summary.passedExams;
-  const avgScore = summary.averagePercentage;
+  const avgScore = calcStudentAvg(results);
   const passRate = summary.passRate;
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
@@ -106,8 +106,8 @@ export function StudentGradesClient({
         <div className={`${card} p-6 flex items-center justify-between`}>
           <div>
             <p className="text-xs text-n-500 dark:text-n-400">متوسط درجاتك العام</p>
-            <p className={`text-3xl font-bold mt-1 ${avgScore >= 50 ? 'text-ok' : 'text-bad'}`}>
-              <span dir="ltr">{totalExams > 0 ? `${avgScore}%` : '—'}</span>
+            <p className={`text-3xl font-bold mt-1 ${avgScore !== null && avgScore >= 50 ? 'text-ok' : 'text-bad'}`}>
+              <span dir="ltr">{avgScore !== null ? `${avgScore}%` : '—'}</span>
             </p>
           </div>
           <Trophy className="h-8 w-8 text-accent" strokeWidth={1.5} />

@@ -36,23 +36,29 @@ interface Props {
 
 const STORAGE_KEY = 'edu_students';
 
+import { calcStudentAvg } from '@/lib/utils';
+
 function computeDynamicAverages(studentList: Student[]): Student[] {
   if (typeof window === 'undefined') return studentList;
   try {
     const submissions = getSubmissions();
     return studentList.map((student) => {
       const lookupCode = student.studentCode || student.id;
-      const summary = getStudentAcademicSummary(lookupCode, submissions);
-      if (summary.totalExams > 0) {
-        return {
-          ...student,
-          avgScore: summary.averagePercentage,
-          submissionsCount: Math.max(student.submissionsCount || 0, summary.totalExams),
-        };
-      }
+      const studentSubs = submissions.filter((s) => {
+        const sId = s.studentId || s.studentCode || '';
+        return (
+          sId === lookupCode ||
+          sId === student.id ||
+          sId === student.studentCode ||
+          (lookupCode === 'STU-001' && (sId === 'demo-student-1' || sId === 'student-1' || sId === 'STU-001')) ||
+          (lookupCode === 'STU-777' && (sId === 'demo-student-2' || sId === 'student-2' || sId === 'STU-777'))
+        );
+      });
+      const avg = calcStudentAvg(studentSubs);
       return {
         ...student,
-        avgScore: null,
+        avgScore: avg,
+        submissionsCount: Math.max(student.submissionsCount || 0, studentSubs.length),
       };
     });
   } catch {

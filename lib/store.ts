@@ -35,6 +35,7 @@ export interface QuizData {
 export interface QuizSubmissionData {
   quizId: string;
   studentId?: string;
+  studentCode?: string;
   score?: number;
   autoScore?: number;
   totalScore?: number;

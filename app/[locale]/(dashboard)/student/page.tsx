@@ -6,7 +6,7 @@ import {
   BarChart3, CalendarCheck, Ticket, Plus, Check, Hourglass
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { relativeTimeAr, calculatePercentage } from '@/lib/utils';
+import { relativeTimeAr, calculatePercentage, calcStudentAvg } from '@/lib/utils';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { UnlockedSessions } from '@/components/student/UnlockedSessions';
 import { StudentQuizCard } from '@/components/student/StudentQuizCard';
@@ -114,13 +114,7 @@ export default async function StudentDashboardPage({
   const attendancePct = attendance && attendance.length
     ? Math.min(100, Math.round((attendance.length / Math.max(1, activeLive.length || 1)) * 100))
     : 100;
-  const avgScore =
-    quizResults && quizResults.length > 0
-      ? Math.round(
-          quizResults.reduce((s, r) => s + calculatePercentage(r.totalScore ?? r.autoScore ?? 0, r.maxScore || 100), 0) /
-            quizResults.length,
-        )
-      : 90;
+  const avgScore = calcStudentAvg(quizResults);
 
   /* ── Shared primitives ─────────────────────────────────────────────── */
   const section = 'space-y-4';

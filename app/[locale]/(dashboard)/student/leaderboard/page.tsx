@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { Trophy, Medal, Award, Flame } from 'lucide-react';
+import { calcStudentAvg } from '@/lib/utils';
 
 export default async function StudentLeaderboardPage({ params: { locale } }: { params: { locale: string } }) {
   const students = await prisma.user.findMany({
@@ -12,13 +13,15 @@ export default async function StudentLeaderboardPage({ params: { locale } }: { p
 
   const ranked = students
     .map((s) => {
-      const totalScore = s.quizResults.reduce((acc, r) => acc + (r.totalScore || 0), 0);
+      const totalScore = s.quizResults.reduce((acc, r) => acc + (r.totalScore ?? r.autoScore ?? 0), 0);
+      const avgScore = calcStudentAvg(s.quizResults);
       const passedCount = s.quizResults.filter((r) => r.isPassed).length;
       return {
         id: s.id,
         name: s.name,
         studentCode: s.studentCode,
         totalScore,
+        avgScore,
         passedCount,
         submissionsCount: s.submissions.length,
       };

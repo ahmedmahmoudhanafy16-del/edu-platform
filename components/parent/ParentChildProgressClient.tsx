@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getStudentAcademicSummary, AcademicSummaryItem } from '@/lib/analytics';
 import { getSubmissions, getQuizzes } from '@/lib/store';
+import { calcStudentAvg } from '@/lib/utils';
 
 export function ParentChildProgressClient({
   initialStudent,
@@ -54,7 +55,7 @@ export function ParentChildProgressClient({
   }, [studentId, initialStudent?.quizResults]);
 
   const summary = getStudentAcademicSummary(studentId, submissions);
-  const avgScore = summary.averagePercentage;
+  const avgScore = calcStudentAvg(submissions);
   const list: AcademicSummaryItem[] = summary.submissionsList;
 
   return (
@@ -82,8 +83,8 @@ export function ParentChildProgressClient({
         </div>
         <div className="text-end">
           <p className="text-xs text-slate-500">المعدل العام</p>
-          <p className={`text-3xl font-bold ${avgScore >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {summary.totalExams > 0 ? `${avgScore}%` : '—'}
+          <p className={`text-3xl font-bold ${avgScore !== null && avgScore >= 50 ? 'text-emerald-600' : 'text-red-600'}`}>
+            {avgScore !== null ? `${avgScore}%` : '—'}
           </p>
         </div>
       </div>

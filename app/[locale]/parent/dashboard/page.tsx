@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getStudentAcademicSummary } from '@/lib/analytics';
 import { getSubmissions } from '@/lib/store';
+import { calcStudentAvg } from '@/lib/utils';
 
 export default function ParentDashboardPage() {
   const locale = useLocale();
