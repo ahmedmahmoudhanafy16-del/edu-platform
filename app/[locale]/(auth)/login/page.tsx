@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { verifyStudentLogin } from '@/actions/auth';
 
 export default function LoginPage() {
   const params = useParams();
@@ -37,19 +38,14 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentCode, password: studentPassword, role: 'STUDENT' }),
-      });
+      const res = await verifyStudentLogin(studentCode, studentPassword);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (data.error === 'SUSPENDED' || res.status === 403) {
+      if (!res.success) {
+        if (res.error?.includes('تعليق') || res.error?.includes('محظور')) {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(data.message || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
+        setError(res.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
         return;
       }
 

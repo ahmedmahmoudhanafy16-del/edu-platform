@@ -7,6 +7,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Lock, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { verifyStudentLogin } from '@/actions/auth';
 
 export default function StudentLoginPage() {
   const t = useTranslations('auth.studentLogin');
@@ -24,19 +25,14 @@ export default function StudentLoginPage() {
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentCode, password, role: 'STUDENT' }),
-      });
+      const res = await verifyStudentLogin(studentCode, password);
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (data.error === 'SUSPENDED' || res.status === 403) {
+      if (!res.success) {
+        if (res.error?.includes('تعليق') || res.error?.includes('محظور')) {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(data.message || t('errorInvalid'));
+        setError(res.error || t('errorInvalid'));
         return;
       }
 

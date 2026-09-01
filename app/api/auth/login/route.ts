@@ -36,7 +36,7 @@ const DEMO_USERS = [
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, studentCode, password, role } = await req.json();
+    const { email, studentCode, password, role, localStudent } = await req.json();
 
     let user: any = null;
 
@@ -66,6 +66,33 @@ export async function POST(req: NextRequest) {
       }
     } catch (dbErr) {
       console.warn('[Auth Login] Database lookup failed, falling back to static directory:', dbErr);
+    }
+
+    // 1.5 Try resolving from localStudent if provided by client store
+    if (!user && localStudent && role !== 'TEACHER') {
+      const cleanInput = (studentCode || '').trim().toUpperCase();
+      const sCode = (localStudent.studentCode || localStudent.code || localStudent.id || '').toString().trim().toUpperCase();
+      const sPhone = (localStudent.phone || '').toString().trim();
+      const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '').trim();
+      const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '').trim();
+      const inputPass = String(password || '').trim();
+
+      if (
+        (sCode === cleanInput || sPhone === studentCode?.trim() || sPhone === cleanInput) &&
+        (sPass === inputPass || sDefPass === inputPass)
+      ) {
+        user = {
+          id: localStudent.id || sCode,
+          name: localStudent.name,
+          role: 'STUDENT',
+          studentCode: sCode,
+          phone: sPhone,
+          grade: localStudent.grade || localStudent.gradeLevel || 'الصف الثالث الإعدادي',
+          password: sPass,
+          defaultPassword: sDefPass,
+          isActive: localStudent.isActive !== false,
+        };
+      }
     }
 
     // 2. Fallback to Demo Directory if user not found in DB or DB cold
@@ -108,7 +135,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error: 'SUSPENDED',
-          message: 'تم تعليق حسابك من قِبل إدارة المنصة. يرجى التواصل مع المعلمة لإعادة التفعيل.',
+          message: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.',
         },
         { status: 403 }
       );
