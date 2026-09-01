@@ -23,16 +23,16 @@ import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
 const defaultStudentsList = DEFAULT_INITIAL_STUDENTS;
 
 /**
- * Flexible Dynamic Student Authentication:
- * Supports Name (e.g. "احمد محمود احمد"), Student Code (e.g. "STU-633"), or Phone Number.
- * Searches localStorage dynamic active store + fallback defaults + database sync.
+ * Strict Individual Student Authentication:
+ * Matches student exclusively by their unique Code, registered Phone, Name, or ID.
+ * Strictly verifies the specific password assigned to THIS student record (no shared '1234' fallback).
  */
 export async function verifyStudentCredentials(inputIdentifier: string, inputPin: string): Promise<StudentAuthResult> {
   const cleanIdentifier = (inputIdentifier || '').trim();
   const cleanPin = (inputPin || '').trim();
 
   if (!cleanIdentifier || !cleanPin) {
-    return { success: false, error: 'يرجى إدخال اسم الطالب / كود الطالب ورقم المرور' };
+    return { success: false, error: 'يرجى إدخال الكود أو رقم الهاتف وكلمة المرور' };
   }
 
   const normalizedInput = normalizeArabic(cleanIdentifier);
@@ -46,19 +46,19 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       const local = localStorage.getItem('edu_students');
       if (local) {
         const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) students = parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) students = parsed;
       }
     } catch (e) {
       console.error('Failed to parse edu_students', e);
     }
   }
 
-  // 2. Fallback to default mock list if empty
+  // 2. Fallback to default initial list if empty
   if (!students || students.length === 0) {
     students = defaultStudentsList;
   }
 
-  // 3. Flexible Match (Name OR Code OR StudentCode OR Phone OR ID)
+  // 3. Match against Student's own Code, Phone, Name, or ID
   const matchedStudent = students.find((s: any) => {
     const sNameNorm = normalizeArabic(s.name || '');
     const matchName =
@@ -67,17 +67,17 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
         (sNameNorm && (sNameNorm === normalizedInput || sNameNorm.includes(normalizedInput) || normalizedInput.includes(sNameNorm))));
 
     const matchCode =
-      s.code && (s.code.trim().toUpperCase() === cleanUpper || s.code.trim().toLowerCase() === cleanLower);
+      s.code && (s.code.toString().trim().toUpperCase() === cleanUpper || s.code.toString().trim().toLowerCase() === cleanLower);
 
     const matchStudentCode =
       s.studentCode &&
-      (s.studentCode.trim().toUpperCase() === cleanUpper || s.studentCode.trim().toLowerCase() === cleanLower);
+      (s.studentCode.toString().trim().toUpperCase() === cleanUpper || s.studentCode.toString().trim().toLowerCase() === cleanLower);
 
     const matchId =
-      s.id && (s.id.trim().toUpperCase() === cleanUpper || s.id.trim().toLowerCase() === cleanLower);
+      s.id && (s.id.toString().trim().toUpperCase() === cleanUpper || s.id.toString().trim().toLowerCase() === cleanLower);
 
     const matchPhone =
-      s.phone && (s.phone.trim() === cleanIdentifier || s.phone.trim() === cleanUpper);
+      s.phone && (s.phone.toString().trim() === cleanIdentifier || s.phone.toString().trim() === cleanUpper);
 
     return matchName || matchCode || matchStudentCode || matchId || matchPhone;
   });
@@ -88,19 +88,18 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       return { success: false, error: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.' };
     }
 
-    // Verify Password (direct check, defaultPassword, or 1234 fallback)
-    const storedPassword = String(matchedStudent.password || matchedStudent.defaultPassword || '1234').trim();
-    const storedDefPassword = String(matchedStudent.defaultPassword || matchedStudent.password || '1234').trim();
+    // Strict Password Match: ONLY matches THIS specific student's assigned password
+    const studentPassword = String(matchedStudent.password || '').trim();
+    const studentDefaultPassword = String(matchedStudent.defaultPassword || '').trim();
 
     const isPinMatch =
-      storedPassword === cleanPin ||
-      storedDefPassword === cleanPin ||
-      cleanPin === '1234';
+      (studentPassword && cleanPin === studentPassword) ||
+      (studentDefaultPassword && cleanPin === studentDefaultPassword);
 
     if (!isPinMatch) {
       return {
         success: false,
-        error: 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز المكون من 4 أرقام',
+        error: 'كلمة المرور غير صحيحة، يرجى كتابة الرمز الخاص بحسابك',
       };
     }
 
@@ -108,6 +107,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('current_student', JSON.stringify(matchedStudent));
+        sessionStorage.setItem('userRole', 'student');
 
         const sessionPayload = {
           id: matchedStudent.id || matchedStudent.studentCode || matchedStudent.code,
@@ -159,12 +159,13 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       }
       return {
         success: false,
-        error: data.error || 'لم يتم العثور على حساب بهذا الاسم أو الكود أو رقم الهاتف',
+        error: data.error || 'كود الطالب أو رقم الهاتف غير مسجل في النظام',
       };
     }
 
     if (typeof window !== 'undefined' && data.user) {
       localStorage.setItem('current_student', JSON.stringify(data.user));
+      sessionStorage.setItem('userRole', 'student');
     }
 
     return { success: true, student: data.user };
@@ -174,5 +175,6 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
 }
 
 // Aliases for comprehensive backwards compatibility
+export const authenticateStudentStrictly = verifyStudentCredentials;
 export const authenticateStudent = verifyStudentCredentials;
 export const verifyStudentLogin = verifyStudentCredentials;

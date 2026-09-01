@@ -96,17 +96,16 @@ export function LoginForm() {
         return;
       }
 
-      // 4. Exact Password Match (handles string/number format differences and consistent fallbacks)
-      const expectedPin = String(student.password || student.defaultPassword || '1234').trim();
-      const expectedDefPin = String(student.defaultPassword || student.password || '1234').trim();
+      // 4. Strict Password Match (ONLY matches THIS specific student's assigned password)
+      const expectedPin = String(student.password || '').trim();
+      const expectedDefPin = String(student.defaultPassword || '').trim();
 
       const isPinValid =
-        inputPin === expectedPin ||
-        inputPin === expectedDefPin ||
-        inputPin === '1234';
+        (expectedPin && inputPin === expectedPin) ||
+        (expectedDefPin && inputPin === expectedDefPin);
 
       if (!isPinValid) {
-        setError(isAr ? 'كلمة المرور غير صحيحة، تأكد من كتابة الـ 4 أرقام بدقة' : 'Incorrect password');
+        setError(isAr ? 'كلمة المرور غير صحيحة، يرجى كتابة الرمز الخاص بحسابك' : 'Incorrect password, please enter your assigned PIN');
         setLoading(false);
         return;
       }

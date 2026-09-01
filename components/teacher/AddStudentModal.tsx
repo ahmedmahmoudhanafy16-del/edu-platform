@@ -41,13 +41,12 @@ export function AddStudentModal({
   const [parentWhatsapp, setParentWhatsapp] = useState('');
   const [gradeLevel, setGradeLevel] = useState(ACADEMIC_GRADES[0]);
   const [classroomId, setClassroomId] = useState(defaultClassroomId || classrooms[0]?.id || '');
-  const [password, setPassword] = useState('1234');
+  const [password, setPassword] = useState(() => generateRandomPin());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      // Default to '1234' — teacher can change or click "توليد كود جديد"
-      setPassword('1234');
+      setPassword(generateRandomPin());
     }
   }, [isOpen]);
 
@@ -95,7 +94,7 @@ export function AddStudentModal({
       setName('');
       setPhone('');
       setParentWhatsapp('');
-      setPassword('1234');
+      setPassword(generateRandomPin());
       onSuccess();
       onClose();
     } catch (err: any) {

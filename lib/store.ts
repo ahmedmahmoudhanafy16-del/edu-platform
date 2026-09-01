@@ -536,8 +536,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '1234',
-    password: '1234',
+    defaultPassword: '9715',
+    password: '9715',
     createdAt: new Date().toISOString(),
   },
   {
@@ -556,8 +556,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '1234',
-    password: '1234',
+    defaultPassword: '4829',
+    password: '4829',
     createdAt: new Date().toISOString(),
   },
   {
@@ -576,8 +576,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '1234',
-    password: '1234',
+    defaultPassword: '5192',
+    password: '5192',
     createdAt: new Date().toISOString(),
   },
   {
@@ -596,8 +596,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '1234',
-    password: '1234',
+    defaultPassword: '6341',
+    password: '6341',
     createdAt: new Date().toISOString(),
   },
 ];

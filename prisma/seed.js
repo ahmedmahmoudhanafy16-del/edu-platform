@@ -7,8 +7,12 @@ async function main() {
   console.log('Seeding initial production data for Vercel/Local deployment...');
 
   const teacherHash = bcrypt.hashSync('teacher123', 10);
-  const defaultStudentPin = '1234';
-  const defaultStudentHash = bcrypt.hashSync(defaultStudentPin, 10);
+  const pin001 = '4829';
+  const pin633 = '9715';
+  const pin777 = '6341';
+  const student1Hash = bcrypt.hashSync(pin001, 10);
+  const student633Hash = bcrypt.hashSync(pin633, 10);
+  const student777Hash = bcrypt.hashSync(pin777, 10);
 
   // 1. Teacher Account
   const teacher = await prisma.user.upsert({
@@ -30,13 +34,13 @@ async function main() {
     },
   });
 
-  // 2. Student 1 (أحمد محمد علي) - PIN: 1234
+  // 2. Student 1 (أحمد محمد علي) - PIN: 4829
   const student1 = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student1Hash,
+      passwordHash: student1Hash,
+      defaultPassword: pin001,
       name: 'أحمد محمد علي',
       role: 'STUDENT',
       phone: '01099998888',
@@ -46,9 +50,9 @@ async function main() {
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student1Hash,
+      passwordHash: student1Hash,
+      defaultPassword: pin001,
       role: 'STUDENT',
       phone: '01099998888',
       parentPhone: '01012345678',
@@ -56,13 +60,13 @@ async function main() {
     },
   });
 
-  // 2.5 Student STU-633 (أحمد محمود أحمد) - PIN: 1234
+  // 2.5 Student STU-633 (أحمد محمود أحمد) - PIN: 9715
   const student633 = await prisma.user.upsert({
     where: { studentCode: 'STU-633' },
     update: {
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student633Hash,
+      passwordHash: student633Hash,
+      defaultPassword: pin633,
       name: 'أحمد محمود أحمد',
       role: 'STUDENT',
       phone: '01012345678',
@@ -72,9 +76,9 @@ async function main() {
     create: {
       name: 'أحمد محمود أحمد',
       studentCode: 'STU-633',
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student633Hash,
+      passwordHash: student633Hash,
+      defaultPassword: pin633,
       role: 'STUDENT',
       phone: '01012345678',
       parentPhone: '01012345678',
@@ -82,13 +86,13 @@ async function main() {
     },
   });
 
-  // 3. Student 2 (زياد طارق) - PIN: 1234
+  // 3. Student 2 (زياد طارق) - PIN: 6341
   const student2 = await prisma.user.upsert({
     where: { studentCode: 'STU-777' },
     update: {
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student777Hash,
+      passwordHash: student777Hash,
+      defaultPassword: pin777,
       name: 'زياد طارق إبراهيم',
       role: 'STUDENT',
       phone: '01055554444',
@@ -98,27 +102,15 @@ async function main() {
     create: {
       name: 'زياد طارق إبراهيم',
       studentCode: 'STU-777',
-      password: defaultStudentHash,
-      passwordHash: defaultStudentHash,
-      defaultPassword: defaultStudentPin,
+      password: student777Hash,
+      passwordHash: student777Hash,
+      defaultPassword: pin777,
       role: 'STUDENT',
       phone: '01055554444',
       parentPhone: '01099998888',
       grade: 'الصف الثالث الإعدادي',
     },
   });
-
-  // Reset all student accounts in DB to clean '1234'
-  try {
-    await prisma.user.updateMany({
-      where: { role: 'STUDENT' },
-      data: {
-        password: defaultStudentHash,
-        passwordHash: defaultStudentHash,
-        defaultPassword: defaultStudentPin,
-      },
-    });
-  } catch (e) {}
 
   // 4. Sample Classrooms
   const class1 = await prisma.classroom.upsert({
