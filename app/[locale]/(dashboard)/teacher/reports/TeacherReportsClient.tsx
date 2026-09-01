@@ -28,9 +28,45 @@ interface StudentReportItem {
 
 const RESULTS_KEY = 'edu_quiz_results';
 
+function computeInitialReports(initialReports: StudentReportItem[]): StudentReportItem[] {
+  if (typeof window === 'undefined') return initialReports;
+  try {
+    const storedStudents = localStorage.getItem('edu_students');
+    if (!storedStudents) return initialReports;
+    const parsedStudents: any[] = JSON.parse(storedStudents);
+    if (!Array.isArray(parsedStudents) || parsedStudents.length === 0) return initialReports;
+    const map = new Map(initialReports.map((r) => [r.studentCode || r.id, r]));
+    parsedStudents.forEach((s) => {
+      const code = s.studentCode || s.id;
+      if (!map.has(code)) {
+        map.set(code, {
+          id: s.id,
+          name: s.name,
+          studentCode: s.studentCode || s.id,
+          phone: s.phone || '—',
+          parentPhone: s.parentPhone || s.parentWhatsapp || '—',
+          grade: s.grade || s.gradeLevel || 'الصف الثالث الإعدادي',
+          avgScore: 0,
+          latestScore: null,
+          latestMaxScore: null,
+          latestPercentage: null,
+          hasSubmissions: false,
+          examsCompleted: 0,
+          homeworkCompleted: 0,
+          attendanceCount: 0,
+          status: 'يحتاج متابعة',
+        });
+      }
+    });
+    return Array.from(map.values());
+  } catch {
+    return initialReports;
+  }
+}
+
 export function TeacherReportsClient({ initialReports }: { initialReports: StudentReportItem[] }) {
   const [search, setSearch] = useState('');
-  const [reports, setReports] = useState<StudentReportItem[]>(initialReports);
+  const [reports, setReports] = useState<StudentReportItem[]>(() => computeInitialReports(initialReports));
 
   useEffect(() => {
     function syncReports() {

@@ -76,6 +76,8 @@ export function AddStudentModal({
       // Immediately save to client-side localStorage store for zero-latency UI update
       if (typeof window !== 'undefined') {
         saveStudentToStore(student);
+        window.dispatchEvent(new Event('edu_store_updated'));
+        window.dispatchEvent(new Event('storage'));
       }
 
       toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} 🎓`);
