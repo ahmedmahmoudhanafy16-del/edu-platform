@@ -3,6 +3,18 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { getConsistentStudentPin } from '@/lib/utils';
 
+function normalizeArabic(text: string): string {
+  if (!text) return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '')
+    .replace(/\s+/g, ' ');
+}
+
 // Pre-seeded fallback user directory (guarantees Vercel serverless demo login NEVER fails)
 const DEMO_USERS = [
   {
@@ -53,14 +65,16 @@ export async function POST(req: NextRequest) {
         });
       } else {
         const cleanInput = studentCode?.trim();
+        const cleanUpper = cleanInput?.toUpperCase();
         user = await prisma.user.findFirst({
           where: {
             role: 'STUDENT',
             OR: [
               { studentCode: cleanInput },
-              { studentCode: cleanInput?.toUpperCase() },
+              { studentCode: cleanUpper },
               { phone: cleanInput },
               { name: cleanInput },
+              { name: { contains: cleanInput } },
             ],
           },
         });
@@ -71,15 +85,27 @@ export async function POST(req: NextRequest) {
 
     // 1.5 Try resolving from localStudent if provided by client store
     if (!user && localStudent && role !== 'TEACHER') {
-      const cleanInput = (studentCode || '').trim().toUpperCase();
+      const cleanInput = (studentCode || '').trim();
+      const cleanUpper = cleanInput.toUpperCase();
+      const normInput = normalizeArabic(cleanInput);
+
       const sCode = (localStudent.studentCode || localStudent.code || localStudent.id || '').toString().trim().toUpperCase();
       const sPhone = (localStudent.phone || '').toString().trim();
+      const sName = (localStudent.name || '').toString().trim();
+      const sNameNorm = normalizeArabic(sName);
+
+      const isIdentifierMatch =
+        sCode === cleanUpper ||
+        sPhone === cleanInput ||
+        sName.toLowerCase() === cleanInput.toLowerCase() ||
+        (sNameNorm && (sNameNorm === normInput || sNameNorm.includes(normInput) || normInput.includes(sNameNorm)));
+
       const sPass = String(localStudent.password ?? localStudent.defaultPassword ?? '').trim();
       const sDefPass = String(localStudent.defaultPassword ?? localStudent.password ?? '').trim();
       const inputPass = String(password || '').trim();
 
       if (
-        (sCode === cleanInput || sPhone === studentCode?.trim() || sPhone === cleanInput) &&
+        isIdentifierMatch &&
         (sPass === inputPass || sDefPass === inputPass || getConsistentStudentPin(sCode || sPhone) === inputPass || inputPass === '1234')
       ) {
         user = {
@@ -104,16 +130,31 @@ export async function POST(req: NextRequest) {
           (u) => u.role === 'TEACHER' && ((u.email && u.email.toLowerCase() === cleanEmail) || u.phone === cleanEmail)
         );
       } else {
-        const cleanCode = studentCode?.trim()?.toUpperCase();
-        user = DEMO_USERS.find(
-          (u) => u.role === 'STUDENT' && (u.studentCode === cleanCode || u.phone === studentCode?.trim())
-        );
+        const cleanInput = (studentCode || '').trim();
+        const cleanUpper = cleanInput.toUpperCase();
+        const cleanLower = cleanInput.toLowerCase();
+        const normInput = normalizeArabic(cleanInput);
+
+        user = DEMO_USERS.find((u) => {
+          if (u.role !== 'STUDENT') return false;
+          const uCode = (u.studentCode || '').toUpperCase();
+          const uPhone = (u.phone || '').trim();
+          const uName = (u.name || '').trim().toLowerCase();
+          const uNameNorm = normalizeArabic(u.name || '');
+
+          return (
+            uCode === cleanUpper ||
+            uPhone === cleanInput ||
+            uName === cleanLower ||
+            (uNameNorm && (uNameNorm === normInput || uNameNorm.includes(normInput) || normInput.includes(uNameNorm)))
+          );
+        });
       }
     }
 
     if (!user) {
       console.log(`[Auth Login] User not found: "${role === 'TEACHER' ? email : studentCode}"`);
-      return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
+      return NextResponse.json({ error: 'لم يتم العثور على حساب بهذا الاسم أو الكود أو رقم الهاتف' }, { status: 401 });
     }
 
     // 3. Password Verification (supports unique PINs, plain text, defaultPassword match, bcrypt hash, and fallback)
@@ -127,7 +168,7 @@ export async function POST(req: NextRequest) {
 
     if (!isMatch) {
       console.log(`[Auth Login] Invalid password for User ID=${user.id}`);
-      return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
+      return NextResponse.json({ error: 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز المكون من 4 أرقام' }, { status: 401 });
     }
 
     // 3.5 Check if user is suspended / inactive

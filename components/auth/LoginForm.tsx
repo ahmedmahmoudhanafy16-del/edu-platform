@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { Lock, Mail, KeyRound, GraduationCap, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { authenticateStudent } from '@/actions/auth';
+import { verifyStudentCredentials } from '@/actions/auth';
 
 export function LoginForm() {
   const params = useParams();
@@ -16,7 +16,7 @@ export function LoginForm() {
   const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
 
   // Student fields
-  const [studentCode, setStudentCode] = useState('');
+  const [studentIdentifier, setStudentIdentifier] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
 
   // Teacher fields
@@ -32,7 +32,7 @@ export function LoginForm() {
     setError('');
 
     try {
-      const result = await authenticateStudent(studentCode, studentPassword);
+      const result = await verifyStudentCredentials(studentIdentifier, studentPassword);
 
       if (!result.success) {
         if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
@@ -125,16 +125,16 @@ export function LoginForm() {
         <form onSubmit={handleStudentSubmit} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-              {isAr ? 'كود الطالب أو رقم الهاتف' : 'Student Code or Phone'}
+              {isAr ? 'اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف' : 'Student Full Name, Student Code, or Phone'}
             </label>
             <div className="relative">
               <Input
                 type="text"
                 required
                 autoFocus
-                value={studentCode}
-                onChange={(e) => setStudentCode(e.target.value)}
-                placeholder={isAr ? 'مثال: STU-001 أو 010...' : 'e.g. STU-001 or 010...'}
+                value={studentIdentifier}
+                onChange={(e) => setStudentIdentifier(e.target.value)}
+                placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter Name, STU-001, or Phone...'}
                 className="pe-10 font-medium"
               />
               <KeyRound className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

@@ -7,14 +7,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Lock, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { authenticateStudent } from '@/actions/auth';
+import { verifyStudentCredentials } from '@/actions/auth';
 
 export default function StudentLoginPage() {
   const t = useTranslations('auth.studentLogin');
   const locale = useLocale();
   const router = useRouter();
 
-  const [studentCode, setStudentCode] = useState('');
+  const [studentIdentifier, setStudentIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function StudentLoginPage() {
     setError('');
 
     try {
-      const result = await authenticateStudent(studentCode, password);
+      const result = await verifyStudentCredentials(studentIdentifier, password);
 
       if (!result.success) {
         if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
@@ -58,17 +58,17 @@ export default function StudentLoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-n-700 dark:text-n-600 mb-1">
-              {t('code')}
+              اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف
             </label>
             <div className="relative">
               <Input
                 type="text"
                 required
                 autoFocus
-                value={studentCode}
-                onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                placeholder={t('codePlaceholder')}
-                className="pe-8 font-mono font-bold tracking-widest text-center"
+                value={studentIdentifier}
+                onChange={(e) => setStudentIdentifier(e.target.value)}
+                placeholder="أدخل الاسم أو STU-001 أو رقم الهاتف..."
+                className="pe-8 font-medium text-center"
               />
               <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" strokeWidth={1.75} />
             </div>

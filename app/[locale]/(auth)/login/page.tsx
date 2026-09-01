@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { authenticateStudent } from '@/actions/auth';
+import { verifyStudentCredentials } from '@/actions/auth';
 
 export default function LoginPage() {
   const params = useParams();
@@ -22,7 +22,7 @@ export default function LoginPage() {
   const [role, setRole] = useState<'STUDENT' | 'TEACHER'>('STUDENT');
 
   // Student fields
-  const [studentCode, setStudentCode] = useState('');
+  const [studentIdentifier, setStudentIdentifier] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
 
   // Teacher fields
@@ -38,7 +38,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await authenticateStudent(studentCode, studentPassword);
+      const result = await verifyStudentCredentials(studentIdentifier, studentPassword);
 
       if (!result.success) {
         if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
@@ -168,16 +168,16 @@ export default function LoginPage() {
             <form onSubmit={handleStudentSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1.5">
-                  {isAr ? 'كود الطالب أو رقم الهاتف المسجل:' : 'Student Code or Phone Number:'}
+                  {isAr ? 'اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف' : 'Student Full Name, Student Code, or Phone:'}
                 </label>
                 <div className="relative">
                   <Input
                     type="text"
                     required
-                    value={studentCode}
-                    onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'كود الطالب أو رقم الهاتف' : 'Student code or phone'}
-                    className="pe-9 font-mono font-bold tracking-wider text-center"
+                    value={studentIdentifier}
+                    onChange={(e) => setStudentIdentifier(e.target.value)}
+                    placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter Name, STU-001, or Phone...'}
+                    className="pe-9 font-medium text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
                 </div>

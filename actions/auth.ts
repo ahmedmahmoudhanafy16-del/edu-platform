@@ -8,7 +8,19 @@ export interface StudentAuthResult {
   student?: any;
 }
 
-const initialStudents = [
+export function normalizeArabic(text: string): string {
+  if (!text) return '';
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[أإآ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    .replace(/ى/g, 'ي')
+    .replace(/[\u064B-\u065F]/g, '') // remove diacritics
+    .replace(/\s+/g, ' ');
+}
+
+const defaultStudentsList = [
   {
     id: 'student-1',
     name: 'أحمد محمد علي',
@@ -34,68 +46,90 @@ const initialStudents = [
 ];
 
 /**
- * Centralized Dynamic Student Authentication Logic
- * Searches all student sources: LocalStorage active dynamic store + fallback list + database sync.
- * Matches Code, StudentCode, Phone, or ID case-insensitively and verifies 4-digit PIN.
+ * Flexible Dynamic Student Authentication:
+ * Supports Name (e.g. "احمد محمود احمد"), Student Code (e.g. "STU-633"), or Phone Number.
+ * Searches localStorage dynamic active store + fallback defaults + database sync.
  */
-export async function authenticateStudent(identifierInput: string, passwordInput: string): Promise<StudentAuthResult> {
-  const cleanIdentifier = (identifierInput || '').trim().toUpperCase();
-  const cleanPassword = (passwordInput || '').trim();
+export async function verifyStudentCredentials(inputIdentifier: string, inputPin: string): Promise<StudentAuthResult> {
+  const cleanIdentifier = (inputIdentifier || '').trim();
+  const cleanPin = (inputPin || '').trim();
 
-  if (!cleanIdentifier || !cleanPassword) {
-    return { success: false, error: 'يرجى إدخال كود الطالب / رقم الهاتف وكلمة المرور' };
+  if (!cleanIdentifier || !cleanPin) {
+    return { success: false, error: 'يرجى إدخال اسم الطالب / كود الطالب ورقم المرور' };
   }
 
-  // 1. Load latest students from LocalStorage / dynamic state
-  let allStudents: any[] = [];
+  const normalizedInput = normalizeArabic(cleanIdentifier);
+  const cleanUpper = cleanIdentifier.toUpperCase();
+  const cleanLower = cleanIdentifier.toLowerCase();
+
+  // 1. Retrieve all dynamic students from localStorage
+  let students: any[] = [];
   if (typeof window !== 'undefined') {
-    const localData = localStorage.getItem('edu_students');
-    if (localData) {
-      try {
-        const parsed = JSON.parse(localData);
-        if (Array.isArray(parsed)) allStudents = parsed;
-      } catch (e) {
-        console.error('Failed to parse edu_students', e);
+    try {
+      const local = localStorage.getItem('edu_students');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed)) students = parsed;
       }
+    } catch (e) {
+      console.error('Failed to parse edu_students', e);
     }
   }
 
-  // 2. Fallback to default list if local storage is empty
-  if (allStudents.length === 0) {
-    allStudents = initialStudents;
+  // 2. Fallback to default mock list if empty
+  if (!students || students.length === 0) {
+    students = defaultStudentsList;
   }
 
-  // 3. Find matching student (by Code OR Phone OR ID)
-  const matchedStudent = allStudents.find((student: any) => {
-    const matchCode = student.code && student.code.trim().toUpperCase() === cleanIdentifier;
-    const matchStudentCode = student.studentCode && student.studentCode.trim().toUpperCase() === cleanIdentifier;
-    const matchPhone = student.phone && (student.phone.trim() === cleanIdentifier || student.phone.trim() === identifierInput.trim());
-    const matchId = student.id && student.id.trim().toUpperCase() === cleanIdentifier;
-    return matchCode || matchStudentCode || matchPhone || matchId;
+  // 3. Flexible Match (Name OR Code OR StudentCode OR Phone OR ID)
+  const matchedStudent = students.find((s: any) => {
+    const sNameNorm = normalizeArabic(s.name || '');
+    const matchName =
+      s.name &&
+      (s.name.trim().toLowerCase() === cleanLower ||
+        (sNameNorm && (sNameNorm === normalizedInput || sNameNorm.includes(normalizedInput) || normalizedInput.includes(sNameNorm))));
+
+    const matchCode =
+      s.code && (s.code.trim().toUpperCase() === cleanUpper || s.code.trim().toLowerCase() === cleanLower);
+
+    const matchStudentCode =
+      s.studentCode &&
+      (s.studentCode.trim().toUpperCase() === cleanUpper || s.studentCode.trim().toLowerCase() === cleanLower);
+
+    const matchId =
+      s.id && (s.id.trim().toUpperCase() === cleanUpper || s.id.trim().toLowerCase() === cleanLower);
+
+    const matchPhone =
+      s.phone && (s.phone.trim() === cleanIdentifier || s.phone.trim() === cleanUpper);
+
+    return matchName || matchCode || matchStudentCode || matchId || matchPhone;
   });
 
-  // 4. If found in client store
+  // 4. If matched in local store
   if (matchedStudent) {
     if (matchedStudent.isActive === false) {
       return { success: false, error: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.' };
     }
 
-    // Validate PIN (Direct match or stringified comparison or derived pin or fallback)
+    // Verify Password (direct check, defaultPassword, consistent hash derived PIN, or fallback)
     const storedPassword = String(matchedStudent.password || matchedStudent.defaultPassword || '').trim();
     const storedDefPassword = String(matchedStudent.defaultPassword || matchedStudent.password || '').trim();
     const derivedPin = getConsistentStudentPin(matchedStudent.studentCode || matchedStudent.code || matchedStudent.id);
 
     const isPinMatch =
-      storedPassword === cleanPassword ||
-      storedDefPassword === cleanPassword ||
-      derivedPin === cleanPassword ||
-      cleanPassword === '1234';
+      storedPassword === cleanPin ||
+      storedDefPassword === cleanPin ||
+      derivedPin === cleanPin ||
+      cleanPin === '1234';
 
     if (!isPinMatch) {
-      return { success: false, error: 'كلمة المرور غير صحيحة' };
+      return {
+        success: false,
+        error: 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز المكون من 4 أرقام',
+      };
     }
 
-    // Store session and return success
+    // Save Current Student Session
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('current_student', JSON.stringify(matchedStudent));
@@ -113,14 +147,14 @@ export async function authenticateStudent(identifierInput: string, passwordInput
       } catch (e) {}
     }
 
-    // Ping server API route to sync server cookies
+    // Sync session on server route
     try {
       await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          studentCode: cleanIdentifier,
-          password: cleanPassword,
+          studentCode: matchedStudent.studentCode || matchedStudent.code || cleanUpper,
+          password: cleanPin,
           role: 'STUDENT',
           localStudent: matchedStudent,
         }),
@@ -130,14 +164,14 @@ export async function authenticateStudent(identifierInput: string, passwordInput
     return { success: true, student: matchedStudent };
   }
 
-  // 5. Fallback to API route for server-seeded / DB students if not found in local store
+  // 5. Fallback to API route for server DB students if not found locally
   try {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         studentCode: cleanIdentifier,
-        password: cleanPassword,
+        password: cleanPin,
         role: 'STUDENT',
       }),
     });
@@ -148,7 +182,10 @@ export async function authenticateStudent(identifierInput: string, passwordInput
       if (data.error === 'SUSPENDED' || res.status === 403) {
         return { success: false, error: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.' };
       }
-      return { success: false, error: data.error || 'كود الطالب أو رقم الهاتف غير مسجل' };
+      return {
+        success: false,
+        error: data.error || 'لم يتم العثور على حساب بهذا الاسم أو الكود أو رقم الهاتف',
+      };
     }
 
     if (typeof window !== 'undefined' && data.user) {
@@ -161,5 +198,6 @@ export async function authenticateStudent(identifierInput: string, passwordInput
   }
 }
 
-// Export verifyStudentLogin as alias
-export const verifyStudentLogin = authenticateStudent;
+// Aliases for comprehensive backwards compatibility
+export const authenticateStudent = verifyStudentCredentials;
+export const verifyStudentLogin = verifyStudentCredentials;
