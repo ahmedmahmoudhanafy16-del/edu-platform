@@ -21,11 +21,14 @@ async function main() {
   // 2. Student
   const student = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
-    update: {},
+    update: {
+      defaultPassword: '1234',
+    },
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
       password: '1234',
+      defaultPassword: '1234',
       role: 'STUDENT',
       phone: '01099998888',
     },

@@ -9,8 +9,8 @@ const DEMO_USERS = [
     name: 'أحمد محمد علي',
     studentCode: 'STU-001',
     phone: '01099998888',
-    password: '3842',
-    defaultPassword: '3842',
+    password: '1234',
+    defaultPassword: '1234',
     role: 'STUDENT',
     grade: 'الصف الثالث الإعدادي',
   },
@@ -19,8 +19,8 @@ const DEMO_USERS = [
     name: 'زياد طارق إبراهيم',
     studentCode: 'STU-777',
     phone: '01055554444',
-    password: '7195',
-    defaultPassword: '7195',
+    password: '1234',
+    defaultPassword: '1234',
     role: 'STUDENT',
     grade: 'الصف الثالث الإعدادي',
   },
@@ -85,18 +85,21 @@ export async function POST(req: NextRequest) {
 
     if (!user) {
       console.log(`[Auth Login] User not found: "${role === 'TEACHER' ? email : studentCode}"`);
-      return NextResponse.json({ error: 'User not found' }, { status: 401 });
+      return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
     }
 
-    // 3. Password Verification
+    // 3. Password Verification (supports plain text old students, defaultPassword match, and bcrypt hash)
     const isMatch =
+      // Try plain text first (old students)
       password === user.password ||
-      (user.password ? await bcrypt.compare(password, user.password).catch(() => false) : false) ||
-      (user.defaultPassword && password === user.defaultPassword);
+      // Or match defaultPassword directly
+      (user.defaultPassword && password === user.defaultPassword) ||
+      // Then try bcrypt (new students)
+      (user.password ? await bcrypt.compare(password, user.password).catch(() => false) : false);
 
     if (!isMatch) {
       console.log(`[Auth Login] Invalid password for User ID=${user.id}`);
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      return NextResponse.json({ error: 'كود الطالب أو كلمة المرور غير صحيحة' }, { status: 401 });
     }
 
     // 3.5 Check if user is suspended / inactive

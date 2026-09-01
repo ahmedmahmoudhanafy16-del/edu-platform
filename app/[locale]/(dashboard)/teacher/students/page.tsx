@@ -2,7 +2,6 @@ import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 import { getLatestStudentSubmission } from '@/lib/analytics';
-import { getConsistentStudentPin } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -75,7 +74,7 @@ export default async function TeacherStudentsPage({
         phone: '01099998888',
         parentPhone: '01012345678',
         grade: 'الصف الثالث الإعدادي',
-        defaultPassword: '3842',
+        defaultPassword: '1234',
         submissions: [],
         quizResults: [],
         attendance: [1, 2, 3],
@@ -87,7 +86,7 @@ export default async function TeacherStudentsPage({
         phone: '01055554444',
         parentPhone: '01087654321',
         grade: 'الصف الثالث الإعدادي',
-        defaultPassword: '7195',
+        defaultPassword: '1234',
         submissions: [],
         quizResults: [],
         attendance: [1, 2],
@@ -126,16 +125,12 @@ export default async function TeacherStudentsPage({
 
     const combinedResults = [...(s.quizResults || []), ...studentSubs];
     const latestSubmission = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
-    const studentPin =
-      s.defaultPassword && s.defaultPassword !== '1234'
-        ? s.defaultPassword
-        : getConsistentStudentPin(s.studentCode || s.id || s.name);
 
     return {
       id: s.id,
       name: s.name,
       studentCode: s.studentCode || '—',
-      defaultPassword: studentPin,
+      defaultPassword: s.defaultPassword ?? '1234',
       phone: s.phone,
       parentPhone: s.parentPhone,
       grade: s.grade || 'الصف الثالث الإعدادي',

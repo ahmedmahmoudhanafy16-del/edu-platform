@@ -63,12 +63,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
         );
       });
 
-      const studentPin =
-        student.defaultPassword && student.defaultPassword !== '1234'
-          ? student.defaultPassword
-          : student.password && student.password !== '1234'
-          ? student.password
-          : getConsistentStudentPin(student.studentCode || student.id);
+      const studentPin = student.defaultPassword || student.password || '1234';
 
       return {
         ...student,
@@ -85,10 +80,8 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   } catch {
     return studentList.map((s) => ({
       ...s,
-      defaultPassword:
-        s.defaultPassword && s.defaultPassword !== '1234'
-          ? s.defaultPassword
-          : getConsistentStudentPin(s.studentCode || s.id),
+      defaultPassword: s.defaultPassword || s.password || '1234',
+      password: s.defaultPassword || s.password || '1234',
       avgScore: null,
     }));
   }
@@ -148,10 +141,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               } else {
                 const existing = localMap.get(s.id);
                 if (existing) {
-                  if ((!existing.defaultPassword || existing.defaultPassword === '1234') && s.defaultPassword && s.defaultPassword !== '1234') {
+                  if (!existing.defaultPassword && s.defaultPassword) {
                     existing.defaultPassword = s.defaultPassword;
                   }
-                  if ((!existing.password || existing.password === '1234') && s.password && s.password !== '1234') {
+                  if (!existing.password && s.password) {
                     existing.password = s.password;
                   }
                 }
@@ -262,7 +255,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
-        password: s.defaultPassword || s.password || getConsistentStudentPin(s.studentCode || s.id),
+        password: s.defaultPassword || s.password || '1234',
         phone: s.phone || '',
         status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
         avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
@@ -365,7 +358,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                       </div>
                     </td>
                     <td className={tdClass + ' text-center'}>
-                      <PasswordCell password={s.defaultPassword || s.password || getConsistentStudentPin(s.studentCode || s.id)} />
+                      <PasswordCell password={s.defaultPassword || s.password || '1234'} />
                     </td>
                     <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
                     <td className={tdClass}>
