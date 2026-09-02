@@ -35,17 +35,41 @@ export default async function TeacherClassroomsPage({
     console.warn('[Teacher Classrooms] DB query skipped:', err);
   }
 
-  // Strictly NO fake hardcoded fallback! If deleted or empty, stays empty.
-  const formatted = classrooms.map((c) => ({
-    id: c.id,
-    name: c.name,
-    subject: c.subject,
-    code: c.code,
-    isActive: c.isActive !== false,
-    studentsCount: c.enrollments?.length ?? 0,
-    quizzesCount: c.quizzes?.length ?? 0,
-    assignmentsCount: c.assignments?.length ?? 0,
-  }));
+  let allStudents: any[] = [];
+  try {
+    allStudents = await prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: {
+        id: true,
+        studentCode: true,
+        grade: true,
+        gradeLevel: true,
+        enrollments: { select: { classroomId: true } },
+      },
+    });
+  } catch (e) {}
+
+  // Compute accurate studentsCount on server
+  const formatted = classrooms.map((c) => {
+    const directEnrollments = c.enrollments?.length ?? 0;
+    const matchingGradeStudents = allStudents.filter(
+      (s) =>
+        s.enrollments?.some((e: any) => e.classroomId === c.id) ||
+        (c.name && s.grade && (c.name.includes(s.grade) || s.grade.includes(c.name))) ||
+        (c.name && s.gradeLevel && (c.name.includes(s.gradeLevel) || s.gradeLevel.includes(c.name)))
+    ).length;
+
+    return {
+      id: c.id,
+      name: c.name,
+      subject: c.subject,
+      code: c.code,
+      isActive: c.isActive !== false,
+      studentsCount: Math.max(directEnrollments, matchingGradeStudents),
+      quizzesCount: c.quizzes?.length ?? 0,
+      assignmentsCount: c.assignments?.length ?? 0,
+    };
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">

@@ -11,6 +11,7 @@ import { CreateClassroomModal } from '@/components/teacher/CreateClassroomModal'
 import { AddStudentModal } from '@/components/teacher/AddStudentModal';
 import { useRouter } from 'next/navigation';
 import { toggleClassroomStatus, deleteClassroom } from '@/actions/classroom';
+import { getStudentsFromStore, getQuizzes, getAssignments } from '@/lib/store';
 import { toast } from 'sonner';
 
 export interface ClassroomItem {
@@ -27,6 +28,24 @@ export interface ClassroomItem {
 const STORAGE_KEY = 'edu_classrooms';
 const DELETED_KEY = 'edu_deleted_classrooms';
 
+function countStudentsForClassroom(c: ClassroomItem, allStudents: any[]): number {
+  if (!allStudents || !Array.isArray(allStudents)) return 0;
+  return allStudents.filter((s: any) => {
+    if (!s) return false;
+    // 1. Direct ID match
+    if (s.classroomId && (s.classroomId === c.id || s.classroom === c.id)) return true;
+    if (s.classroom && s.classroom === c.id) return true;
+    // 2. Name or Grade match (e.g. "الصف الرابع الابتدائي" or "الصف الثالث الإعدادي")
+    if (c.name) {
+      const cName = c.name.trim();
+      if (s.classroom && typeof s.classroom === 'string' && s.classroom.trim() === cName) return true;
+      if (s.grade && typeof s.grade === 'string' && (cName.includes(s.grade.trim()) || s.grade.trim().includes(cName))) return true;
+      if (s.gradeLevel && typeof s.gradeLevel === 'string' && (cName.includes(s.gradeLevel.trim()) || s.gradeLevel.trim().includes(cName))) return true;
+    }
+    return false;
+  }).length;
+}
+
 export function TeacherClassroomsClient({
   initialClassrooms,
   teacherId,
@@ -42,7 +61,7 @@ export function TeacherClassroomsClient({
   const [classroomToDelete, setClassroomToDelete] = useState<ClassroomItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Sync with localStorage on mount & prop changes, strictly filtering out deleted classrooms
+  // Sync with localStorage on mount & prop changes, strictly filtering out deleted classrooms and dynamically computing counts
   useEffect(() => {
     try {
       const deletedRaw = localStorage.getItem(DELETED_KEY);
@@ -74,14 +93,63 @@ export function TeacherClassroomsClient({
         }
       });
 
-      const finalList = Array.from(map.values());
-      setClassrooms(finalList);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalList));
+      const allStudents = getStudentsFromStore();
+      const allQuizzes = getQuizzes();
+      const allAssignments = getAssignments();
+
+      const enriched = Array.from(map.values()).map((c) => {
+        const computedStudents = countStudentsForClassroom(c, allStudents);
+        const computedQuizzes = allQuizzes.filter((q: any) => q.classroomId === c.id || (c.name && q.classroomName === c.name)).length;
+        const computedAssignments = allAssignments.filter((a: any) => a.classroomId === c.id || (c.name && a.classroomName === c.name)).length;
+
+        return {
+          ...c,
+          studentsCount: Math.max(c.studentsCount || 0, computedStudents),
+          quizzesCount: Math.max(c.quizzesCount || 0, computedQuizzes),
+          assignmentsCount: Math.max(c.assignmentsCount || 0, computedAssignments),
+        };
+      });
+
+      setClassrooms(enriched);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
       return;
     } catch {}
 
     setClassrooms(initialClassrooms);
   }, [initialClassrooms]);
+
+  // Real-time synchronization whenever students, quizzes, or assignments are updated
+  useEffect(() => {
+    function handleStoreUpdate() {
+      try {
+        const allStudents = getStudentsFromStore();
+        const allQuizzes = getQuizzes();
+        const allAssignments = getAssignments();
+
+        setClassrooms((prev) =>
+          prev.map((c) => {
+            const computedStudents = countStudentsForClassroom(c, allStudents);
+            const computedQuizzes = allQuizzes.filter((q: any) => q.classroomId === c.id || (c.name && q.classroomName === c.name)).length;
+            const computedAssignments = allAssignments.filter((a: any) => a.classroomId === c.id || (c.name && a.classroomName === c.name)).length;
+
+            return {
+              ...c,
+              studentsCount: Math.max(c.studentsCount || 0, computedStudents),
+              quizzesCount: Math.max(c.quizzesCount || 0, computedQuizzes),
+              assignmentsCount: Math.max(c.assignmentsCount || 0, computedAssignments),
+            };
+          })
+        );
+      } catch {}
+    }
+
+    window.addEventListener('edu_store_updated', handleStoreUpdate);
+    window.addEventListener('storage', handleStoreUpdate);
+    return () => {
+      window.removeEventListener('edu_store_updated', handleStoreUpdate);
+      window.removeEventListener('storage', handleStoreUpdate);
+    };
+  }, []);
 
   function persistClassrooms(list: ClassroomItem[]) {
     try {
@@ -316,7 +384,18 @@ export function TeacherClassroomsClient({
         defaultClassroomId={selectedClassroomId}
         isOpen={addStudentOpen}
         onClose={() => setAddStudentOpen(false)}
-        onSuccess={refresh}
+        onSuccess={() => {
+          if (selectedClassroomId) {
+            setClassrooms((prev) =>
+              prev.map((c) =>
+                c.id === selectedClassroomId
+                  ? { ...c, studentsCount: (c.studentsCount || 0) + 1 }
+                  : c
+              )
+            );
+          }
+          refresh();
+        }}
       />
 
       {/* Delete Classroom Confirmation Modal */}
