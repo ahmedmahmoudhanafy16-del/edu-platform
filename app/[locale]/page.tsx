@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import {
-  Lock, Mail, KeyRound, GraduationCap, Users
+  Lock, Mail, KeyRound, GraduationCap, Users, Eye, EyeOff
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
+import { toStandardDigits } from '@/actions/auth';
 
 export default function RootLoginPage() {
   const params = useParams();
@@ -23,10 +24,12 @@ export default function RootLoginPage() {
   // Student fields
   const [studentCode, setStudentCode] = useState('');
   const [studentPassword, setStudentPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Teacher fields
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherPassword, setTeacherPassword] = useState('');
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,11 +39,20 @@ export default function RootLoginPage() {
     setLoading(true);
     setError('');
 
+    const cleanCode = toStandardDigits((studentCode || '').trim());
+    const cleanPass = toStandardDigits((studentPassword || '').trim());
+
+    if (!cleanCode || !cleanPass) {
+      setError(isAr ? 'يرجى إدخال كود الطالب وكلمة المرور' : 'Please enter student code and password');
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentCode, password: studentPassword, role: 'STUDENT' }),
+        body: JSON.stringify({ studentCode: cleanCode, password: cleanPass, role: 'STUDENT' }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -49,8 +61,25 @@ export default function RootLoginPage() {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(data.message || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
+        setError(data.error || data.message || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
         return;
+      }
+
+      if (typeof window !== 'undefined' && data.user) {
+        try {
+          localStorage.setItem('current_student', JSON.stringify(data.user));
+          sessionStorage.setItem('userRole', 'student');
+          const sessionPayload = {
+            id: data.user.id || data.user.studentCode,
+            name: data.user.name,
+            role: 'STUDENT',
+            studentCode: data.user.studentCode,
+            phone: data.user.phone,
+            grade: data.user.grade || 'الصف الثالث الإعدادي',
+            isActive: true,
+          };
+          document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+        } catch {}
       }
 
       router.push(`/${locale}/student`);
@@ -66,11 +95,14 @@ export default function RootLoginPage() {
     setLoading(true);
     setError('');
 
+    const cleanEmail = (teacherEmail || '').trim();
+    const cleanPass = (teacherPassword || '').trim();
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: teacherEmail, password: teacherPassword, role: 'TEACHER' }),
+        body: JSON.stringify({ email: cleanEmail, password: cleanPass, role: 'TEACHER' }),
       });
 
       if (!res.ok) {
@@ -180,7 +212,7 @@ export default function RootLoginPage() {
                     required
                     value={studentCode}
                     onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'كود الطالب أو رقم الهاتف' : 'Student code or phone'}
+                    placeholder={isAr ? 'كود الطالب (مثل STU-003) أو رقم الهاتف' : 'Student code (e.g. STU-003) or phone'}
                     className="pe-9 font-mono font-bold tracking-wider text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -193,14 +225,22 @@ export default function RootLoginPage() {
                 </label>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     required
                     value={studentPassword}
                     onChange={(e) => setStudentPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="pe-9"
+                    className="pe-9 ps-9 text-center font-mono"
                   />
                   <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    title={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
@@ -223,8 +263,8 @@ export default function RootLoginPage() {
                     required
                     value={teacherEmail}
                     onChange={(e) => setTeacherEmail(e.target.value)}
-                    placeholder={isAr ? 'example@domain.com' : 'teacher@example.com'}
-                    className="pe-9"
+                    placeholder={isAr ? 'teacher@school.com أو 010...' : 'teacher@school.com or 010...'}
+                    className="pe-9 font-medium"
                   />
                   <Mail className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
                 </div>
@@ -236,14 +276,22 @@ export default function RootLoginPage() {
                 </label>
                 <div className="relative">
                   <Input
-                    type="password"
+                    type={showTeacherPassword ? 'text' : 'password'}
                     required
                     value={teacherPassword}
                     onChange={(e) => setTeacherPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="pe-9"
+                    className="pe-9 ps-9"
                   />
                   <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
+                  <button
+                    type="button"
+                    onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                    title={showTeacherPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
+                    className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
+                  >
+                    {showTeacherPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
 
