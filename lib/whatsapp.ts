@@ -192,15 +192,16 @@ export async function notifyParentQuizCompleted({
     ? `ناجح بنسبة (${exactPct}%) 🎉`
     : `غير مجتاز (${exactPct}%) - يرجى المتابعة ⚠️`;
 
-  const RLM = '\u200F';
-  const message = [
-    `${RLM}السلام عليكم، مع حضرتك Assistant Miss Rasha${RLM}،`,
-    `${RLM}حابب أبلغ حضرتك بنتيجة امتحان الـScience${RLM} الأسبوعي للطالب:`,
-    `${RLM}*${studentName}*`,
-    `${RLM}الدرجة: *${score} من ${maxScore}*.`,
-    '',
-    `${RLM}شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`
-  ].join('\n');
+  const message = `السلام عليكم ورحمة الله وبركاته
+ولي أمر الطالب: *${studentName}*
+
+📊 *تقرير نتيجة الاختبار:*
+──────────────────
+📝 الاختبار: *${quizTitle}*
+🎯 الدرجة: *${score} من ${maxScore}*
+📈 النسبة المئوية: *${exactPct}%*
+──────────────────
+✨ تم إرسال هذا التقرير تلقائياً من المنصة التعليمية 🎓`;
 
   return await sendWhatsAppMessage({
     toPhone: parentPhone,

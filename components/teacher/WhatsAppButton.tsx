@@ -31,22 +31,28 @@ export function formatWhatsAppPhone(phone: string): string {
 
 export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
-    const RLM = '\u200F';
+    const examTitle = student.latestQuizTitle || 'امتحان الـScience الأسبوعي';
     const scoreText =
       student.latestScore != null && student.latestMaxScore != null
         ? `${student.latestScore} من ${student.latestMaxScore}`
-        : student.latestPercentage != null
+        : '—';
+    const percentageText =
+      student.latestPercentage != null
         ? `${student.latestPercentage}%`
-        : '10 من 10';
+        : student.avgScore != null
+        ? `${student.avgScore}%`
+        : '—';
 
-    const rawMessage = [
-      `${RLM}السلام عليكم، مع حضرتك Assistant Miss Rasha${RLM}،`,
-      `${RLM}حابب أبلغ حضرتك بنتيجة امتحان الـScience${RLM} الأسبوعي للطالب:`,
-      `${RLM}*${student.name}*`,
-      `${RLM}الدرجة: *${scoreText}*.`,
-      '',
-      `${RLM}شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`
-    ].join('\n');
+    const rawMessage =
+      `السلام عليكم ورحمة الله وبركاته\n` +
+      `ولي أمر الطالب: *${student.name}*\n\n` +
+      `📊 *تقرير المستوى الأكاديمي ونتيجة آخر اختبار:*\n` +
+      `──────────────────\n` +
+      `📝 الاختبار: *${examTitle}*\n` +
+      `🎯 الدرجة: *${scoreText}*\n` +
+      `📈 النسبة المئوية: *${percentageText}*\n` +
+      `──────────────────\n` +
+      `✨ تم إرسال هذا التقرير تلقائياً من المنصة التعليمية 🎓`;
 
     const text = encodeURIComponent(rawMessage);
     const targetRaw = student.parentPhone || student.phone || '';
