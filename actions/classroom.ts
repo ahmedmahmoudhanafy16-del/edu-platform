@@ -371,3 +371,38 @@ export async function deleteClassroom(classroomId: string) {
     };
   }
 }
+
+export async function updateStudentPhoneAction(
+  studentId: string,
+  phone: string,
+  parentPhone: string
+) {
+  const cleanPhone = (phone || '').trim();
+  const cleanParentPhone = (parentPhone || '').trim();
+
+  try {
+    await prisma.user.updateMany({
+      where: {
+        OR: [
+          { id: studentId },
+          { studentCode: studentId },
+        ],
+      },
+      data: {
+        phone: cleanPhone || null,
+        parentPhone: cleanParentPhone || null,
+        parentWhatsapp: cleanParentPhone || null,
+      },
+    });
+  } catch (err) {
+    console.warn('[updateStudentPhoneAction] DB update error:', err);
+  }
+
+  try {
+    revalidatePath('/', 'layout');
+    revalidatePath('/ar/teacher/students');
+    revalidatePath('/en/teacher/students');
+  } catch (e) {}
+
+  return { success: true, phone: cleanPhone, parentPhone: cleanParentPhone };
+}

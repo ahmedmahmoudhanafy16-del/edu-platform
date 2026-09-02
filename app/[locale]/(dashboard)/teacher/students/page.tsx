@@ -37,6 +37,7 @@ export default async function TeacherStudentsPage({
           name: true,
           studentCode: true,
           phone: true,
+          parentPhone: true,
           defaultPassword: true, // real value from DB
           password: true,
           isActive: true,
@@ -89,6 +90,7 @@ export default async function TeacherStudentsPage({
       name: s.name,
       studentCode: s.studentCode ?? '—',
       phone: s.phone ?? '',
+      parentPhone: s.parentPhone ?? '',
       defaultPassword: s.defaultPassword ?? s.password ?? '1234',
       password: s.defaultPassword ?? s.password ?? '1234',
       isActive: s.isActive !== false,

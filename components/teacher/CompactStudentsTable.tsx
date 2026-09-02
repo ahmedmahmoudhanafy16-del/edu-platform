@@ -5,13 +5,13 @@ import {
   ChevronUp, ChevronDown, Download, ShieldAlert,
   ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2,
   Copy, KeyRound, Eye, EyeOff, RefreshCw, GraduationCap,
-  School, BookOpen, Layers
+  School, BookOpen, Layers, Phone
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
 import { formatDateShort } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent, updateStudentAcademicAction } from '@/actions/student';
-import { resetStudentPassword } from '@/actions/classroom';
+import { resetStudentPassword, updateStudentPhoneAction } from '@/actions/classroom';
 import { getSubmissions, saveStudentToStore } from '@/lib/store';
 import { getLatestStudentSubmission } from '@/lib/analytics';
 import { toast } from 'sonner';
@@ -183,6 +183,12 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
   const [newPasswordInput, setNewPasswordInput] = useState('1234');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
+  // Edit Phones & Parent WhatsApp dialog state
+  const [studentToEditPhones, setStudentToEditPhones] = useState<Student | null>(null);
+  const [editPhoneInput, setEditPhoneInput] = useState('');
+  const [editParentPhoneInput, setEditParentPhoneInput] = useState('');
+  const [isUpdatingPhones, setIsUpdatingPhones] = useState(false);
+
   // Sync available classrooms
   useEffect(() => {
     try {
@@ -321,6 +327,59 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       setStudentToAssignAcademic(null);
     } finally {
       setIsAssigningAcademic(false);
+    }
+  }
+
+  function openEditPhonesModal(s: Student) {
+    setStudentToEditPhones(s);
+    setEditPhoneInput(s.phone || '');
+    setEditParentPhoneInput(s.parentPhone || '');
+  }
+
+  async function handleConfirmUpdatePhones(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!studentToEditPhones) return;
+
+    setIsUpdatingPhones(true);
+    const targetStudent = studentToEditPhones;
+    const cleanPhone = editPhoneInput.trim();
+    const cleanParent = editParentPhoneInput.trim();
+
+    try {
+      await updateStudentPhoneAction(targetStudent.id, cleanPhone, cleanParent);
+
+      const nextList = students.map((s) => {
+        if (s.id === targetStudent.id) {
+          return {
+            ...s,
+            phone: cleanPhone,
+            parentPhone: cleanParent,
+          };
+        }
+        return s;
+      });
+
+      setStudents(nextList);
+      persistStudents(nextList);
+
+      saveStudentToStore({
+        ...targetStudent,
+        phone: cleanPhone,
+        parentPhone: cleanParent,
+        parentWhatsapp: cleanParent,
+      });
+
+      window.dispatchEvent(new Event('edu_store_updated'));
+      window.dispatchEvent(new Event('storage'));
+
+      toast.success(`تم تحديث أرقام الطالب وولي الأمر (${targetStudent.name}) بنجاح! 📱`);
+      setStudentToEditPhones(null);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Update phone error:', err);
+      toast.error('حدث خطأ أثناء حفظ الأرقام');
+    } finally {
+      setIsUpdatingPhones(false);
     }
   }
 
@@ -632,9 +691,32 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         }}
                       />
                     </td>
-                    <td className={tdClass} dir="ltr">{s.phone || '—'}</td>
-
-                    {/* السنة الدراسية Badge & Quick Assign */}
+                    <td className={tdClass} dir="ltr">
+                      <div className="flex items-center justify-between gap-1.5 group">
+                        <div className="flex flex-col text-xs font-mono">
+                          <span className="text-slate-800 dark:text-slate-200 font-bold" title="رقم هاتف الطالب">
+                            {s.phone || '—'}
+                          </span>
+                          {s.parentPhone ? (
+                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1" title="رقم واتساب ولي الأمر لتلقي التقارير">
+                              <span className="text-[10px] text-slate-400 font-sans">ولي الأمر:</span> {s.parentPhone}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-sans" title="يتم إرسال التقارير لرقم الطالب كبديل">
+                              ولي الأمر: غير مسجل
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => openEditPhonesModal(s)}
+                          title="تعديل هاتف الطالب ورقم واتساب ولي الأمر"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
+                          <Phone className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
                     <td className={tdClass}>
                       <button
                         onClick={() => openAssignModal(s)}
@@ -936,6 +1018,77 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                 إلغاء
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Phones & Parent WhatsApp Modal */}
+      {studentToEditPhones && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+              <Phone className="h-6 w-6" />
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                تعديل أرقام هاتف الطالب وولي الأمر
+              </h3>
+              <p className="text-xs text-slate-500">
+                الطالب: <strong className="text-slate-800 dark:text-slate-200">{studentToEditPhones.name}</strong> ({studentToEditPhones.studentCode})
+              </p>
+            </div>
+
+            <form onSubmit={handleConfirmUpdatePhones} className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                  رقم هاتف الطالب:
+                </label>
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={editPhoneInput}
+                  onChange={(e) => setEditPhoneInput(e.target.value)}
+                  placeholder="01012345678"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                  رقم واتساب ولي الأمر (لإرسال التقارير):
+                </label>
+                <input
+                  type="tel"
+                  dir="ltr"
+                  value={editParentPhoneInput}
+                  onChange={(e) => setEditParentPhoneInput(e.target.value)}
+                  placeholder="01188486171"
+                  className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
+                />
+                <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                  * تقارير الواتساب والنتائج ستُرسل مباشرة إلى هذا الرقم.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={isUpdatingPhones}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isUpdatingPhones ? 'جاري الحفظ...' : 'حفظ الأرقام'}
+                </button>
+                <button
+                  type="button"
+                  disabled={isUpdatingPhones}
+                  onClick={() => setStudentToEditPhones(null)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
