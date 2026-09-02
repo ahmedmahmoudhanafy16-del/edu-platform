@@ -30,8 +30,20 @@ export function StudentAssignmentsClient({ initialAssignments }: { initialAssign
   useEffect(() => {
     function syncAssignments() {
       const stored = getAssignments();
+      let currentTargetId = '';
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          currentTargetId = (parsed.studentCode || parsed.id || '').trim().toUpperCase();
+        }
+      } catch {}
+
       const mapped: AssignmentItem[] = stored.map((a) => {
-        const sub = (a.submissions || [])[0];
+        const sub = (a.submissions || []).find((s: any) => {
+          const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
+          return currentTargetId ? sId === currentTargetId : true;
+        });
         return {
           id: a.id,
           title: a.title,

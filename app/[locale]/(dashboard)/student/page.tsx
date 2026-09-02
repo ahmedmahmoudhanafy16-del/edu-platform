@@ -143,7 +143,7 @@ export default async function StudentDashboardPage({
             </Button>
           </Link>
           <code className="text-xs font-mono font-bold text-accent bg-accent-light px-3 py-1.5 rounded-lg border border-accent/20">
-            كود الطالب: {student?.studentCode || 'STU-001'}
+            كود الطالب: {student?.studentCode || student?.id || '—'}
           </code>
         </div>
       </div>

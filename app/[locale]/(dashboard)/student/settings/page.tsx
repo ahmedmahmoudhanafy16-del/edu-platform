@@ -42,7 +42,7 @@ export default async function StudentSettingsPage({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 كود الطالب (غير قابل للتعديل):
               </label>
-              <Input disabled defaultValue={student?.studentCode || 'STU-001'} className="h-10 font-mono font-bold bg-slate-50 dark:bg-slate-800 cursor-not-allowed text-blue-600" />
+              <Input disabled defaultValue={student?.studentCode || '—'} className="h-10 font-mono font-bold bg-slate-50 dark:bg-slate-800 cursor-not-allowed text-blue-600" />
             </div>
           </div>
 
@@ -51,14 +51,14 @@ export default async function StudentSettingsPage({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 رقم هاتف الطالب:
               </label>
-              <Input defaultValue={student?.phone || '01012345678'} type="tel" className="h-10 font-mono" />
+              <Input defaultValue={student?.phone || ''} type="tel" className="h-10 font-mono" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 واتساب ولي الأمر:
               </label>
-              <Input defaultValue={student?.parentPhone || '01099998888'} type="tel" className="h-10 font-mono" />
+              <Input defaultValue={student?.parentPhone || student?.phone || ''} type="tel" className="h-10 font-mono" />
             </div>
           </div>
 

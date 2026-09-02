@@ -63,10 +63,16 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
     setSuccessData(null);
 
     try {
+      let currentStudent = null;
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) currentStudent = JSON.parse(cur);
+      } catch {}
+
       const res = await fetch('/api/student/redeem-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: clean }),
+        body: JSON.stringify({ code: clean, student: currentStudent }),
       });
 
       const data = await res.json();

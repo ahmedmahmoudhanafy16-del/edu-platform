@@ -56,7 +56,21 @@ export function StudentDashboardAssignmentsClient({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {assignments.map((a) => {
-        const studentSub = (a.submissions || []).find((s) => !s.studentId || s.studentId === studentId);
+        let currentTargetId = studentId;
+        if (!currentTargetId && typeof window !== 'undefined') {
+          try {
+            const cur = localStorage.getItem('current_student');
+            if (cur) {
+              const parsed = JSON.parse(cur);
+              currentTargetId = parsed.studentCode || parsed.id || '';
+            }
+          } catch {}
+        }
+        const normTarget = (currentTargetId || '').trim().toUpperCase();
+        const studentSub = (a.submissions || []).find((s: any) => {
+          const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
+          return normTarget ? sId === normTarget : !s.studentId;
+        });
         const submitted = Boolean(studentSub);
         const due = relativeTimeAr(a.dueDate ? new Date(a.dueDate) : new Date());
 

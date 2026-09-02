@@ -35,13 +35,13 @@ export default async function StudentProfilePage({
             {student?.name?.charAt(0) || 'ط'}
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{student?.name || 'أحمد محمد علي'}</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{student?.name || 'الطالب'}</h2>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-bold text-xs">
-                {student?.grade || 'الصف الثالث الإعدادي'}
+                {student?.grade || 'المرحلة الدراسية'}
               </Badge>
               <code className="bg-slate-100 dark:bg-slate-800 text-blue-600 font-mono font-bold px-2 py-0.5 rounded text-xs">
-                {student?.studentCode || 'STU-001'}
+                {student?.studentCode || '—'}
               </code>
             </div>
           </div>
@@ -50,22 +50,22 @@ export default async function StudentProfilePage({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
             <span className="text-slate-500 block mb-1">اسم الطالب الكامل:</span>
-            <strong className="text-sm text-slate-900 dark:text-white">{student?.name}</strong>
+            <strong className="text-sm text-slate-900 dark:text-white">{student?.name || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
             <span className="text-slate-500 block mb-1">كود الدخول المعتمد:</span>
-            <strong className="text-sm font-mono text-blue-600">{student?.studentCode}</strong>
+            <strong className="text-sm font-mono text-blue-600">{student?.studentCode || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
             <span className="text-slate-500 block mb-1">رقم هاتف الطالب:</span>
-            <strong className="text-sm font-mono text-slate-900 dark:text-white">{student?.phone || '01012345678'}</strong>
+            <strong className="text-sm font-mono text-slate-900 dark:text-white">{student?.phone || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
             <span className="text-slate-500 block mb-1">واتساب ولي الأمر المربوط:</span>
-            <strong className="text-sm font-mono text-emerald-600">{student?.parentPhone || student?.phone || '01012345678'}</strong>
+            <strong className="text-sm font-mono text-emerald-600">{student?.parentPhone || student?.phone || '—'}</strong>
           </div>
         </div>
 

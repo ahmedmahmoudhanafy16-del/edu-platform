@@ -16,15 +16,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 2. Parse & Sanitize Input
+    const body = await req.json().catch(() => ({}));
+    if (!sessionUser && body?.student) {
+      sessionUser = body.student;
+    }
+
     if (!sessionUser) {
       return NextResponse.json({ error: 'يجب تسجيل الدخول كطالب أولاً' }, { status: 401 });
     }
 
-    const studentId = sessionUser.id;
+    const studentId = sessionUser.studentCode || sessionUser.id;
     const studentName = sessionUser.name || 'الطالب';
-
-    // 2. Parse & Sanitize Input
-    const body = await req.json();
     const cleanCode = body?.code?.trim()?.toUpperCase();
 
     if (!cleanCode) {

@@ -11,6 +11,7 @@ interface SubmitAssignmentModalProps {
   assignmentTitle: string;
   maxScore: number;
   isOpen: boolean;
+  studentId?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -27,6 +28,7 @@ export function SubmitAssignmentModal({
   assignmentTitle,
   maxScore,
   isOpen,
+  studentId,
   onClose,
   onSuccess,
 }: SubmitAssignmentModalProps) {
@@ -81,8 +83,19 @@ export function SubmitAssignmentModal({
 
     setLoading(true);
     try {
-      // Find student id or default
-      const studentId = 'cmt61lblz0001imjg1t234567';
+      // Dynamically resolve student ID
+      let currentStudentId = studentId || '';
+      if (!currentStudentId && typeof window !== 'undefined') {
+        try {
+          const cur = localStorage.getItem('current_student');
+          if (cur) {
+            const parsed = JSON.parse(cur);
+            currentStudentId = parsed.studentCode || parsed.id || '';
+          }
+        } catch {}
+      }
+      if (!currentStudentId) currentStudentId = 'STU-001';
+
       const fullAnswer = uploadedFiles.length > 0
         ? `${answerText}\n\n[مرفق ${uploadedFiles.length} ملف/صورة من حل الطالب]`
         : answerText;
@@ -93,7 +106,7 @@ export function SubmitAssignmentModal({
         sizeBytes: uploadedFiles[0].sizeBytes,
       } : null;
 
-      await submitAssignment(assignmentId, studentId, fullAnswer, primaryFile);
+      await submitAssignment(assignmentId, currentStudentId, fullAnswer, primaryFile);
       toast.success('تم تسليم الواجب بنجاح وحُفظ في قاعدة البيانات! 🎉');
       onSuccess();
       onClose();

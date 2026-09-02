@@ -20,7 +20,7 @@ export default async function StudentAttendancePage({
     student = await getAuthenticatedStudent();
   } catch (e) {}
 
-  const studentId = student?.id || '';
+  const studentId = student?.studentCode || student?.id || '';
   const studentName = student?.name || 'طالب';
 
   let attendances: any[] = [];
@@ -29,7 +29,13 @@ export default async function StudentAttendancePage({
   try {
     const results = await Promise.allSettled([
       prisma.liveAttendance.findMany({
-        where: { studentId },
+        where: {
+          OR: [
+            { studentId },
+            ...(student?.id ? [{ studentId: student.id }] : []),
+            ...(student?.studentCode ? [{ studentId: student.studentCode }] : []),
+          ],
+        },
         include: { liveSession: { include: { classroom: true } } },
         orderBy: { joinedAt: 'desc' },
       }),
