@@ -192,10 +192,11 @@ export async function notifyParentQuizCompleted({
     ? `ناجح بنسبة (${exactPct}%) 🎉`
     : `غير مجتاز (${exactPct}%) - يرجى المتابعة ⚠️`;
 
-  const message = `السلام عليكم، مع حضرتك Assistant Miss Rasha، حابب أبلغ حضرتك إن
-نتيجة امتحان الـScience الأسبوعي للطالب
-${studentName}
-${score} / ${maxScore}.
+  const message = `السلام عليكم، مع حضرتك Assistant Miss Rasha.
+
+حابب أبلغ حضرتك بنتيجة امتحان الـScience الأسبوعي:
+- اسم الطالب: *${studentName}*
+- الدرجة: *${score} من ${maxScore}*
 
 شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`;
 

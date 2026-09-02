@@ -33,16 +33,16 @@ export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
     const scoreText =
       student.latestScore != null && student.latestMaxScore != null
-        ? `${student.latestScore} / ${student.latestMaxScore}`
+        ? `${student.latestScore} من ${student.latestMaxScore}`
         : student.latestPercentage != null
         ? `${student.latestPercentage}%`
-        : '10 / 10';
+        : '10 من 10';
 
     const rawMessage =
-      `السلام عليكم، مع حضرتك Assistant Miss Rasha، حابب أبلغ حضرتك إن\n` +
-      `نتيجة امتحان الـScience الأسبوعي للطالب\n` +
-      `${student.name}\n` +
-      `${scoreText}.\n\n` +
+      `السلام عليكم، مع حضرتك Assistant Miss Rasha.\n\n` +
+      `حابب أبلغ حضرتك بنتيجة امتحان الـScience الأسبوعي:\n` +
+      `- اسم الطالب: *${student.name}*\n` +
+      `- الدرجة: *${scoreText}*\n\n` +
       `شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`;
 
     const text = encodeURIComponent(rawMessage);
