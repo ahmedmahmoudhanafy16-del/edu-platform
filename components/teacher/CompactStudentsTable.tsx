@@ -625,7 +625,8 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               <th className={thClass} onClick={() => toggleSort('name')}>الاسم</th>
               <th className={thClass} onClick={() => toggleSort('studentCode')}>الكود</th>
               <th className={thClass + ' text-center'}>كلمة المرور</th>
-              <th className={thClass}>الهاتف</th>
+              <th className={thClass}>هاتف الطالب</th>
+              <th className={thClass}>هاتف ولي الأمر</th>
               <th className={thClass}>السنة الدراسية</th>
               <th className={thClass}>الفصل الدراسي</th>
               <th className={thClass}>الحالة</th>
@@ -639,7 +640,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={13} className="px-4 py-8 text-center text-xs text-n-400">
+                <td colSpan={14} className="px-4 py-8 text-center text-xs text-n-400">
                   لا توجد نتائج مطابقة للبحث أو الفلتر
                 </td>
               </tr>
@@ -691,30 +692,67 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         }}
                       />
                     </td>
+                    {/* هاتف الطالب */}
                     <td className={tdClass} dir="ltr">
-                      <div className="flex items-center justify-between gap-1.5 group">
-                        <div className="flex flex-col text-xs font-mono">
-                          <span className="text-slate-800 dark:text-slate-200 font-bold" title="رقم هاتف الطالب">
-                            {s.phone || '—'}
-                          </span>
-                          {s.parentPhone ? (
-                            <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1" title="رقم واتساب ولي الأمر لتلقي التقارير">
-                              <span className="text-[10px] text-slate-400 font-sans">ولي الأمر:</span> {s.parentPhone}
+                      <div className="inline-flex items-center gap-1.5 font-mono text-xs">
+                        <span className="font-semibold text-slate-850 dark:text-slate-200">
+                          {s.phone || '—'}
+                        </span>
+                        {s.phone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              navigator.clipboard.writeText(s.phone!);
+                              toast.success(`تم نسخ هاتف الطالب (${s.phone})`);
+                            }}
+                            title="نسخ رقم الطالب"
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-600 transition-colors"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* هاتف ولي الأمر (واتساب) */}
+                    <td className={tdClass} dir="ltr">
+                      <div className="inline-flex items-center gap-1.5 font-mono text-xs">
+                        {s.parentPhone ? (
+                          <>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                              {s.parentPhone}
                             </span>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-sans" title="يتم إرسال التقارير لرقم الطالب كبديل">
-                              ولي الأمر: غير مسجل
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openEditPhonesModal(s)}
-                          title="تعديل هاتف الطالب ورقم واتساب ولي الأمر"
-                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
-                        >
-                          <Phone className="h-3 w-3" />
-                        </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(s.parentPhone!);
+                                toast.success(`تم نسخ رقم ولي الأمر (${s.parentPhone})`);
+                              }}
+                              title="نسخ رقم ولي الأمر"
+                              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
+                            >
+                              <Copy className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openEditPhonesModal(s)}
+                              title="تعديل رقم هاتف ولي الأمر"
+                              className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
+                            >
+                              <Phone className="h-3 w-3" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => openEditPhonesModal(s)}
+                            className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded hover:bg-amber-100 transition-colors font-sans font-semibold"
+                            title="انقر لإضافة رقم واتساب ولي الأمر"
+                          >
+                            <Phone className="h-3 w-3" />
+                            + إضافة رقم
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className={tdClass}>
