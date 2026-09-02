@@ -31,30 +31,20 @@ export function formatWhatsAppPhone(phone: string): string {
 
 export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
-    const examTitle = student.latestQuizTitle || 'الاختبار الأكاديمي';
     const scoreText =
       student.latestScore != null && student.latestMaxScore != null
-        ? `${student.latestScore} من ${student.latestMaxScore}`
-        : '—';
-    const percentageText =
-      student.latestPercentage != null
+        ? `${student.latestScore} من ${student.latestMaxScore} (${student.latestPercentage ?? Math.round((student.latestScore / student.latestMaxScore) * 100)}%)`
+        : student.latestPercentage != null
         ? `${student.latestPercentage}%`
         : student.avgScore != null
         ? `${student.avgScore}%`
         : '—';
 
     const rawMessage =
-      `السلام عليكم ورحمة الله وبركاته 🌹\n` +
-      `ولي أمر الطالب: *${student.name}* المحترم\n\n` +
-      `📊 *تقرير المستوى الأكاديمي ونتيجة آخر اختبار:*\n` +
-      `──────────────────\n` +
-      `📝 الاختبار: *${examTitle}*\n` +
-      `🎯 الدرجة: *${scoreText}*\n` +
-      `📈 النسبة المئوية: *${percentageText}*\n` +
-      `📚 الواجبات المُسلّمة: *${student.submissionsCount}*\n` +
-      `💻 الحصص المحضورة: *${student.attendanceCount}*\n` +
-      `──────────────────\n` +
-      `✨ تم إرسال هذا التقرير تلقائياً من المنصة التعليمية 🎓`;
+      `السلام عليكم، مع حضرتك Assistant Miss Rasha، حابب أبلغ حضرتك إن نتيجة امتحان الـScience الأسبوعي للطالب\n` +
+      `*${student.name}*\n` +
+      `هي *${scoreText}*.\n\n` +
+      `شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`;
 
     const text = encodeURIComponent(rawMessage);
     const targetRaw = student.parentPhone || student.phone || '';

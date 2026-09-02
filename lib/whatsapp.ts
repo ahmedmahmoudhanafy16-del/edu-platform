@@ -192,13 +192,11 @@ export async function notifyParentQuizCompleted({
     ? `ناجح بنسبة (${exactPct}%) 🎉`
     : `غير مجتاز (${exactPct}%) - يرجى المتابعة ⚠️`;
 
-  const message = `السلام عليكم ولي أمر الطالب/ة: *${studentName}* 📝
+  const message = `السلام عليكم، مع حضرتك Assistant Miss Rasha، حابب أبلغ حضرتك إن نتيجة امتحان الـScience الأسبوعي للطالب
+*${studentName}*
+هي *${score} من ${maxScore} (${exactPct}%)*.
 
-أتم الطالب للتو امتحان: *${quizTitle}*
-- النتيجة: *${score} / ${maxScore}* (${exactPct}%)
-- الحالة: *${resultText}*
-يمكنكم الاطلاع على تفاصيل الإجابات ومستوى الطالب عبر رابط بوابة ولي الأمر.
-مع تحيات إدارة المنصة التعليمية 🎓`;
+شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`;
 
   return await sendWhatsAppMessage({
     toPhone: parentPhone,
