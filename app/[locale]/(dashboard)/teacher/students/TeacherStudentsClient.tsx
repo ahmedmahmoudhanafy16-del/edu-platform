@@ -50,8 +50,9 @@ export function TeacherStudentsClient({
       </div>
 
       <CompactStudentsTable
-        students={initialStudents}
+        students={initialStudents as any}
         classroomName="الصف_الثالث_الإعدادي"
+        classrooms={classrooms}
         onRefresh={refresh}
       />
 

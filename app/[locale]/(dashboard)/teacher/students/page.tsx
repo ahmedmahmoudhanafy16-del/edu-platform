@@ -41,6 +41,15 @@ export default async function TeacherStudentsPage({
           password: true,
           isActive: true,
           createdAt: true,
+          grade: true,
+          gradeLevel: true,
+          enrollments: {
+            include: {
+              classroom: {
+                select: { id: true, name: true, code: true },
+              },
+            },
+          },
           submissions: {
             select: { id: true },
           },
@@ -70,6 +79,10 @@ export default async function TeacherStudentsPage({
   const formatted = students.map((s) => {
     const latestQuiz = s.quizResults?.[0];
     const avgScore = calcStudentAvg(s.quizResults || []);
+    const enrollment = s.enrollments?.[0];
+    const studentGrade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+    const studentClassroomId = enrollment?.classroom?.id || '';
+    const studentClassroomName = enrollment?.classroom?.name || '';
 
     return {
       id: s.id,
@@ -79,6 +92,11 @@ export default async function TeacherStudentsPage({
       defaultPassword: s.defaultPassword ?? s.password ?? '1234',
       password: s.defaultPassword ?? s.password ?? '1234',
       isActive: s.isActive !== false,
+      grade: studentGrade,
+      gradeLevel: studentGrade,
+      classroomId: studentClassroomId,
+      classroomName: studentClassroomName,
+      classroom: studentClassroomId,
       avgScore,
       latestScore: latestQuiz ? (latestQuiz.totalScore ?? latestQuiz.autoScore ?? 0) : null,
       latestMaxScore: latestQuiz ? (latestQuiz.maxScore ?? 100) : null,

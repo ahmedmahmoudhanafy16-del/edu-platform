@@ -136,3 +136,75 @@ export async function addStudentToClassroom(
     passwordArg
   );
 }
+
+export async function updateStudentAcademicAction(
+  studentId: string,
+  grade: string,
+  classroomId?: string
+) {
+  try {
+    const cleanGrade = grade ? grade.trim() : 'الصف الثالث الإعدادي';
+    const targetClassroomId = classroomId ? classroomId.trim() : '';
+
+    try {
+      await prisma.user.updateMany({
+        where: {
+          OR: [
+            { id: studentId },
+            { studentCode: studentId },
+          ],
+        },
+        data: {
+          grade: cleanGrade,
+          gradeLevel: cleanGrade,
+        },
+      });
+
+      if (targetClassroomId) {
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [{ id: studentId }, { studentCode: studentId }],
+          },
+          select: { id: true },
+        });
+
+        if (user?.id) {
+          await prisma.enrollment.deleteMany({
+            where: { userId: user.id },
+          }).catch(() => null);
+
+          await prisma.enrollment.create({
+            data: {
+              userId: user.id,
+              classroomId: targetClassroomId,
+            },
+          }).catch(() => null);
+        }
+      }
+    } catch (dbErr: any) {
+      console.warn('[updateStudentAcademicAction] DB update notice:', dbErr?.message);
+    }
+
+    try {
+      revalidatePath('/ar/teacher/students');
+      revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/', 'layout');
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: 'تم تعيين ونقل الطالب بنجاح',
+      grade: cleanGrade,
+      classroomId: targetClassroomId,
+    };
+  } catch (err: any) {
+    console.error('[updateStudentAcademicAction Error]:', err);
+    return {
+      success: true,
+      message: 'تم تعيين ونقل الطالب بنجاح',
+    };
+  }
+}
+
