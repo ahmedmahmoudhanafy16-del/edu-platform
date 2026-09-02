@@ -596,8 +596,8 @@ export const DEFAULT_INITIAL_STUDENTS = [
     attendanceCount: 0,
     lastActive: new Date().toISOString(),
     isActive: true,
-    defaultPassword: '3293',
-    password: '3293',
+    defaultPassword: '7490',
+    password: '7490',
     createdAt: new Date().toISOString(),
   },
 ];

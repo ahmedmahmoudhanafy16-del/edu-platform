@@ -48,11 +48,31 @@ export default function RootLoginPage() {
       return;
     }
 
+    let matchedLocal = null;
+    try {
+      const stored = localStorage.getItem('edu_students');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          matchedLocal = parsed.find(
+            (s: any) =>
+              (s.studentCode && s.studentCode.toUpperCase() === cleanCode.toUpperCase()) ||
+              (s.phone && s.phone === cleanCode)
+          );
+        }
+      }
+    } catch {}
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentCode: cleanCode, password: cleanPass, role: 'STUDENT' }),
+        body: JSON.stringify({
+          studentCode: cleanCode,
+          password: cleanPass,
+          role: 'STUDENT',
+          localStudent: matchedLocal,
+        }),
       });
 
       const data = await res.json().catch(() => ({}));

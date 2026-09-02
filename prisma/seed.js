@@ -140,8 +140,8 @@ async function main() {
     },
   });
 
-  // 3.6 Student STU-003 (أحمد محمود) - PIN: 3293 (also accepts 1234)
-  const pin003 = '3293';
+  // 3.6 Student STU-003 (أحمد محمود) - PIN: 7490 (also accepts 1234, 3293)
+  const pin003 = '7490';
   const student003Hash = bcrypt.hashSync(pin003, 10);
   const student003 = await prisma.user.upsert({
     where: { studentCode: 'STU-003' },
