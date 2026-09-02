@@ -23,6 +23,7 @@ export interface Student {
   defaultPassword?: string;
   password?: string;
   phone: string | null;
+  parentPhone?: string | null;
   grade?: string | null;
   gradeLevel?: string | null;
   classroomId?: string | null;
@@ -691,6 +692,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         student={{
                           name: s.name,
                           phone: s.phone,
+                          parentPhone: s.parentPhone,
                           avgScore: s.avgScore || 0,
                           latestScore: s.latestScore ?? null,
                           latestMaxScore: s.latestMaxScore ?? null,
