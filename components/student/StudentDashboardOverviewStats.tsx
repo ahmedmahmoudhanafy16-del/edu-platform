@@ -50,13 +50,32 @@ export function StudentDashboardOverviewStats({
 
   useEffect(() => {
     function recalculateStats() {
-      const submissions = getSubmissions(studentId);
-      const summary = getStudentAcademicSummary(studentId, submissions);
+      let currentTargetId = studentId;
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          if (parsed.studentCode || parsed.id) {
+            currentTargetId = parsed.studentCode || parsed.id;
+          }
+        }
+      } catch {}
+
+      let submissions = currentTargetId ? getSubmissions(currentTargetId) : [];
+      if (!submissions || submissions.length === 0) {
+        const allSubs = getSubmissions();
+        const norm = (currentTargetId || '').trim().toUpperCase();
+        submissions = norm
+          ? allSubs.filter((s: any) => (s.studentId || s.studentCode || '').trim().toUpperCase() === norm)
+          : allSubs;
+      }
+
+      const summary = getStudentAcademicSummary(currentTargetId, submissions);
       const assignments = getAssignments();
       const pendingCount = assignments.filter(
-        (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
+        (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === currentTargetId)
       ).length;
-      const latest = getLatestStudentSubmission(studentId, submissions);
+      const latest = getLatestStudentSubmission(currentTargetId, submissions);
 
       setStats({
         completedExams: summary.totalExams,

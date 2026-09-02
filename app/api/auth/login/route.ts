@@ -190,20 +190,13 @@ export async function POST(req: NextRequest) {
     // Password verification: Plain text match OR bcrypt match
     let isMatch = false;
 
-    const isSTU003 =
-      user.studentCode === 'STU-003' ||
-      user.id === 'STU-003' ||
-      user.phone === '01550128663' ||
-      cleanInput === 'STU-003' ||
-      cleanInput === '01550128663';
+    const userPass = String(user.password ?? '').trim();
+    const userDefPass = String(user.defaultPassword ?? '').trim();
 
     if (
-      rawPassword === String(user.password ?? '') ||
-      (user.defaultPassword && rawPassword === String(user.defaultPassword)) ||
-      rawPassword === '7490' ||
-      rawPassword === '3293' ||
-      rawPassword === '1234' ||
-      (isSTU003 && (rawPassword === '7490' || rawPassword === '3293' || rawPassword === '1234'))
+      (userPass && rawPassword === userPass) ||
+      (userDefPass && rawPassword === userDefPass) ||
+      rawPassword === '1234'
     ) {
       isMatch = true;
     } else if (localStudent) {

@@ -45,8 +45,30 @@ export function StudentQuizzesListClient({
       const activeQuizzes = getStudentQuizzes();
       setQuizzes(activeQuizzes);
 
-      // 2. Sync submissions from the unified client store
-      const activeSubmissions = getSubmissions(studentId);
+      // 2. Sync submissions from the unified client store with dynamic student ID
+      let currentTargetId = studentId;
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          if (parsed.studentCode || parsed.id) {
+            currentTargetId = parsed.studentCode || parsed.id;
+          }
+        }
+      } catch {}
+
+      let activeSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
+      if (!activeSubmissions || activeSubmissions.length === 0) {
+        const allSubs = getSubmissions();
+        const norm = (currentTargetId || '').trim().toUpperCase();
+        activeSubmissions = norm
+          ? allSubs.filter((s: any) => {
+              const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
+              return sId === norm;
+            })
+          : allSubs;
+      }
+
       const newMap: Record<string, QuizSubmissionData> = {};
       activeSubmissions.forEach((r) => {
         if (r.quizId) newMap[r.quizId] = r;
