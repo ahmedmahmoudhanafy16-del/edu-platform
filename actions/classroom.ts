@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { addDynamicStudent } from '@/lib/dynamic-students';
 
 export async function createClassroom(name: string, subject: string, teacherId?: string) {
   try {
@@ -188,6 +189,10 @@ export async function createStudentAction(formData: {
     } catch (dbError) {
       console.warn('Server DB write failed, fallback handled gracefully:', dbError);
     }
+
+    try {
+      addDynamicStudent(newStudent);
+    } catch (dynErr) {}
 
     try {
       revalidatePath('/ar/teacher/students');

@@ -110,6 +110,11 @@ export function AddStudentModal({
         saveStudentToStore(student);
         window.dispatchEvent(new Event('edu_store_updated'));
         window.dispatchEvent(new Event('storage'));
+        fetch('/api/students/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student: { ...student, password: plainPassword, defaultPassword: plainPassword } }),
+        }).catch(() => {});
       }
 
       toast.success(

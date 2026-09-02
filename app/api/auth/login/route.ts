@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { getDynamicStudents } from '@/lib/dynamic-students';
 
 export const dynamic = 'force-dynamic';
 
@@ -141,6 +142,18 @@ export async function POST(req: NextRequest) {
 
       if (!user && localStudent) {
         user = localStudent;
+      }
+
+      if (!user) {
+        const dynamicList = getDynamicStudents();
+        user = dynamicList.find(
+          (u: any) =>
+            (u.studentCode?.toUpperCase() === cleanUpper ||
+              u.studentCode?.toLowerCase() === cleanLower ||
+              u.phone === cleanInput ||
+              u.id === cleanInput ||
+              u.name === cleanInput)
+        );
       }
 
       if (!user) {

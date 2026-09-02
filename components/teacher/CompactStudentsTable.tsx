@@ -222,6 +222,15 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
       const computed = computeDynamicAverages(baseList);
       setStudents(computed);
+
+      // Background sync all students from teacher table to server registry
+      if (baseList && baseList.length > 0) {
+        fetch('/api/students/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ students: baseList }),
+        }).catch(() => {});
+      }
     }
 
     syncStudents();
@@ -238,6 +247,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
   function persistStudents(list: Student[]) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      fetch('/api/students/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ students: list }),
+      }).catch(() => {});
     } catch {}
   }
 
