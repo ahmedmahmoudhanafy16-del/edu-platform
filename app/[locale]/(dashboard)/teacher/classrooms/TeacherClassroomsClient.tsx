@@ -25,6 +25,7 @@ export interface ClassroomItem {
 }
 
 const STORAGE_KEY = 'edu_classrooms';
+const DELETED_KEY = 'edu_deleted_classrooms';
 
 export function TeacherClassroomsClient({
   initialClassrooms,
@@ -41,24 +42,44 @@ export function TeacherClassroomsClient({
   const [classroomToDelete, setClassroomToDelete] = useState<ClassroomItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Sync with localStorage on mount & prop changes
+  // Sync with localStorage on mount & prop changes, strictly filtering out deleted classrooms
   useEffect(() => {
     try {
+      const deletedRaw = localStorage.getItem(DELETED_KEY);
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
       const stored = localStorage.getItem(STORAGE_KEY);
+      let localList: ClassroomItem[] = [];
+
       if (stored) {
         const parsed: ClassroomItem[] = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const localMap = new Map(parsed.map((c) => [c.id, c]));
-          initialClassrooms.forEach((c) => {
-            if (!localMap.has(c.id)) {
-              localMap.set(c.id, c);
-            }
-          });
-          setClassrooms(Array.from(localMap.values()));
-          return;
+        if (Array.isArray(parsed)) {
+          localList = parsed;
         }
       }
+
+      const map = new Map<string, ClassroomItem>();
+
+      // Load stored classrooms that are not deleted
+      localList.forEach((c) => {
+        if (c?.id && !deletedIds.has(c.id)) {
+          map.set(c.id, c);
+        }
+      });
+
+      // Merge server initialClassrooms that are not deleted
+      initialClassrooms.forEach((c) => {
+        if (c?.id && !deletedIds.has(c.id) && !map.has(c.id)) {
+          map.set(c.id, c);
+        }
+      });
+
+      const finalList = Array.from(map.values());
+      setClassrooms(finalList);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalList));
+      return;
     } catch {}
+
     setClassrooms(initialClassrooms);
   }, [initialClassrooms]);
 
@@ -100,13 +121,22 @@ export function TeacherClassroomsClient({
 
     const targetId = classroomToDelete.id;
 
-    // Optimistic deletion
+    // 1. Immediately persist deletion in localStorage so it can never resurrect
+    try {
+      const deletedRaw = localStorage.getItem(DELETED_KEY);
+      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+      deletedIds.add(targetId);
+      localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(deletedIds)));
+    } catch {}
+
+    // 2. Optimistic deletion in state and local store
     setClassrooms((prev) => {
       const nextList = prev.filter((c) => c.id !== targetId);
       persistClassrooms(nextList);
       return nextList;
     });
 
+    // 3. Trigger server delete
     try {
       const res = await deleteClassroom(targetId);
       if (res?.success) {
@@ -137,105 +167,125 @@ export function TeacherClassroomsClient({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {classrooms.map((c) => {
-          const isDeactivated = c.isActive === false;
+      {classrooms.length === 0 ? (
+        <div className="text-center py-16 px-4 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 space-y-4 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
+            <BookOpen className="h-7 w-7" />
+          </div>
+          <div className="max-w-sm mx-auto space-y-1">
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+              لا توجد فصول دراسية حالياً
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              تم حذف الفصل الدراسي بنجاح. يمكنك الآن إنشاء فصل دراسي جديد لبدء إضافة الطلاب وتعيين الواجبات والاختبارات.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="mt-2">
+            <Plus className="h-4 w-4 me-1.5" />
+            إنشاء فصل دراسي جديد
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {classrooms.map((c) => {
+            const isDeactivated = c.isActive === false;
 
-          return (
-            <div
-              key={c.id}
-              className={`p-6 rounded-xl border bg-white dark:bg-n-100 space-y-4 shadow-sm transition-all ${
-                isDeactivated
-                  ? 'border-amber-200 dark:border-amber-900/40 opacity-80 bg-amber-50/20'
-                  : 'border-n-200 dark:border-n-300'
-              }`}
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
-                      {c.subject}
+            return (
+              <div
+                key={c.id}
+                className={`p-6 rounded-xl border bg-white dark:bg-n-100 space-y-4 shadow-sm transition-all ${
+                  isDeactivated
+                    ? 'border-amber-200 dark:border-amber-900/40 opacity-80 bg-amber-50/20'
+                    : 'border-n-200 dark:border-n-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-semibold text-accent bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
+                        {c.subject}
+                      </span>
+                      {isDeactivated ? (
+                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <PauseCircle className="h-3 w-3" /> معطّل مؤقتاً
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> نشط
+                        </span>
+                      )}
+                    </div>
+                    <h2 className="text-lg font-bold text-n-800 dark:text-n-700 mt-2">{c.name}</h2>
+                  </div>
+                  <div className="text-end">
+                    <span className="text-xs text-n-400">كود الانضمام</span>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <code className="text-xs font-mono font-bold text-accent bg-accent-light px-2 py-0.5 rounded border border-accent/20">
+                        {c.code}
+                      </code>
+                      <CopyButton value={c.code} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center">
+                  <div>
+                    <p className="text-xs text-n-400">الطلاب</p>
+                    <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.studentsCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-n-400">الامتحانات</p>
+                    <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.quizzesCount}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-n-400">الواجبات</p>
+                    <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.assignmentsCount}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => {
+                      setSelectedClassroomId(c.id);
+                      setAddStudentOpen(true);
+                    }}
+                  >
+                    + إضافة طالب للفصل
+                  </Button>
+
+                  {/* Toggle Active / Hide Button */}
+                  <button
+                    onClick={() => handleToggleStatus(c)}
+                    title={isDeactivated ? 'تفعيل الفصل وإظهار الأنشطة' : 'تعطيل مؤقت للفصل وإخفاء الأنشطة'}
+                    className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
+                      isDeactivated
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
+                    }`}
+                  >
+                    {isDeactivated ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    <span className="text-[11px] hidden sm:inline">
+                      {isDeactivated ? 'تفعيل الفصل' : 'تعطيل مؤقت'}
                     </span>
-                    {isDeactivated ? (
-                      <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <PauseCircle className="h-3 w-3" /> معطّل مؤقتاً
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> نشط
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="text-lg font-bold text-n-800 dark:text-n-700 mt-2">{c.name}</h2>
-                </div>
-                <div className="text-end">
-                  <span className="text-xs text-n-400">كود الانضمام</span>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    <code className="text-xs font-mono font-bold text-accent bg-accent-light px-2 py-0.5 rounded border border-accent/20">
-                      {c.code}
-                    </code>
-                    <CopyButton value={c.code} />
-                  </div>
+                  </button>
+
+                  {/* Delete Classroom Button */}
+                  <button
+                    onClick={() => setClassroomToDelete(c)}
+                    title="حذف الفصل الدراسي"
+                    className="p-2 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center">
-                <div>
-                  <p className="text-xs text-n-400">الطلاب</p>
-                  <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.studentsCount}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-n-400">الامتحانات</p>
-                  <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.quizzesCount}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-n-400">الواجبات</p>
-                  <p className="text-base font-bold text-n-800 dark:text-n-700 mt-0.5">{c.assignmentsCount}</p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="flex-1 text-xs"
-                  onClick={() => {
-                    setSelectedClassroomId(c.id);
-                    setAddStudentOpen(true);
-                  }}
-                >
-                  + إضافة طالب للفصل
-                </Button>
-
-                {/* Toggle Active / Hide Button */}
-                <button
-                  onClick={() => handleToggleStatus(c)}
-                  title={isDeactivated ? 'تفعيل الفصل وإظهار الأنشطة' : 'تعطيل مؤقت للفصل وإخفاء الأنشطة'}
-                  className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
-                    isDeactivated
-                      ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'
-                  }`}
-                >
-                  {isDeactivated ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  <span className="text-[11px] hidden sm:inline">
-                    {isDeactivated ? 'تفعيل الفصل' : 'تعطيل مؤقت'}
-                  </span>
-                </button>
-
-                {/* Delete Classroom Button */}
-                <button
-                  onClick={() => setClassroomToDelete(c)}
-                  title="حذف الفصل الدراسي"
-                  className="p-2 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <CreateClassroomModal
         teacherId={teacherId}

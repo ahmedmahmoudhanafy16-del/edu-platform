@@ -18,7 +18,7 @@ export default async function TeacherClassroomsPage({
     teacher = await getAuthenticatedTeacher();
   } catch (e) {}
 
-  const teacherId = teacher?.id || 'demo-teacher-1';
+  const teacherId = teacher?.id || '';
 
   let classrooms: any[] = [];
   try {
@@ -35,29 +35,16 @@ export default async function TeacherClassroomsPage({
     console.warn('[Teacher Classrooms] DB query skipped:', err);
   }
 
-  if (!classrooms || classrooms.length === 0) {
-    classrooms = [
-      {
-        id: 'class-math-3',
-        name: 'الصف الثالث الإعدادي - رياضيات',
-        subject: 'الرياضيات',
-        code: 'MATH-301',
-        enrollments: [1, 2, 3, 4],
-        quizzes: [1, 2],
-        assignments: [1, 2],
-      },
-    ];
-  }
-
+  // Strictly NO fake hardcoded fallback! If deleted or empty, stays empty.
   const formatted = classrooms.map((c) => ({
     id: c.id,
     name: c.name,
     subject: c.subject,
     code: c.code,
     isActive: c.isActive !== false,
-    studentsCount: c.enrollments?.length ?? 4,
-    quizzesCount: c.quizzes?.length ?? 2,
-    assignmentsCount: c.assignments?.length ?? 2,
+    studentsCount: c.enrollments?.length ?? 0,
+    quizzesCount: c.quizzes?.length ?? 0,
+    assignmentsCount: c.assignments?.length ?? 0,
   }));
 
   return (

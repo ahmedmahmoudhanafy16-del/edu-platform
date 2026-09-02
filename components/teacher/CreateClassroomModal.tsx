@@ -31,6 +31,32 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
     setLoading(true);
     try {
       const cls = await createClassroom(name.trim(), subject.trim(), teacherId);
+      if (cls?.id) {
+        try {
+          const stored = localStorage.getItem('edu_classrooms');
+          const current: any[] = stored ? JSON.parse(stored) : [];
+          const newClassroom = {
+            id: cls.id,
+            name: cls.name,
+            subject: cls.subject,
+            code: cls.code,
+            studentsCount: 0,
+            quizzesCount: 0,
+            assignmentsCount: 0,
+            isActive: true,
+          };
+          const updated = [newClassroom, ...current.filter((c: any) => c.id !== cls.id)];
+          localStorage.setItem('edu_classrooms', JSON.stringify(updated));
+
+          const deletedRaw = localStorage.getItem('edu_deleted_classrooms');
+          if (deletedRaw) {
+            const deletedSet = new Set(JSON.parse(deletedRaw));
+            deletedSet.delete(cls.id);
+            localStorage.setItem('edu_deleted_classrooms', JSON.stringify(Array.from(deletedSet)));
+          }
+        } catch {}
+      }
+
       toast.success(`تم إنشاء فصل "${cls.name}" بنجاح! كود الانضمام: ${cls.code}`);
       setName('');
       onSuccess();
