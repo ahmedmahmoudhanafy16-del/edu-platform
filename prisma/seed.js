@@ -250,7 +250,7 @@ async function main() {
   const quiz = await prisma.quiz.upsert({
     where: { id: 'sample-quiz-1' },
     update: {
-      title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+      title: 'امتحان الساينس',
       type: 'WEEKLY',
       duration: 20,
       passingScore: 60,
@@ -260,7 +260,7 @@ async function main() {
     },
     create: {
       id: 'sample-quiz-1',
-      title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+      title: 'امتحان الساينس',
       type: 'WEEKLY',
       duration: 20,
       passingScore: 60,

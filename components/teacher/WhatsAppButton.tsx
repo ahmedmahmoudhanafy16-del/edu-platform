@@ -31,7 +31,7 @@ export function formatWhatsAppPhone(phone: string): string {
 
 export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
-    const examTitle = student.latestQuizTitle || 'امتحان الـScience الأسبوعي';
+    const examTitle = 'امتحان الساينس';
     const scoreText =
       student.latestScore != null && student.latestMaxScore != null
         ? `${student.latestScore} من ${student.latestMaxScore}`
