@@ -30,7 +30,7 @@ const ACADEMIC_GRADES = [
 ];
 
 export function AddStudentModal({
-  classrooms,
+  classrooms = [],
   defaultClassroomId,
   isOpen,
   onClose,
@@ -44,35 +44,57 @@ export function AddStudentModal({
   const [password, setPassword] = useState(() => generateRandomPin());
   const [loading, setLoading] = useState(false);
 
+  // Keep classroomId and password perfectly synchronized whenever modal opens or props change
   useEffect(() => {
     if (isOpen) {
       setPassword(generateRandomPin());
+
+      if (defaultClassroomId) {
+        setClassroomId(defaultClassroomId);
+      } else if (classrooms && classrooms.length > 0) {
+        if (!classroomId || !classrooms.some((c) => c.id === classroomId)) {
+          setClassroomId(classrooms[0].id);
+        }
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, defaultClassroomId, classrooms]);
 
   if (!isOpen) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !phone.trim() || !classroomId) {
-      toast.error('يرجى كتابة اسم الطالب ورقم الهاتف واختيار الفصل الدراسي');
+
+    const cleanName = name.trim();
+    const cleanPhone = phone.trim();
+    const effectiveClassroomId =
+      classroomId ||
+      defaultClassroomId ||
+      (classrooms && classrooms.length > 0 ? classrooms[0].id : '') ||
+      '';
+
+    if (!cleanName || !cleanPhone) {
+      toast.error('يرجى كتابة اسم الطالب ورقم الهاتف');
+      return;
+    }
+
+    if (classrooms && classrooms.length > 0 && !effectiveClassroomId) {
+      toast.error('يرجى اختيار الفصل الدراسي');
       return;
     }
 
     setLoading(true);
     try {
-      // password is EXACTLY what the teacher typed — it goes to the server as-is
       const plainPassword = password.trim() || '1234';
 
       const result = await createStudentAction({
-        name: name.trim(),
-        phone: phone.trim(),
-        parentPhone: parentWhatsapp.trim() || phone.trim(),
-        parentWhatsapp: parentWhatsapp.trim() || phone.trim(),
+        name: cleanName,
+        phone: cleanPhone,
+        parentPhone: parentWhatsapp.trim() || cleanPhone,
+        parentWhatsapp: parentWhatsapp.trim() || cleanPhone,
         grade: gradeLevel,
         gradeLevel,
-        classroom: classroomId,
-        classroomId,
+        classroom: effectiveClassroomId,
+        classroomId: effectiveClassroomId,
         password: plainPassword,
       });
 
@@ -90,7 +112,9 @@ export function AddStudentModal({
         window.dispatchEvent(new Event('storage'));
       }
 
-      toast.success(`تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} — كلمة المرور: ${plainPassword} 🎓`);
+      toast.success(
+        `تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} — كلمة المرور: ${plainPassword} 🎓`
+      );
       setName('');
       setPhone('');
       setParentWhatsapp('');
@@ -204,15 +228,19 @@ export function AddStudentModal({
                 الفصل الدراسي:
               </label>
               <select
-                value={classroomId}
+                value={classroomId || (classrooms && classrooms[0]?.id) || ''}
                 onChange={(e) => setClassroomId(e.target.value)}
                 className="w-full h-9 px-3 rounded-md border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
               >
-                {classrooms.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                {classrooms && classrooms.length > 0 ? (
+                  classrooms.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">(فصل افتراضي - عام)</option>
+                )}
               </select>
             </div>
           </div>
@@ -225,36 +253,26 @@ export function AddStudentModal({
               <button
                 type="button"
                 onClick={() => setPassword(generateRandomPin())}
-                className="text-[11px] text-accent hover:underline flex items-center gap-1 font-medium"
-                title="توليد كود عشوائي جديد"
+                className="text-[11px] text-accent hover:text-accent-hover font-semibold flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className="h-3 w-3" />
                 توليد كود جديد
               </button>
             </div>
-            <div className="relative flex items-center">
+            <div className="relative">
               <Input
                 type="text"
-                maxLength={4}
+                required
+                maxLength={8}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="1234"
-                className="pe-16 font-mono text-sm tracking-widest font-bold bg-slate-50 dark:bg-slate-800"
+                onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="مثال: 1234"
+                className="pe-8 font-mono text-center text-sm tracking-widest font-bold bg-n-50 dark:bg-n-200"
               />
-              <div className="absolute end-2 flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setPassword(generateRandomPin())}
-                  title="إعادة توليد كلمة المرور"
-                  className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 hover:text-slate-800 transition-colors"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                </button>
-                <KeyRound className="h-4 w-4 text-slate-400" />
-              </div>
+              <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">
-              كلمة مرور الطالب — يمكنك تغييرها أو توليد كود عشوائي
+            <p className="text-[11px] text-n-400 mt-1">
+              كلمة مرور الطالب — سيتمكن الطالب من تسجيل الدخول بها فوراً مع كوده الخاص.
             </p>
           </div>
 
