@@ -81,6 +81,7 @@ export default async function StudentGradesPage({
       <StudentGradesClient
         initialResults={formattedResults}
         studentName={studentName}
+        studentId={studentId}
         locale={locale}
       />
     </div>

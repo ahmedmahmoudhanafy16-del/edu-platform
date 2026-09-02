@@ -100,6 +100,7 @@ const EVENT_STORE_UPDATED = 'edu_store_updated';
 function notifyStoreUpdated() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(EVENT_STORE_UPDATED));
+    window.dispatchEvent(new Event('storage'));
   }
 }
 
@@ -275,11 +276,11 @@ export function getSubmissions(studentId?: string): QuizSubmissionData[] {
     if (!Array.isArray(parsed)) return [];
     if (!studentId) return parsed;
 
-    const cleanTarget = studentId.trim();
+    const cleanTarget = studentId.trim().toUpperCase();
     return parsed.filter((s) => {
       if (!s) return false;
-      const sId = (s.studentId || (s as any).studentCode || '').trim();
-      const sCode = ((s as any).studentCode || s.studentId || '').trim();
+      const sId = (s.studentId || (s as any).studentCode || '').trim().toUpperCase();
+      const sCode = ((s as any).studentCode || s.studentId || '').trim().toUpperCase();
 
       return sId === cleanTarget || sCode === cleanTarget;
     });

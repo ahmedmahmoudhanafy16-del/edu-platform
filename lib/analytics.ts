@@ -38,11 +38,14 @@ export function getStudentAcademicSummary(
     };
   }
 
+  const cleanTarget = (studentId || '').trim().toUpperCase();
   const studentSubs = submissions.filter((s) => {
     if (!s) return false;
-    if (!studentId) return true;
-    const sId = s.studentId || s.studentCode || '';
-    return sId === studentId || s.studentCode === studentId;
+    if (!cleanTarget) return true;
+    if (!s.studentId && !s.studentCode) return true;
+    const sId = String(s.studentId || '').trim().toUpperCase();
+    const sCode = String(s.studentCode || '').trim().toUpperCase();
+    return sId === cleanTarget || sCode === cleanTarget;
   });
 
   if (studentSubs.length === 0) {
