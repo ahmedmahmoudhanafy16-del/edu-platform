@@ -31,6 +31,7 @@ export function formatWhatsAppPhone(phone: string): string {
 
 export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
   function generateReport() {
+    const RLM = '\u200F';
     const scoreText =
       student.latestScore != null && student.latestMaxScore != null
         ? `${student.latestScore} من ${student.latestMaxScore}`
@@ -38,12 +39,14 @@ export function WhatsAppReportButton({ student }: { student: StudentSummary }) {
         ? `${student.latestPercentage}%`
         : '10 من 10';
 
-    const rawMessage =
-      `السلام عليكم، مع حضرتك Assistant Miss Rasha.\n\n` +
-      `حابب أبلغ حضرتك بنتيجة امتحان الـScience الأسبوعي:\n` +
-      `- اسم الطالب: *${student.name}*\n` +
-      `- الدرجة: *${scoreText}*\n\n` +
-      `شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`;
+    const rawMessage = [
+      `${RLM}السلام عليكم، مع حضرتك Assistant Miss Rasha${RLM}،`,
+      `${RLM}حابب أبلغ حضرتك بنتيجة امتحان الـScience${RLM} الأسبوعي للطالب:`,
+      `${RLM}*${student.name}*`,
+      `${RLM}الدرجة: *${scoreText}*.`,
+      '',
+      `${RLM}شكرًا لحضرتك، ونتمنى له دوام التوفيق والنجاح.`
+    ].join('\n');
 
     const text = encodeURIComponent(rawMessage);
     const targetRaw = student.parentPhone || student.phone || '';
