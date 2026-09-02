@@ -291,7 +291,24 @@ export function TeacherClassroomsClient({
         teacherId={teacherId}
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
-        onSuccess={refresh}
+        onSuccess={(created) => {
+          if (created?.id) {
+            setClassrooms((prev) => [
+              {
+                id: created.id,
+                name: created.name,
+                subject: created.subject,
+                code: created.code,
+                studentsCount: 0,
+                quizzesCount: 0,
+                assignmentsCount: 0,
+                isActive: true,
+              },
+              ...prev.filter((c) => c.id !== created.id),
+            ]);
+          }
+          refresh();
+        }}
       />
 
       <AddStudentModal

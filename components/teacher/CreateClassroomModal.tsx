@@ -11,7 +11,7 @@ interface CreateClassroomModalProps {
   teacherId: string;
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (cls?: any) => void;
 }
 
 export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
@@ -59,7 +59,7 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
 
       toast.success(`تم إنشاء فصل "${cls.name}" بنجاح! كود الانضمام: ${cls.code}`);
       setName('');
-      onSuccess();
+      onSuccess(cls);
       onClose();
     } catch (err: any) {
       toast.error(err?.message || 'حدث خطأ أثناء إنشاء الفصل');
