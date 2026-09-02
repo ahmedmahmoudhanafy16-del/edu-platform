@@ -579,6 +579,27 @@ export const DEFAULT_INITIAL_STUDENTS = [
     password: '6341',
     createdAt: new Date().toISOString(),
   },
+  {
+    id: 'STU-003',
+    name: 'أحمد محمود',
+    studentCode: 'STU-003',
+    code: 'STU-003',
+    phone: '01550128663',
+    parentPhone: '0118848617',
+    parentWhatsapp: '0118848617',
+    grade: 'الصف الرابع الابتدائي',
+    gradeLevel: 'الصف الرابع الابتدائي',
+    classroomId: 'class-science-4',
+    classroomName: 'الصف الرابع الابتدائي',
+    avgScore: null,
+    submissionsCount: 0,
+    attendanceCount: 0,
+    lastActive: new Date().toISOString(),
+    isActive: true,
+    defaultPassword: '3293',
+    password: '3293',
+    createdAt: new Date().toISOString(),
+  },
 ];
 
 export function getStudentsFromStore(): any[] {

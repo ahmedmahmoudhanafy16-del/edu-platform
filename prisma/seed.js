@@ -112,6 +112,62 @@ async function main() {
     },
   });
 
+  // 3.5 Student 3 (علي حسين) - PIN: 5192
+  const pin645 = '5192';
+  const student645Hash = bcrypt.hashSync(pin645, 10);
+  const student645 = await prisma.user.upsert({
+    where: { studentCode: 'STU-645' },
+    update: {
+      password: student645Hash,
+      passwordHash: student645Hash,
+      defaultPassword: pin645,
+      name: 'علي حسين',
+      role: 'STUDENT',
+      phone: '01066667777',
+      parentPhone: '01066667777',
+      grade: 'الصف الثالث الإعدادي',
+    },
+    create: {
+      name: 'علي حسين',
+      studentCode: 'STU-645',
+      password: student645Hash,
+      passwordHash: student645Hash,
+      defaultPassword: pin645,
+      role: 'STUDENT',
+      phone: '01066667777',
+      parentPhone: '01066667777',
+      grade: 'الصف الثالث الإعدادي',
+    },
+  });
+
+  // 3.6 Student STU-003 (أحمد محمود) - PIN: 3293 (also accepts 1234)
+  const pin003 = '3293';
+  const student003Hash = bcrypt.hashSync(pin003, 10);
+  const student003 = await prisma.user.upsert({
+    where: { studentCode: 'STU-003' },
+    update: {
+      password: student003Hash,
+      passwordHash: student003Hash,
+      defaultPassword: pin003,
+      name: 'أحمد محمود',
+      role: 'STUDENT',
+      phone: '01550128663',
+      parentPhone: '0118848617',
+      grade: 'الصف الرابع الابتدائي',
+    },
+    create: {
+      name: 'أحمد محمود',
+      studentCode: 'STU-003',
+      password: student003Hash,
+      passwordHash: student003Hash,
+      defaultPassword: pin003,
+      role: 'STUDENT',
+      phone: '01550128663',
+      parentPhone: '0118848617',
+      grade: 'الصف الرابع الابتدائي',
+    },
+  });
+
   // 4. Sample Classrooms
   const class1 = await prisma.classroom.upsert({
     where: { id: 'class-math-3a' },
