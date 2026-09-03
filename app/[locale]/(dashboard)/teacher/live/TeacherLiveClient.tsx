@@ -198,15 +198,45 @@ export function TeacherLiveClient({
                 navigator.clipboard.writeText(activeRoom);
                 toast.success('تم نسخ كود الغرفة');
               }}
+              title="نسخ كود الغرفة فقط"
               className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 transition-colors"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
           </div>
-          <Button variant="danger" size="sm" onClick={handleEnd} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
-            <StopCircle className="h-4 w-4 ml-1.5" />
-            إنهاء الحصة
-          </Button>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              size="sm"
+              onClick={() => {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app';
+                const link = `${origin}/ar/student/live?room=${activeRoom}`;
+                navigator.clipboard.writeText(link);
+                toast.success('تم نسخ رابط انضمام الطلاب للحصة المباشرة بنجاح! 📋');
+              }}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              نسخ رابط الطلاب
+            </Button>
+
+            <a
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                `🔴 تنبيه بث مباشر الآن (${targetGrade})!\n\nرابط الدخول المباشر للحصة التفاعلية:\n${typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app'}/ar/student/live?room=${activeRoom}\n\nكود الغرفة: ${activeRoom}\nيرجى دخول الطلاب فوراً.`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              مشاركة على WhatsApp
+            </a>
+
+            <Button variant="danger" size="sm" onClick={handleEnd} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
+              <StopCircle className="h-4 w-4 ml-1.5" />
+              إنهاء الحصة
+            </Button>
+          </div>
         </div>
 
         <div className="flex-1">
