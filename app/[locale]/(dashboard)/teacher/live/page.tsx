@@ -30,7 +30,7 @@ export default async function TeacherLivePage({
   try {
     const results = await Promise.allSettled([
       prisma.classroom.findMany({
-        where: teacherId ? { teacherId } : {},
+        orderBy: { createdAt: 'desc' },
       }),
       prisma.liveSession.findMany({
         where: { isActive: true },
@@ -52,9 +52,17 @@ export default async function TeacherLivePage({
     console.warn('[Teacher Live] DB query skipped:', err);
   }
 
-  // Fallback default classroom if none exist
+  // Fallback default classrooms if none exist
   if (!classrooms || classrooms.length === 0) {
     classrooms = [
+      {
+        id: 'class-science-4',
+        name: 'الصف الرابع الابتدائي',
+        subject: 'Science',
+        code: 'LX2WJS',
+        teacherId,
+        createdAt: new Date(),
+      },
       {
         id: 'class-math-3',
         name: 'الصف الثالث الإعدادي - رياضيات',

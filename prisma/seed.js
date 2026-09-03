@@ -203,7 +203,37 @@ async function main() {
     },
   });
 
+  const classScience4 = await prisma.classroom.upsert({
+    where: { id: 'class-science-4' },
+    update: {
+      name: 'الصف الرابع الابتدائي',
+      subject: 'Science',
+      code: 'LX2WJS',
+      teacherId: teacher.id,
+    },
+    create: {
+      id: 'class-science-4',
+      name: 'الصف الرابع الابتدائي',
+      subject: 'Science',
+      code: 'LX2WJS',
+      teacherId: teacher.id,
+    },
+  });
+
   // 5. Enrollments
+  await prisma.enrollment.upsert({
+    where: {
+      userId_classroomId: {
+        userId: student003.id,
+        classroomId: classScience4.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: student003.id,
+      classroomId: classScience4.id,
+    },
+  });
   await prisma.enrollment.upsert({
     where: {
       userId_classroomId: {

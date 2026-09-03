@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Video, StopCircle, Copy, Plus, Clock, Users, Send, CheckCircle2, MessageSquare } from 'lucide-react';
@@ -50,8 +50,80 @@ export function TeacherLiveClient({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
+  const [classList, setClassList] = useState<any[]>(classrooms);
   const [classroomId, setClassroomId] = useState(classrooms[0]?.id || '');
   const [targetGrade, setTargetGrade] = useState(ACADEMIC_GRADES[0]);
+
+  // Synchronize classrooms from localStorage and props
+  useEffect(() => {
+    function syncClassrooms() {
+      try {
+        const stored = localStorage.getItem('edu_classrooms');
+        const deletedRaw = localStorage.getItem('edu_deleted_classrooms');
+        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        let localList: any[] = [];
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) localList = parsed;
+        }
+
+        const map = new Map<string, any>();
+        classrooms.forEach((c) => {
+          if (c?.id && !deletedIds.has(c.id)) {
+            map.set(c.id, c);
+          }
+        });
+        localList.forEach((c) => {
+          if (c?.id && !deletedIds.has(c.id)) {
+            map.set(c.id, c);
+          }
+        });
+
+        const merged = Array.from(map.values());
+        if (merged.length > 0) {
+          setClassList(merged);
+          setClassroomId((prev: string) => {
+            if (prev && map.has(prev)) return prev;
+            return merged[0].id;
+          });
+        }
+      } catch (e) {
+        console.warn('[TeacherLiveClient] sync error:', e);
+      }
+    }
+
+    syncClassrooms();
+
+    window.addEventListener('edu_store_updated', syncClassrooms);
+    window.addEventListener('storage', syncClassrooms);
+    return () => {
+      window.removeEventListener('edu_store_updated', syncClassrooms);
+      window.removeEventListener('storage', syncClassrooms);
+    };
+  }, [classrooms]);
+
+  function handleClassroomSelect(id: string) {
+    setClassroomId(id);
+    const selected = classList.find((c) => c.id === id);
+    if (selected && selected.name) {
+      const match = ACADEMIC_GRADES.find(
+        (g) => selected.name.includes(g) || g.includes(selected.name)
+      );
+      if (match) {
+        setTargetGrade(match);
+      }
+    }
+  }
+
+  function handleGradeSelect(grade: string) {
+    setTargetGrade(grade);
+    const match = classList.find(
+      (c) => c.name && (c.name.includes(grade) || grade.includes(c.name))
+    );
+    if (match) {
+      setClassroomId(match.id);
+    }
+  }
 
   async function handleStart() {
     if (!title.trim()) {
@@ -172,7 +244,7 @@ export function TeacherLiveClient({
             </label>
             <select
               value={targetGrade}
-              onChange={(e) => setTargetGrade(e.target.value)}
+              onChange={(e) => handleGradeSelect(e.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 font-medium"
             >
               {ACADEMIC_GRADES.map((g) => (
@@ -189,12 +261,12 @@ export function TeacherLiveClient({
             </label>
             <select
               value={classroomId}
-              onChange={(e) => setClassroomId(e.target.value)}
+              onChange={(e) => handleClassroomSelect(e.target.value)}
               className="w-full h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 font-medium"
             >
-              {classrooms.map((c) => (
+              {classList.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name} ({c.subject})
+                  {c.name} {c.subject ? `(${c.subject})` : ''}
                 </option>
               ))}
             </select>
