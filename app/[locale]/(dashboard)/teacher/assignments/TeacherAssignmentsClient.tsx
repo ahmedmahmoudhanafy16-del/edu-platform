@@ -61,6 +61,7 @@ export function TeacherAssignmentsClient({
 }) {
   const router = useRouter();
   const [assignments, setAssignments] = useState<AssignmentItem[]>(initialAssignments);
+  const [classList, setClassList] = useState<{ id: string; name: string; isActive?: boolean }[]>(classrooms);
   const [modalOpen, setModalOpen] = useState(false);
   const [assignmentToEdit, setAssignmentToEdit] = useState<AssignmentItem | null>(null);
 
@@ -73,27 +74,72 @@ export function TeacherAssignmentsClient({
 
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
-    try {
-      const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
-      const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+    function syncAssignmentsData() {
+      try {
+        const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
-      const stored = getAssignments();
-      const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
+        const deletedClassroomsRaw = localStorage.getItem('edu_deleted_classrooms');
+        const deletedClassrooms = new Set<string>(deletedClassroomsRaw ? JSON.parse(deletedClassroomsRaw) : []);
 
-      initialAssignments.forEach((sa) => {
-        if (!deletedSet.has(sa.id) && !localMap.has(sa.id)) {
-          localMap.set(sa.id, sa);
+        // Sync Classrooms
+        const storedClassroomsRaw = localStorage.getItem('edu_classrooms');
+        let currentClassrooms: any[] = classrooms;
+        if (storedClassroomsRaw) {
+          const parsed = JSON.parse(storedClassroomsRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            currentClassrooms = parsed.filter((c: any) => !deletedClassrooms.has(c.id));
+          }
         }
-      });
+        setClassList(currentClassrooms);
+        const classroomMap = new Map<string, string>(currentClassrooms.map((c) => [c.id, c.name]));
 
-      const merged = Array.from(localMap.values()).filter((a) => !deletedSet.has(a.id));
-      setAssignments(merged);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    } catch (e) {
-      console.warn('[TeacherAssignments] Sync error:', e);
-      setAssignments(initialAssignments);
+        const stored = getAssignments();
+        const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
+
+        initialAssignments.forEach((sa) => {
+          if (!deletedSet.has(sa.id) && (!sa.classroomId || !deletedClassrooms.has(sa.classroomId))) {
+            if (!localMap.has(sa.id)) {
+              localMap.set(sa.id, {
+                ...sa,
+                classroomName: (sa.classroomId && classroomMap.get(sa.classroomId)) || sa.classroomName,
+              });
+            }
+          }
+        });
+
+        const merged = Array.from(localMap.values())
+          .filter((a) => {
+            if (deletedSet.has(a.id)) return false;
+            if (a.classroomId && deletedClassrooms.has(a.classroomId)) return false;
+            if (a.classroomName && deletedClassrooms.has(a.classroomName)) return false;
+            return true;
+          })
+          .map((a) => ({
+            ...a,
+            classroomName: (a.classroomId && classroomMap.get(a.classroomId)) || a.classroomName,
+          }));
+
+        setAssignments(merged);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      } catch (e) {
+        console.warn('[TeacherAssignments] Sync error:', e);
+        setAssignments(initialAssignments);
+      }
     }
-  }, [initialAssignments]);
+
+    syncAssignmentsData();
+
+    window.addEventListener('edu_store_updated', syncAssignmentsData);
+    window.addEventListener('edu_classrooms_updated', syncAssignmentsData);
+    window.addEventListener('storage', syncAssignmentsData);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncAssignmentsData);
+      window.removeEventListener('edu_classrooms_updated', syncAssignmentsData);
+      window.removeEventListener('storage', syncAssignmentsData);
+    };
+  }, [initialAssignments, classrooms]);
 
   // Helper to persist assignments to localStorage
   function persistAssignments(updatedList: AssignmentItem[]) {
@@ -398,7 +444,7 @@ export function TeacherAssignmentsClient({
 
       {/* Create / Edit Assignment Modal */}
       <CreateAssignmentModal
-        classrooms={classrooms}
+        classrooms={classList.filter((c) => c.isActive !== false)}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

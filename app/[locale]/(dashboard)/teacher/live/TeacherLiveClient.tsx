@@ -79,11 +79,11 @@ export function TeacherLiveClient({
           }
         });
 
-        const merged = Array.from(map.values());
+        const merged = Array.from(map.values()).filter((c) => c.isActive !== false);
         if (merged.length > 0) {
           setClassList(merged);
           setClassroomId((prev: string) => {
-            if (prev && map.has(prev)) return prev;
+            if (prev && merged.some((c) => c.id === prev)) return prev;
             return merged[0].id;
           });
         }
@@ -95,9 +95,11 @@ export function TeacherLiveClient({
     syncClassrooms();
 
     window.addEventListener('edu_store_updated', syncClassrooms);
+    window.addEventListener('edu_classrooms_updated', syncClassrooms);
     window.addEventListener('storage', syncClassrooms);
     return () => {
       window.removeEventListener('edu_store_updated', syncClassrooms);
+      window.removeEventListener('edu_classrooms_updated', syncClassrooms);
       window.removeEventListener('storage', syncClassrooms);
     };
   }, [classrooms]);

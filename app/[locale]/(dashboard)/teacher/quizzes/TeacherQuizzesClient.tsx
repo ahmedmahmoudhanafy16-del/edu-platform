@@ -63,6 +63,7 @@ export function TeacherQuizzesClient({
 }) {
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<QuizItem[]>(initialQuizzes);
+  const [classList, setClassList] = useState<{ id: string; name: string; isActive?: boolean }[]>(classrooms);
   const [modalOpen, setModalOpen] = useState(false);
   const [quizToEdit, setQuizToEdit] = useState<QuizItem | null>(null);
 
@@ -76,54 +77,94 @@ export function TeacherQuizzesClient({
 
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
-    let resultCountsMap: Record<string, number> = {};
-    try {
-      const submissions = getSubmissions();
-      submissions.forEach((r) => {
-        if (r.quizId) {
-          resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
+    function syncQuizzesData() {
+      let resultCountsMap: Record<string, number> = {};
+      try {
+        const submissions = getSubmissions();
+        submissions.forEach((r) => {
+          if (r.quizId) {
+            resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
+          }
+        });
+      } catch (e) {}
+
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+        const deletedClassroomsRaw = localStorage.getItem('edu_deleted_classrooms');
+        const deletedClassrooms = new Set<string>(deletedClassroomsRaw ? JSON.parse(deletedClassroomsRaw) : []);
+
+        // Sync Classrooms
+        const storedClassroomsRaw = localStorage.getItem('edu_classrooms');
+        let currentClassrooms: any[] = classrooms;
+        if (storedClassroomsRaw) {
+          const parsed = JSON.parse(storedClassroomsRaw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            currentClassrooms = parsed.filter((c: any) => !deletedClassrooms.has(c.id));
+          }
         }
-      });
-    } catch (e) {}
+        setClassList(currentClassrooms);
 
-    try {
-      const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
-      const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        const classroomMap = new Map<string, string>(currentClassrooms.map((c) => [c.id, c.name]));
 
-      const stored = getQuizzes();
-      const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
+        const stored = getQuizzes();
+        const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
 
-      initialQuizzes.forEach((sq) => {
-        const local = localMap.get(sq.id);
-        if (local) {
-          localMap.set(sq.id, {
-            ...local,
-            ...sq,
-            totalScore: sq.totalScore ?? local.totalScore,
-            questions: (sq.questions && sq.questions.length > 0) ? sq.questions : (local.questions || []),
-          });
-        } else if (!deletedSet.has(sq.id)) {
-          localMap.set(sq.id, sq);
-        }
-      });
-
-      const merged = Array.from(localMap.values())
-        .filter((q) => !deletedSet.has(q.id) && !deletedSet.has(q.accessCode))
-        .map((q) => {
-          const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
-          return {
-            ...q,
-            resultsCount: Math.max(q.resultsCount || 0, extraCount),
-          };
+        initialQuizzes.forEach((sq) => {
+          const local = localMap.get(sq.id);
+          if (local) {
+            localMap.set(sq.id, {
+              ...local,
+              ...sq,
+              classroomName: (sq.classroomId && classroomMap.get(sq.classroomId)) || sq.classroomName || local.classroomName,
+              totalScore: sq.totalScore ?? local.totalScore,
+              questions: (sq.questions && sq.questions.length > 0) ? sq.questions : (local.questions || []),
+            });
+          } else if (!deletedSet.has(sq.id) && (!sq.classroomId || !deletedClassrooms.has(sq.classroomId))) {
+            localMap.set(sq.id, {
+              ...sq,
+              classroomName: (sq.classroomId && classroomMap.get(sq.classroomId)) || sq.classroomName,
+            });
+          }
         });
 
-      setQuizzes(merged);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    } catch (e) {
-      console.warn('[TeacherQuizzes] Sync error:', e);
-      setQuizzes(initialQuizzes);
+        const merged = Array.from(localMap.values())
+          .filter((q) => {
+            if (deletedSet.has(q.id) || (q.accessCode && deletedSet.has(q.accessCode))) return false;
+            if (q.classroomId && deletedClassrooms.has(q.classroomId)) return false;
+            if (q.classroomName && deletedClassrooms.has(q.classroomName)) return false;
+            return true;
+          })
+          .map((q) => {
+            const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
+            return {
+              ...q,
+              classroomName: (q.classroomId && classroomMap.get(q.classroomId)) || q.classroomName,
+              resultsCount: Math.max(q.resultsCount || 0, extraCount),
+            };
+          });
+
+        setQuizzes(merged);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      } catch (e) {
+        console.warn('[TeacherQuizzes] Sync error:', e);
+        setQuizzes(initialQuizzes);
+      }
     }
-  }, [initialQuizzes]);
+
+    syncQuizzesData();
+
+    window.addEventListener('edu_store_updated', syncQuizzesData);
+    window.addEventListener('edu_classrooms_updated', syncQuizzesData);
+    window.addEventListener('storage', syncQuizzesData);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', syncQuizzesData);
+      window.removeEventListener('edu_classrooms_updated', syncQuizzesData);
+      window.removeEventListener('storage', syncQuizzesData);
+    };
+  }, [initialQuizzes, classrooms]);
 
   // Helper to persist quizzes to localStorage
   function persistQuizzes(updatedList: QuizItem[]) {
@@ -547,7 +588,7 @@ export function TeacherQuizzesClient({
 
       {/* Create / Edit Quiz Modal */}
       <CreateQuizModal
-        classrooms={classrooms}
+        classrooms={classList.filter((c) => c.isActive !== false)}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

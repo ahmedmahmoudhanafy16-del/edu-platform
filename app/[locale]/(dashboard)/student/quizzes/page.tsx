@@ -29,7 +29,12 @@ export default async function StudentQuizzesPage({
   try {
     const res = await Promise.allSettled([
       prisma.quiz.findMany({
-        where: { isPublished: true },
+        where: {
+          isPublished: true,
+          classroom: {
+            isActive: true,
+          },
+        },
         include: { classroom: true },
         orderBy: { createdAt: 'desc' },
       }),

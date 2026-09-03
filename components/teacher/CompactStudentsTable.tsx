@@ -191,20 +191,40 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
   // Sync available classrooms
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('edu_classrooms');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const map = new Map<string, { id: string; name: string }>();
-          classrooms.forEach((c) => map.set(c.id, c));
-          parsed.forEach((c: any) => map.set(c.id, { id: c.id, name: c.name }));
-          setAvailableClassrooms(Array.from(map.values()));
-          return;
+    function syncClassroomsList() {
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_classrooms');
+        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+        const stored = localStorage.getItem('edu_classrooms');
+        const map = new Map<string, { id: string; name: string }>();
+        classrooms.forEach((c) => {
+          if (!deletedIds.has(c.id)) map.set(c.id, c);
+        });
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            parsed.forEach((c: any) => {
+              if (!deletedIds.has(c.id)) map.set(c.id, { id: c.id, name: c.name });
+            });
+          }
         }
+        setAvailableClassrooms(Array.from(map.values()));
+      } catch {
+        setAvailableClassrooms(classrooms);
       }
-    } catch {}
-    setAvailableClassrooms(classrooms);
+    }
+
+    syncClassroomsList();
+
+    window.addEventListener('edu_classrooms_updated', syncClassroomsList);
+    window.addEventListener('edu_store_updated', syncClassroomsList);
+    window.addEventListener('storage', syncClassroomsList);
+    return () => {
+      window.removeEventListener('edu_classrooms_updated', syncClassroomsList);
+      window.removeEventListener('edu_store_updated', syncClassroomsList);
+      window.removeEventListener('storage', syncClassroomsList);
+    };
   }, [classrooms]);
 
   // Sync with localStorage on mount & prop changes

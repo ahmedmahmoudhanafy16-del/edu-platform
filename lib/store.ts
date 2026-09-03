@@ -55,6 +55,8 @@ export const STORAGE_KEYS = {
   RESULTS: 'edu_quiz_results',
   STUDENTS: 'edu_students',
   ASSIGNMENTS: 'edu_assignments',
+  CLASSROOMS: 'edu_classrooms',
+  DELETED_CLASSROOMS: 'edu_deleted_classrooms',
 } as const;
 
 // Default Seed Quizzes
@@ -93,6 +95,8 @@ export const INITIAL_SEED_QUIZZES: QuizData[] = [
         order: 2,
       },
     ],
+    totalScore: 10,
+    createdAt: new Date().toISOString(),
   },
 ];
 
@@ -106,7 +110,7 @@ function notifyStoreUpdated() {
 }
 
 /**
- * 1. Retrieves all active quizzes from localStorage, initialized with seed data
+ * 1. Retrieves all active quizzes from localStorage
  */
 export function getQuizzes(): QuizData[] {
   if (typeof window === 'undefined') return INITIAL_SEED_QUIZZES;
@@ -114,6 +118,9 @@ export function getQuizzes(): QuizData[] {
   try {
     const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_QUIZZES);
     const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+    const deletedClassroomsRaw = localStorage.getItem(STORAGE_KEYS.DELETED_CLASSROOMS);
+    const deletedClassrooms = new Set<string>(deletedClassroomsRaw ? JSON.parse(deletedClassroomsRaw) : []);
 
     const storedRaw = localStorage.getItem(STORAGE_KEYS.QUIZZES);
     let list: QuizData[] = [];
@@ -130,8 +137,13 @@ export function getQuizzes(): QuizData[] {
       localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(list));
     }
 
-    // Filter out any tombstoned / deleted IDs
-    return list.filter((q) => !deletedSet.has(q.id) && !deletedSet.has(q.accessCode));
+    // Filter out any tombstoned / deleted IDs and quizzes belonging to deleted classrooms
+    return list.filter((q) => {
+      if (deletedSet.has(q.id) || (q.accessCode && deletedSet.has(q.accessCode))) return false;
+      if (q.classroomId && deletedClassrooms.has(q.classroomId)) return false;
+      if (q.classroomName && deletedClassrooms.has(q.classroomName)) return false;
+      return true;
+    });
   } catch (err) {
     console.warn('[getQuizzes] LocalStorage error:', err);
     return INITIAL_SEED_QUIZZES;
@@ -139,12 +151,31 @@ export function getQuizzes(): QuizData[] {
 }
 
 /**
- * 2. Retrieves only visible quizzes for students (isPublished === true && !isHidden)
+ * 2. Retrieves only visible quizzes for students (isPublished === true && !isHidden && classroom is active)
  */
 export function getStudentQuizzes(): QuizData[] {
-  return getQuizzes().filter(
-    (q) => q.isPublished === true && !q.isHidden
-  );
+  if (typeof window === 'undefined') return [];
+
+  try {
+    // Get inactive / disabled classrooms
+    const classroomsRaw = localStorage.getItem(STORAGE_KEYS.CLASSROOMS);
+    const classroomsList: any[] = classroomsRaw ? JSON.parse(classroomsRaw) : [];
+    const inactiveClassroomIds = new Set<string>(
+      classroomsList.filter((c: any) => c.isActive === false).map((c: any) => c.id)
+    );
+    const inactiveClassroomNames = new Set<string>(
+      classroomsList.filter((c: any) => c.isActive === false).map((c: any) => c.name)
+    );
+
+    return getQuizzes().filter((q) => {
+      if (!q.isPublished || q.isHidden) return false;
+      if (q.classroomId && inactiveClassroomIds.has(q.classroomId)) return false;
+      if (q.classroomName && inactiveClassroomNames.has(q.classroomName)) return false;
+      return true;
+    });
+  } catch {
+    return getQuizzes().filter((q) => q.isPublished === true && !q.isHidden);
+  }
 }
 
 /**
@@ -406,16 +437,48 @@ export function getAssignments(): AssignmentData[] {
     const deletedRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
     const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
+    const deletedClassroomsRaw = localStorage.getItem(STORAGE_KEYS.DELETED_CLASSROOMS);
+    const deletedClassrooms = new Set<string>(deletedClassroomsRaw ? JSON.parse(deletedClassroomsRaw) : []);
+
     const storedRaw = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
     if (!storedRaw) return [];
 
     const parsed: AssignmentData[] = JSON.parse(storedRaw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.filter((a) => !deletedSet.has(a.id));
+    return parsed.filter((a) => {
+      if (deletedSet.has(a.id)) return false;
+      if (a.classroomId && deletedClassrooms.has(a.classroomId)) return false;
+      if (a.classroomName && deletedClassrooms.has(a.classroomName)) return false;
+      return true;
+    });
   } catch (err) {
     console.warn('[getAssignments] LocalStorage read error:', err);
     return [];
+  }
+}
+
+export function getStudentAssignments(): AssignmentData[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const classroomsRaw = localStorage.getItem(STORAGE_KEYS.CLASSROOMS);
+    const classroomsList: any[] = classroomsRaw ? JSON.parse(classroomsRaw) : [];
+    const inactiveClassroomIds = new Set<string>(
+      classroomsList.filter((c: any) => c.isActive === false).map((c: any) => c.id)
+    );
+    const inactiveClassroomNames = new Set<string>(
+      classroomsList.filter((c: any) => c.isActive === false).map((c: any) => c.name)
+    );
+
+    return getAssignments().filter((a) => {
+      if (a.isClosed) return false;
+      if (a.classroomId && inactiveClassroomIds.has(a.classroomId)) return false;
+      if (a.classroomName && inactiveClassroomNames.has(a.classroomName)) return false;
+      return true;
+    });
+  } catch {
+    return getAssignments();
   }
 }
 
@@ -667,6 +730,261 @@ export function saveStudentToStore(student: any): any {
   } catch (err) {
     console.warn('[saveStudentToStore] LocalStorage write error:', err);
     return student;
+  }
+}
+
+// -------------------------------------------------------------
+// Centralized Classroom Master Controller (Client-Side)
+// -------------------------------------------------------------
+
+export function getClassroomsFromStore(): any[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_CLASSROOMS);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+    const raw = localStorage.getItem(STORAGE_KEYS.CLASSROOMS);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter((c: any) => c?.id && !deletedSet.has(c.id));
+  } catch {
+    return [];
+  }
+}
+
+export function getActiveClassroomsFromStore(): any[] {
+  return getClassroomsFromStore().filter((c) => c.isActive !== false);
+}
+
+export function saveClassroomToStore(classroom: any): any {
+  if (typeof window === 'undefined') return classroom;
+  try {
+    const current = getClassroomsFromStore();
+    const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_CLASSROOMS);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+    deletedSet.delete(classroom.id);
+    localStorage.setItem(STORAGE_KEYS.DELETED_CLASSROOMS, JSON.stringify(Array.from(deletedSet)));
+
+    const formatted = {
+      id: classroom.id,
+      name: (classroom.name || '').trim(),
+      subject: (classroom.subject || 'عام').trim(),
+      code: (classroom.code || '').trim().toUpperCase(),
+      isActive: classroom.isActive !== false,
+      studentsCount: Number(classroom.studentsCount) || 0,
+      quizzesCount: Number(classroom.quizzesCount) || 0,
+      assignmentsCount: Number(classroom.assignmentsCount) || 0,
+      createdAt: classroom.createdAt || new Date().toISOString(),
+    };
+
+    const existingIndex = current.findIndex((c) => c.id === formatted.id);
+    let updatedList;
+    if (existingIndex !== -1) {
+      updatedList = [...current];
+      updatedList[existingIndex] = { ...updatedList[existingIndex], ...formatted };
+    } else {
+      updatedList = [formatted, ...current];
+    }
+
+    localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(updatedList));
+    notifyStoreUpdated();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('edu_classrooms_updated'));
+    }
+    return formatted;
+  } catch (err) {
+    console.warn('[saveClassroomToStore] write error:', err);
+    return classroom;
+  }
+}
+
+export function updateClassroomInStore(
+  classroomId: string,
+  updates: { name?: string; subject?: string; code?: string; isActive?: boolean }
+): any {
+  if (typeof window === 'undefined') return null;
+  try {
+    const current = getClassroomsFromStore();
+    const target = current.find((c) => c.id === classroomId);
+    if (!target) return null;
+
+    const oldName = target.name;
+    const newName = updates.name ? updates.name.trim() : oldName;
+    const isNameChanged = updates.name && updates.name.trim() !== oldName;
+
+    // 1. Update the classroom itself
+    const updatedClassroom = {
+      ...target,
+      ...(updates.name ? { name: newName } : {}),
+      ...(updates.subject ? { subject: updates.subject.trim() } : {}),
+      ...(updates.code ? { code: updates.code.trim().toUpperCase() } : {}),
+      ...(updates.isActive !== undefined ? { isActive: updates.isActive } : {}),
+    };
+
+    const nextClassrooms = current.map((c) => (c.id === classroomId ? updatedClassroom : c));
+    localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(nextClassrooms));
+
+    // 2. Cascade Name Updates across the ENTIRE PROJECT if name was changed
+    if (isNameChanged) {
+      // Cascade to Quizzes
+      try {
+        const rawQuizzes = localStorage.getItem(STORAGE_KEYS.QUIZZES);
+        if (rawQuizzes) {
+          const quizzesList: QuizData[] = JSON.parse(rawQuizzes);
+          const updatedQuizzes = quizzesList.map((q) => {
+            if (q.classroomId === classroomId || q.classroomName === oldName) {
+              return { ...q, classroomName: newName };
+            }
+            return q;
+          });
+          localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(updatedQuizzes));
+        }
+      } catch {}
+
+      // Cascade to Assignments
+      try {
+        const rawAssignments = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
+        if (rawAssignments) {
+          const assignmentsList: AssignmentData[] = JSON.parse(rawAssignments);
+          const updatedAssignments = assignmentsList.map((a) => {
+            if (a.classroomId === classroomId || a.classroomName === oldName) {
+              return { ...a, classroomName: newName };
+            }
+            return a;
+          });
+          localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(updatedAssignments));
+        }
+      } catch {}
+
+      // Cascade to Students
+      try {
+        const rawStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+        if (rawStudents) {
+          const studentsList: any[] = JSON.parse(rawStudents);
+          const updatedStudents = studentsList.map((s) => {
+            if (s.classroomId === classroomId || s.classroom === oldName || s.classroomName === oldName) {
+              return { ...s, classroom: newName, classroomName: newName };
+            }
+            return s;
+          });
+          localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedStudents));
+        }
+      } catch {}
+    }
+
+    notifyStoreUpdated();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('edu_classrooms_updated'));
+    }
+
+    return updatedClassroom;
+  } catch (err) {
+    console.warn('[updateClassroomInStore] error:', err);
+    return null;
+  }
+}
+
+export function toggleClassroomStatusInStore(classroomId: string, isActive: boolean): boolean {
+  if (typeof window === 'undefined') return isActive;
+  try {
+    const current = getClassroomsFromStore();
+    const updated = current.map((c) => (c.id === classroomId ? { ...c, isActive } : c));
+    localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(updated));
+    notifyStoreUpdated();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('edu_classrooms_updated'));
+    }
+    return isActive;
+  } catch {
+    return isActive;
+  }
+}
+
+export function deleteClassroomFromStore(classroomId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    // 1. Tombstone in DELETED_CLASSROOMS
+    const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_CLASSROOMS);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+    deletedSet.add(classroomId);
+    localStorage.setItem(STORAGE_KEYS.DELETED_CLASSROOMS, JSON.stringify(Array.from(deletedSet)));
+
+    // 2. Remove from CLASSROOMS
+    const current = getClassroomsFromStore();
+    const target = current.find((c) => c.id === classroomId);
+    const oldName = target?.name;
+    const remaining = current.filter((c) => c.id !== classroomId);
+    localStorage.setItem(STORAGE_KEYS.CLASSROOMS, JSON.stringify(remaining));
+
+    // 3. CASCADE DELETE: Remove all quizzes belonging to this classroom
+    try {
+      const deletedQuizzesRaw = localStorage.getItem(STORAGE_KEYS.DELETED_QUIZZES);
+      const deletedQuizzesSet = new Set<string>(deletedQuizzesRaw ? JSON.parse(deletedQuizzesRaw) : []);
+
+      const rawQuizzes = localStorage.getItem(STORAGE_KEYS.QUIZZES);
+      if (rawQuizzes) {
+        const quizzesList: QuizData[] = JSON.parse(rawQuizzes);
+        quizzesList.forEach((q) => {
+          if (q.classroomId === classroomId || (oldName && q.classroomName === oldName)) {
+            deletedQuizzesSet.add(q.id);
+            if (q.accessCode) deletedQuizzesSet.add(q.accessCode);
+          }
+        });
+        const remainingQuizzes = quizzesList.filter(
+          (q) => q.classroomId !== classroomId && (!oldName || q.classroomName !== oldName)
+        );
+        localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(remainingQuizzes));
+        localStorage.setItem(STORAGE_KEYS.DELETED_QUIZZES, JSON.stringify(Array.from(deletedQuizzesSet)));
+      }
+    } catch {}
+
+    // 4. CASCADE DELETE: Remove all assignments belonging to this classroom
+    try {
+      const deletedAssignmentsRaw = localStorage.getItem(DELETED_ASSIGNMENTS_KEY);
+      const deletedAssignmentsSet = new Set<string>(deletedAssignmentsRaw ? JSON.parse(deletedAssignmentsRaw) : []);
+
+      const rawAssignments = localStorage.getItem(STORAGE_KEYS.ASSIGNMENTS);
+      if (rawAssignments) {
+        const assignmentsList: AssignmentData[] = JSON.parse(rawAssignments);
+        assignmentsList.forEach((a) => {
+          if (a.classroomId === classroomId || (oldName && a.classroomName === oldName)) {
+            deletedAssignmentsSet.add(a.id);
+          }
+        });
+        const remainingAssignments = assignmentsList.filter(
+          (a) => a.classroomId !== classroomId && (!oldName || a.classroomName !== oldName)
+        );
+        localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(remainingAssignments));
+        localStorage.setItem(DELETED_ASSIGNMENTS_KEY, JSON.stringify(Array.from(deletedAssignmentsSet)));
+      }
+    } catch {}
+
+    // 5. CASCADE UPDATE: Disassociate students from this deleted classroom
+    try {
+      const rawStudents = localStorage.getItem(STORAGE_KEYS.STUDENTS);
+      if (rawStudents) {
+        const studentsList: any[] = JSON.parse(rawStudents);
+        const updatedStudents = studentsList.map((s) => {
+          if (s.classroomId === classroomId || (oldName && (s.classroom === oldName || s.classroomName === oldName))) {
+            return { ...s, classroomId: '', classroom: '', classroomName: '' };
+          }
+          return s;
+        });
+        localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedStudents));
+      }
+    } catch {}
+
+    notifyStoreUpdated();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('edu_classrooms_updated'));
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('[deleteClassroomFromStore] error:', err);
+    return false;
   }
 }
 

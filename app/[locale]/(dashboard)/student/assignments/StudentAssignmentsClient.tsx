@@ -5,7 +5,7 @@ import { FileText, CheckCircle2, Clock, Upload, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubmitAssignmentModal } from '@/components/student/SubmitAssignmentModal';
 import { relativeTimeAr } from '@/lib/utils';
-import { getAssignments, AssignmentData } from '@/lib/store';
+import { getStudentAssignments, AssignmentData } from '@/lib/store';
 
 interface AssignmentItem {
   id: string;
@@ -29,7 +29,7 @@ export function StudentAssignmentsClient({ initialAssignments }: { initialAssign
 
   useEffect(() => {
     function syncAssignments() {
-      const stored = getAssignments();
+      const stored = getStudentAssignments();
       let currentTargetId = '';
       try {
         const cur = localStorage.getItem('current_student');
@@ -68,10 +68,12 @@ export function StudentAssignmentsClient({ initialAssignments }: { initialAssign
     syncAssignments();
 
     window.addEventListener('edu_store_updated', syncAssignments);
+    window.addEventListener('edu_classrooms_updated', syncAssignments);
     window.addEventListener('storage', syncAssignments);
 
     return () => {
       window.removeEventListener('edu_store_updated', syncAssignments);
+      window.removeEventListener('edu_classrooms_updated', syncAssignments);
       window.removeEventListener('storage', syncAssignments);
     };
   }, []);

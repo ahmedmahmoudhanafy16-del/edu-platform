@@ -24,6 +24,11 @@ export default async function StudentAssignmentsPage({
   let assignments: any[] = [];
   try {
     assignments = await prisma.assignment.findMany({
+      where: {
+        classroom: {
+          isActive: true,
+        },
+      },
       include: {
         classroom: true,
         submissions: {

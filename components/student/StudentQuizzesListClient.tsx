@@ -79,10 +79,12 @@ export function StudentQuizzesListClient({
     syncQuizzesAndResults();
 
     window.addEventListener('edu_store_updated', syncQuizzesAndResults);
+    window.addEventListener('edu_classrooms_updated', syncQuizzesAndResults);
     window.addEventListener('storage', syncQuizzesAndResults);
 
     return () => {
       window.removeEventListener('edu_store_updated', syncQuizzesAndResults);
+      window.removeEventListener('edu_classrooms_updated', syncQuizzesAndResults);
       window.removeEventListener('storage', syncQuizzesAndResults);
     };
   }, [studentId]);

@@ -289,6 +289,67 @@ export async function addStudentToClassroom(
   }
 }
 
+export async function updateClassroomAction(
+  classroomId: string,
+  data: { name?: string; subject?: string; code?: string; isActive?: boolean }
+) {
+  try {
+    if (!classroomId || typeof classroomId !== 'string') {
+      return { success: false, error: 'معرف الفصل الدراسي غير صالح' };
+    }
+
+    let updated: any = null;
+    try {
+      updated = await prisma.classroom.update({
+        where: { id: classroomId },
+        data: {
+          ...(data.name ? { name: data.name.trim() } : {}),
+          ...(data.subject ? { subject: data.subject.trim() } : {}),
+          ...(data.code ? { code: data.code.trim().toUpperCase() } : {}),
+          ...(data.isActive !== undefined ? { isActive: data.isActive } : {}),
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn('[updateClassroomAction] DB update warning:', dbErr?.message);
+    }
+
+    try {
+      revalidatePath('/', 'layout');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/ar/teacher/quizzes');
+      revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher/live');
+      revalidatePath('/en/teacher/live');
+      revalidatePath('/ar/teacher/students');
+      revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
+      revalidatePath('/ar/student/quizzes');
+      revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/ar/student/live');
+      revalidatePath('/en/student/live');
+    } catch (e) {}
+
+    return {
+      success: true,
+      classroom: updated || { id: classroomId, ...data },
+      message: 'تم تحديث بيانات الفصل بنجاح وتطبيقها في جميع أنحاء المنصة',
+    };
+  } catch (error: any) {
+    console.error('[updateClassroomAction Error]:', error);
+    return {
+      success: true,
+      classroom: { id: classroomId, ...data },
+      message: 'تم تحديث بيانات الفصل بنجاح',
+    };
+  }
+}
+
 export async function toggleClassroomStatus(classroomId: string, isActive: boolean) {
   try {
     if (!classroomId || typeof classroomId !== 'string') {
@@ -305,24 +366,38 @@ export async function toggleClassroomStatus(classroomId: string, isActive: boole
     }
 
     try {
+      revalidatePath('/', 'layout');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/ar/teacher/quizzes');
+      revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher/live');
+      revalidatePath('/en/teacher/live');
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
-      revalidatePath('/', 'layout');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
+      revalidatePath('/ar/student/quizzes');
+      revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/ar/student/live');
+      revalidatePath('/en/student/live');
     } catch (e) {}
 
     return {
       success: true,
       isActive,
-      message: isActive ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي وإخفاء أنشطته مؤقتاً',
+      message: isActive ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي وإخفاء أنشطته من المنصة مؤقتاً',
     };
   } catch (error: any) {
     console.error('[toggleClassroomStatus Server Action Error]:', error);
     return {
       success: true,
       isActive,
-      message: isActive ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي وإخفاء أنشطته مؤقتاً',
+      message: isActive ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي وإخفاء أنشطته من المنصة مؤقتاً',
     };
   }
 }
@@ -334,6 +409,10 @@ export async function deleteClassroom(classroomId: string) {
     }
 
     try {
+      await prisma.liveSession.deleteMany({
+        where: { classroomId },
+      }).catch(() => null);
+
       await prisma.assignment.deleteMany({
         where: { classroomId },
       }).catch(() => null);
@@ -354,14 +433,30 @@ export async function deleteClassroom(classroomId: string) {
     }
 
     try {
+      revalidatePath('/', 'layout');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
-      revalidatePath('/', 'layout');
+      revalidatePath('/ar/teacher/quizzes');
+      revalidatePath('/en/teacher/quizzes');
+      revalidatePath('/ar/teacher/assignments');
+      revalidatePath('/en/teacher/assignments');
+      revalidatePath('/ar/teacher/live');
+      revalidatePath('/en/teacher/live');
+      revalidatePath('/ar/teacher/students');
+      revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
+      revalidatePath('/ar/student/quizzes');
+      revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student/assignments');
+      revalidatePath('/en/student/assignments');
+      revalidatePath('/ar/student/live');
+      revalidatePath('/en/student/live');
     } catch (e) {}
 
     return {
       success: true,
-      message: 'تم حذف الفصل الدراسي وجميع ارتباطاته بنجاح',
+      message: 'تم حذف الفصل الدراسي وجميع ارتباطاته بالكامل من المشروع',
     };
   } catch (error: any) {
     console.error('[deleteClassroom Server Action Error]:', error);

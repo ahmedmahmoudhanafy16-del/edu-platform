@@ -3,15 +3,22 @@
 import React, { useState, useEffect } from 'react';
 import {
   Plus, BookOpen, Users, Copy, Sparkles,
-  Trash2, Eye, EyeOff, AlertTriangle, CheckCircle2, PauseCircle
+  Trash2, Eye, EyeOff, AlertTriangle, CheckCircle2, PauseCircle, Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CopyButton } from '@/components/ui/CopyButton';
 import { CreateClassroomModal } from '@/components/teacher/CreateClassroomModal';
+import { EditClassroomModal } from '@/components/teacher/EditClassroomModal';
 import { AddStudentModal } from '@/components/teacher/AddStudentModal';
 import { useRouter } from 'next/navigation';
 import { toggleClassroomStatus, deleteClassroom } from '@/actions/classroom';
-import { getStudentsFromStore, getQuizzes, getAssignments } from '@/lib/store';
+import {
+  getStudentsFromStore,
+  getQuizzes,
+  getAssignments,
+  deleteClassroomFromStore,
+  toggleClassroomStatusInStore
+} from '@/lib/store';
 import { toast } from 'sonner';
 
 export interface ClassroomItem {
@@ -59,6 +66,7 @@ export function TeacherClassroomsClient({
   const [addStudentOpen, setAddStudentOpen] = useState(false);
   const [selectedClassroomId, setSelectedClassroomId] = useState<string>('');
   const [classroomToDelete, setClassroomToDelete] = useState<ClassroomItem | null>(null);
+  const [classroomToEdit, setClassroomToEdit] = useState<ClassroomItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Sync with localStorage on mount & prop changes, strictly filtering out deleted classrooms and dynamically computing counts
@@ -164,7 +172,9 @@ export function TeacherClassroomsClient({
   async function handleToggleStatus(classroom: ClassroomItem) {
     const nextState = classroom.isActive === false ? true : false;
 
-    // Optimistic Update
+    // 1. Optimistic Update in Central Store (Cascades to student quiz/assignment visibility)
+    toggleClassroomStatusInStore(classroom.id, nextState);
+
     setClassrooms((prev) => {
       const nextList = prev.map((c) => (c.id === classroom.id ? { ...c, isActive: nextState } : c));
       persistClassrooms(nextList);
@@ -174,10 +184,10 @@ export function TeacherClassroomsClient({
     try {
       const res = await toggleClassroomStatus(classroom.id, nextState);
       if (res?.success) {
-        toast.success(res.message || (nextState ? 'تم تفعيل الفصل الدراسي' : 'تم تعطيل الفصل الدراسي مؤقتاً'));
+        toast.success(res.message || (nextState ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي مؤقتاً'));
       }
     } catch {
-      toast.success(nextState ? 'تم تفعيل الفصل الدراسي' : 'تم تعطيل الفصل الدراسي مؤقتاً');
+      toast.success(nextState ? 'تم تفعيل الفصل الدراسي بنجاح' : 'تم تعطيل الفصل الدراسي مؤقتاً');
     }
 
     refresh();
@@ -189,15 +199,10 @@ export function TeacherClassroomsClient({
 
     const targetId = classroomToDelete.id;
 
-    // 1. Immediately persist deletion in localStorage so it can never resurrect
-    try {
-      const deletedRaw = localStorage.getItem(DELETED_KEY);
-      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-      deletedIds.add(targetId);
-      localStorage.setItem(DELETED_KEY, JSON.stringify(Array.from(deletedIds)));
-    } catch {}
+    // 1. Full Cascade Delete: Removes classroom, its quizzes, its assignments, and disassociates students everywhere
+    deleteClassroomFromStore(targetId);
 
-    // 2. Optimistic deletion in state and local store
+    // 2. Optimistic deletion in state
     setClassrooms((prev) => {
       const nextList = prev.filter((c) => c.id !== targetId);
       persistClassrooms(nextList);
@@ -208,7 +213,7 @@ export function TeacherClassroomsClient({
     try {
       const res = await deleteClassroom(targetId);
       if (res?.success) {
-        toast.success(res.message || 'تم حذف الفصل الدراسي بنجاح');
+        toast.success(res.message || 'تم حذف الفصل الدراسي بالكامل من المشروع بنجاح');
       }
     } catch {
       toast.success('تم حذف الفصل الدراسي بنجاح');
@@ -324,6 +329,16 @@ export function TeacherClassroomsClient({
                     + إضافة طالب للفصل
                   </Button>
 
+                  {/* Edit Classroom Button */}
+                  <button
+                    onClick={() => setClassroomToEdit(c)}
+                    title="تعديل بيانات الفصل"
+                    className="p-2 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center gap-1"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="text-[11px] hidden sm:inline">تعديل</span>
+                  </button>
+
                   {/* Toggle Active / Hide Button */}
                   <button
                     onClick={() => handleToggleStatus(c)}
@@ -375,6 +390,18 @@ export function TeacherClassroomsClient({
               ...prev.filter((c) => c.id !== created.id),
             ]);
           }
+          refresh();
+        }}
+      />
+
+      <EditClassroomModal
+        classroom={classroomToEdit}
+        isOpen={Boolean(classroomToEdit)}
+        onClose={() => setClassroomToEdit(null)}
+        onSuccess={(updated) => {
+          setClassrooms((prev) =>
+            prev.map((c) => (c.id === updated.id ? { ...c, ...updated } : c))
+          );
           refresh();
         }}
       />
