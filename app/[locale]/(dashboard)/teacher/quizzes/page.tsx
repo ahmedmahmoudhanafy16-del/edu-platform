@@ -49,27 +49,36 @@ export default async function TeacherQuizzesPage({
     classrooms = [{ id: 'class-math-3', name: 'الصف الثالث الإعدادي - رياضيات' }];
   }
 
-  const formatted = (quizzes || []).map((q) => ({
-    id: q.id || 'quiz-1',
-    title: q.title || 'اختبار تقييمي',
-    type: q.type || 'WEEKLY',
-    duration: q.duration ?? 20,
-    passingScore: q.passingScore ?? 60,
-    accessCode: q.accessCode || 'QUIZ-MATH-2026',
-    isCodeRequired: q.isCodeRequired !== false,
-    isPublished: q.isPublished !== false,
-    classroomName: q.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
-    classroomId: q.classroomId || classrooms[0]?.id || 'class-1',
-    questionsCount: q.questions?.length ?? 0,
-    resultsCount: q.results?.length ?? 0,
-    questions: (q.questions || []).map((qn: any) => ({
+  const formatted = (quizzes || []).map((q) => {
+    const questionsList = (q.questions || []).map((qn: any) => ({
       id: qn.id || 'qn-1',
       text: qn.text || '',
       type: qn.type || 'MCQ',
       options: qn.options || '[]',
       correctAnswer: qn.correctAnswer || '',
-    })),
-  }));
+      maxScore: Number(qn.maxScore) || 5,
+    }));
+    const totalScore = questionsList.length > 0
+      ? questionsList.reduce((acc: number, qn: any) => acc + (Number(qn.maxScore) || 0), 0)
+      : 10;
+
+    return {
+      id: q.id || 'quiz-1',
+      title: q.title || 'اختبار تقييمي',
+      type: q.type || 'WEEKLY',
+      duration: q.duration ?? 20,
+      passingScore: q.passingScore ?? 60,
+      accessCode: q.accessCode || 'QUIZ-MATH-2026',
+      isCodeRequired: q.isCodeRequired !== false,
+      isPublished: q.isPublished !== false,
+      classroomName: q.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
+      classroomId: q.classroomId || classrooms[0]?.id || 'class-1',
+      questionsCount: questionsList.length,
+      resultsCount: q.results?.length ?? 0,
+      totalScore,
+      questions: questionsList,
+    };
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">

@@ -843,7 +843,30 @@ export async function updateQuiz(
       }
     }
 
-    // 6. Cache revalidation across all routes and layouts
+    // 6. Refetch full quiz with latest questions and scores
+    let finalQuiz = updatedQuiz;
+    try {
+      const refreshed = await prisma.quiz.findUnique({
+        where: { id: quizId },
+        include: { questions: true, classroom: true },
+      });
+      if (refreshed) {
+        finalQuiz = refreshed;
+      }
+    } catch (rErr) {}
+
+    // Update in-memory store if present
+    if (memoryQuizzes) {
+      const mIdx = memoryQuizzes.findIndex((m: any) => m.id === quizId);
+      if (mIdx !== -1) {
+        memoryQuizzes[mIdx] = {
+          ...memoryQuizzes[mIdx],
+          ...finalQuiz,
+        };
+      }
+    }
+
+    // 7. Cache revalidation across all routes and layouts
     try {
       revalidatePath('/[locale]/teacher');
       revalidatePath('/teacher');
@@ -868,8 +891,8 @@ export async function updateQuiz(
 
     return {
       success: true,
-      quiz: updatedQuiz,
-      accessCode: updatedQuiz.accessCode,
+      quiz: finalQuiz,
+      accessCode: finalQuiz.accessCode,
       message: 'تم تحديث بيانات الامتحان بنجاح',
     };
   } catch (error: any) {

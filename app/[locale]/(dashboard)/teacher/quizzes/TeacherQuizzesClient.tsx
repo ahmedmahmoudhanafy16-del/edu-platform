@@ -94,7 +94,15 @@ export function TeacherQuizzesClient({
       const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
 
       initialQuizzes.forEach((sq) => {
-        if (!deletedSet.has(sq.id) && !localMap.has(sq.id)) {
+        const local = localMap.get(sq.id);
+        if (local) {
+          localMap.set(sq.id, {
+            ...local,
+            ...sq,
+            totalScore: sq.totalScore ?? local.totalScore,
+            questions: (sq.questions && sq.questions.length > 0) ? sq.questions : (local.questions || []),
+          });
+        } else if (!deletedSet.has(sq.id)) {
           localMap.set(sq.id, sq);
         }
       });
@@ -146,8 +154,15 @@ export function TeacherQuizzesClient({
           type: qn.type || 'MCQ',
           options: stringifiedOpts,
           correctAnswer: qn.correctAnswer || null,
+          maxScore: Number(qn.maxScore) || 5,
         };
       });
+
+      const computedTotal = Number(savedQuiz.totalScore) || (
+        formattedQuestions.length > 0
+          ? formattedQuestions.reduce((acc: number, q: any) => acc + (Number(q.maxScore) || 0), 0)
+          : 10
+      );
 
       const formatted: QuizItem = {
         id: savedQuiz.id,
@@ -162,6 +177,7 @@ export function TeacherQuizzesClient({
         classroomId: savedQuiz.classroomId || classrooms[0]?.id || 'class-1',
         questionsCount: formattedQuestions.length,
         resultsCount: savedQuiz.results?.length || 0,
+        totalScore: computedTotal,
         questions: formattedQuestions,
       };
 
@@ -188,7 +204,13 @@ export function TeacherQuizzesClient({
   }
 
   function handleEdit(quiz: QuizItem) {
-    setQuizToEdit(quiz);
+    const computedTotal = (quiz.questions && quiz.questions.length > 0)
+      ? quiz.questions.reduce((acc: number, q: any) => acc + (Number(q.maxScore) || 0), 0)
+      : (quiz.totalScore || 10);
+    setQuizToEdit({
+      ...quiz,
+      totalScore: computedTotal,
+    });
     setModalOpen(true);
   }
 
@@ -374,7 +396,11 @@ export function TeacherQuizzesClient({
 
               {/* Stats Metrics Strip */}
               {(() => {
-                const totalScore = (q as any).totalScore || q.questions?.reduce((acc: number, cur: any) => acc + (Number(cur.maxScore) || 5), 0) || (q.questionsCount * 5) || 10;
+                const totalScore = (q as any).totalScore || (
+                  q.questions && q.questions.length > 0
+                    ? q.questions.reduce((acc: number, cur: any) => acc + (Number(cur.maxScore) || 0), 0)
+                    : 10
+                );
                 return (
                   <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
                     <div>

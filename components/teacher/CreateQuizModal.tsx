@@ -280,8 +280,8 @@ export function CreateQuizModal({
         console.warn('Server action skipped / relaxed:', actionErr);
       }
 
-      const returnedQuiz = res?.quiz || {
-        id: isEditing && quizToEdit?.id ? quizToEdit.id : `quiz-${Date.now()}`,
+      const returnedQuiz = {
+        id: isEditing && quizToEdit?.id ? quizToEdit.id : (res?.quiz?.id || `quiz-${Date.now()}`),
         title: title.trim(),
         classroomId,
         type,
@@ -290,6 +290,7 @@ export function CreateQuizModal({
         accessCode: accessCode.trim().toUpperCase(),
         isCodeRequired,
         isPublished: true,
+        ...(res?.quiz || {}),
         totalScore: computedTotalScore,
         questions: validQuestions,
       };
