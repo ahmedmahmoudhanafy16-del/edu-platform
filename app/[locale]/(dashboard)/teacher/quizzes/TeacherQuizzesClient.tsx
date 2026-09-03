@@ -41,12 +41,14 @@ export interface QuizItem {
   classroomId: string;
   questionsCount: number;
   resultsCount: number;
+  totalScore?: number;
   questions: {
     id: string;
     text: string;
     type: string;
     options: string;
     correctAnswer: string | null;
+    maxScore?: number;
   }[];
 }
 
@@ -371,20 +373,29 @@ export function TeacherQuizzesClient({
               )}
 
               {/* Stats Metrics Strip */}
-              <div className="grid grid-cols-3 gap-2 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
-                <div>
-                  <p className="text-n-400">الأسئلة</p>
-                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
-                </div>
-                <div>
-                  <p className="text-n-400">المدة</p>
-                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.duration} دقيقة</p>
-                </div>
-                <div>
-                  <p className="text-n-400">الممتحنون</p>
-                  <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.resultsCount} طالب</p>
-                </div>
-              </div>
+              {(() => {
+                const totalScore = (q as any).totalScore || q.questions?.reduce((acc: number, cur: any) => acc + (Number(cur.maxScore) || 5), 0) || (q.questionsCount * 5) || 10;
+                return (
+                  <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
+                    <div>
+                      <p className="text-n-400">الأسئلة</p>
+                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-n-400">الدرجة الكلية</p>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{totalScore} درجات</p>
+                    </div>
+                    <div>
+                      <p className="text-n-400">المدة</p>
+                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.duration} دقيقة</p>
+                    </div>
+                    <div>
+                      <p className="text-n-400">الممتحنون</p>
+                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.resultsCount} طالب</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Bottom Actions */}
               <div className="flex items-center justify-between gap-2">

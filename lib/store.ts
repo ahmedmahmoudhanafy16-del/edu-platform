@@ -30,6 +30,7 @@ export interface QuizData {
   questions?: QuestionData[];
   shuffleQuestions?: boolean;
   maxViolations?: number;
+  totalScore?: number;
   createdAt?: string;
 }
 
@@ -194,6 +195,7 @@ export function saveQuiz(quiz: Partial<QuizData> & { id: string; title: string }
     questions: quiz.questions || [],
     shuffleQuestions: quiz.shuffleQuestions ?? false,
     maxViolations: quiz.maxViolations ?? 3,
+    totalScore: (quiz as any).totalScore || quiz.questions?.reduce((acc: number, cur: any) => acc + (Number(cur.maxScore) || 5), 0) || 10,
     createdAt: quiz.createdAt || new Date().toISOString(),
   };
 

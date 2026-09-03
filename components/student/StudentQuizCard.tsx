@@ -90,6 +90,12 @@ export function StudentQuizCard({
               <BarChart3 className="h-3.5 w-3.5 text-n-400" strokeWidth={1.75} />
               نجاح {quiz.passingScore}%
             </span>
+            {((quiz as any).totalScore || (quiz as any).maxScore) && (
+              <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                <Trophy className="h-3.5 w-3.5 text-emerald-500" />
+                {(quiz as any).totalScore || (quiz as any).maxScore} درجات
+              </span>
+            )}
           </div>
 
           {isCompleted ? (

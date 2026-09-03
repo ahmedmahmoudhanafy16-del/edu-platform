@@ -49,6 +49,7 @@ export function CreateQuizModal({
   const [passingScore, setPassingScore] = useState(60);
   const [accessCode, setAccessCode] = useState('QUIZ-MATH-2026');
   const [isCodeRequired, setIsCodeRequired] = useState(true);
+  const [totalScore, setTotalScore] = useState<number>(10);
   const [loading, setLoading] = useState(false);
 
   const [questions, setQuestions] = useState([
@@ -57,7 +58,7 @@ export function CreateQuizModal({
       type: 'MCQ',
       options: ['', '', '', ''],
       correctAnswer: '',
-      maxScore: 5,
+      maxScore: 10,
     },
   ]);
 
@@ -89,10 +90,12 @@ export function CreateQuizModal({
               type: q.type || 'MCQ',
               options: opts.length >= 2 ? opts : ['', '', '', ''],
               correctAnswer: q.correctAnswer || '',
-              maxScore: q.maxScore || 5,
+              maxScore: Number(q.maxScore) || 5,
             };
           });
           setQuestions(parsedQuestions);
+          const computedTotal = parsedQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0);
+          setTotalScore(Number(computedTotal.toFixed(1)) || 10);
         } else {
           setQuestions([
             {
@@ -100,9 +103,10 @@ export function CreateQuizModal({
               type: 'MCQ',
               options: ['', '', '', ''],
               correctAnswer: '',
-              maxScore: 5,
+              maxScore: 10,
             },
           ]);
+          setTotalScore(10);
         }
       } else {
         // Reset defaults for new quiz
@@ -114,13 +118,14 @@ export function CreateQuizModal({
         const randomNum = Math.floor(1000 + Math.random() * 9000);
         setAccessCode(`QUIZ-MATH-${randomNum}`);
         setIsCodeRequired(true);
+        setTotalScore(10);
         setQuestions([
           {
             text: '',
             type: 'MCQ',
             options: ['', '', '', ''],
             correctAnswer: '',
-            maxScore: 5,
+            maxScore: 10,
           },
         ]);
       }
@@ -134,6 +139,43 @@ export function CreateQuizModal({
     const code = `QUIZ-MATH-${randomNum}`;
     setAccessCode(code);
     toast.info(`تم توليد كود جديد: ${code}`);
+  }
+
+  function handleTotalScoreChange(newVal: number) {
+    const validTotal = Math.max(1, newVal);
+    setTotalScore(validTotal);
+    if (questions.length > 0) {
+      const perQuestion = Number((validTotal / questions.length).toFixed(1));
+      setQuestions((prev) =>
+        prev.map((q) => ({
+          ...q,
+          maxScore: perQuestion,
+        }))
+      );
+    }
+  }
+
+  function handleQuestionScoreChange(idx: number, newScore: number) {
+    const validScore = Math.max(0.5, newScore);
+    setQuestions((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], maxScore: validScore };
+      const newTotal = copy.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0);
+      setTotalScore(Number(newTotal.toFixed(1)));
+      return copy;
+    });
+  }
+
+  function distributeScoreEqually() {
+    if (questions.length === 0) return;
+    const perQ = Number((totalScore / questions.length).toFixed(1));
+    setQuestions((prev) =>
+      prev.map((q) => ({
+        ...q,
+        maxScore: perQ,
+      }))
+    );
+    toast.success(`تم توزيع ${totalScore} درجات بالتساوي (${perQ} درجة لكل سؤال)`);
   }
 
   function updateQuestionText(idx: number, text: string) {
@@ -161,16 +203,21 @@ export function CreateQuizModal({
   }
 
   function addQuestion() {
-    setQuestions((prev) => [
-      ...prev,
-      {
-        text: '',
-        type: 'MCQ',
-        options: ['', '', '', ''],
-        correctAnswer: '',
-        maxScore: 5,
-      },
-    ]);
+    const newCount = questions.length + 1;
+    const perQ = Number((totalScore / newCount).toFixed(1));
+    setQuestions((prev) => {
+      const updated = prev.map((q) => ({ ...q, maxScore: perQ }));
+      return [
+        ...updated,
+        {
+          text: '',
+          type: 'MCQ',
+          options: ['', '', '', ''],
+          correctAnswer: '',
+          maxScore: perQ,
+        },
+      ];
+    });
   }
 
   function removeQuestion(idx: number) {
@@ -178,7 +225,14 @@ export function CreateQuizModal({
       toast.error('يجب أن يحتوي الامتحان على سؤال واحد على الأقل');
       return;
     }
-    setQuestions((prev) => prev.filter((_, i) => i !== idx));
+    const remaining = questions.filter((_, i) => i !== idx);
+    const perQ = Number((totalScore / remaining.length).toFixed(1));
+    setQuestions(
+      remaining.map((q) => ({
+        ...q,
+        maxScore: perQ,
+      }))
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -195,6 +249,14 @@ export function CreateQuizModal({
 
     setLoading(true);
     try {
+      const validQuestions = questions
+        .filter((q) => q.text.trim() !== '')
+        .map((q) => ({
+          ...q,
+          maxScore: Number(q.maxScore) || 5,
+        }));
+      const computedTotalScore = validQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || totalScore;
+
       const payload = {
         title: title.trim(),
         classroomId: classroomId || undefined,
@@ -203,7 +265,8 @@ export function CreateQuizModal({
         passingScore: Number(passingScore) || 60,
         accessCode: accessCode ? accessCode.trim().toUpperCase() : 'QUIZ-MATH-2026',
         isCodeRequired,
-        questions: questions.filter((q) => q.text.trim() !== ''),
+        totalScore: computedTotalScore,
+        questions: validQuestions,
       };
 
       let res: any = null;
@@ -227,7 +290,8 @@ export function CreateQuizModal({
         accessCode: accessCode.trim().toUpperCase(),
         isCodeRequired,
         isPublished: true,
-        questions: questions.filter((q) => q.text.trim() !== ''),
+        totalScore: computedTotalScore,
+        questions: validQuestions,
       };
 
       saveQuiz(returnedQuiz as any);
@@ -244,6 +308,14 @@ export function CreateQuizModal({
       onClose();
     } catch (err: any) {
       console.warn('Quiz submit fallback to store:', err);
+      const validQuestions = questions
+        .filter((q) => q.text.trim() !== '')
+        .map((q) => ({
+          ...q,
+          maxScore: Number(q.maxScore) || 5,
+        }));
+      const computedTotalScore = validQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || totalScore;
+
       const fallbackQuiz = {
         id: isEditing && quizToEdit?.id ? quizToEdit.id : `quiz-${Date.now()}`,
         title: title.trim(),
@@ -254,7 +326,8 @@ export function CreateQuizModal({
         accessCode: accessCode.trim().toUpperCase(),
         isCodeRequired,
         isPublished: true,
-        questions: questions.filter((q) => q.text.trim() !== ''),
+        totalScore: computedTotalScore,
+        questions: validQuestions,
       };
       saveQuiz(fallbackQuiz as any);
       toast.success(`تم حفظ امتحان "${title}" بنجاح!`);
@@ -308,7 +381,7 @@ export function CreateQuizModal({
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
                 الفصل الدراسي:
@@ -327,6 +400,28 @@ export function CreateQuizModal({
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1 flex items-center justify-between">
+                <span>الدرجة الكلية للامتحان:</span>
+              </label>
+              <div className="relative">
+                <Input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  step="0.5"
+                  required
+                  value={totalScore}
+                  onChange={(e) => handleTotalScoreChange(Number(e.target.value))}
+                  className="font-bold text-emerald-600 dark:text-emerald-400 pl-12 h-9 text-xs"
+                  placeholder="10"
+                />
+                <span className="absolute left-2.5 top-2 text-[11px] font-bold text-slate-400 pointer-events-none">
+                  درجة
+                </span>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
                 المدة (بالدقائق):
               </label>
@@ -336,6 +431,7 @@ export function CreateQuizModal({
                 max="180"
                 value={duration}
                 onChange={(e) => setDuration(Number(e.target.value))}
+                className="h-9 text-xs"
               />
             </div>
 
@@ -349,6 +445,7 @@ export function CreateQuizModal({
                 max="100"
                 value={passingScore}
                 onChange={(e) => setPassingScore(Number(e.target.value))}
+                className="h-9 text-xs"
               />
             </div>
           </div>
@@ -402,20 +499,38 @@ export function CreateQuizModal({
 
           {/* Questions Editor */}
           <div className="space-y-4 pt-2">
-            <div className="flex items-center justify-between border-b border-n-100 pb-2">
-              <h4 className="text-xs font-bold text-n-800 dark:text-n-700">
-                بنك الأسئلة والخيارات ({questions.length})
-              </h4>
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                onClick={addQuestion}
-                className="text-xs flex items-center gap-1"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                إضافة سؤال
-              </Button>
+            <div className="flex items-center justify-between border-b border-n-100 dark:border-n-200/60 pb-2.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h4 className="text-xs font-bold text-n-800 dark:text-n-700">
+                  بنك الأسئلة والخيارات ({questions.length})
+                </h4>
+                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold">
+                  إجمالي الدرجات: {totalScore} درجة
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={distributeScoreEqually}
+                  className="text-[11px] h-7 px-2.5 flex items-center gap-1 text-slate-600 dark:text-slate-300"
+                  title="توزيع الدرجة الكلية بالتساوي على جميع الأسئلة"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-500" />
+                  توزيع بالتساوي
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={addQuestion}
+                  className="text-xs flex items-center gap-1 h-7"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  إضافة سؤال
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -424,16 +539,35 @@ export function CreateQuizModal({
                   key={qIdx}
                   className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50/50 dark:bg-n-200/50 space-y-3 relative group"
                 >
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 border-b border-n-100 dark:border-n-200/60 pb-2">
                     <span className="text-xs font-bold text-accent">السؤال رقم {qIdx + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => removeQuestion(qIdx)}
-                      className="text-bad hover:text-bad/80 p-1 rounded-md hover:bg-bad-light transition-colors"
-                      title="حذف هذا السؤال"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 bg-white dark:bg-n-100 px-2 py-0.5 rounded-lg border border-n-200 dark:border-n-300 shadow-sm">
+                        <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                          درجة السؤال:
+                        </label>
+                        <input
+                          type="number"
+                          min="0.5"
+                          max="100"
+                          step="0.5"
+                          value={q.maxScore}
+                          onChange={(e) => handleQuestionScoreChange(qIdx, Number(e.target.value))}
+                          className="w-12 h-6 text-center font-bold text-xs rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 outline-none focus:border-emerald-500"
+                        />
+                        <span className="text-[11px] text-slate-400 font-medium">درجة</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeQuestion(qIdx)}
+                        className="text-bad hover:text-bad/80 p-1 rounded-md hover:bg-bad-light transition-colors"
+                        title="حذف هذا السؤال"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <div>
