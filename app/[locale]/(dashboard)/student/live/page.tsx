@@ -43,7 +43,7 @@ export default async function StudentLivePage({
       </div>
 
       {/* Embedded Live Classroom Window */}
-      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-black aspect-video shadow-sm">
+      <div className="w-full h-[72vh] sm:h-[82vh] rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-black shadow-lg">
         <LiveClassroom
           roomCode={room}
           userName={displayName}

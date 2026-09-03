@@ -19,7 +19,7 @@ export default function LiveClassroom({
   const roomName = `EduPlatform_LiveClass_${roomCode}`;
 
   return (
-    <div className="w-full h-[85vh] rounded-2xl overflow-hidden border border-n-200 shadow-xl bg-slate-900">
+    <div className="w-full h-full min-h-[500px] rounded-2xl overflow-hidden border border-n-200 shadow-xl bg-slate-900">
       <JitsiMeeting
         domain="meet.jit.si"
         roomName={roomName}
@@ -29,11 +29,14 @@ export default function LiveClassroom({
           disableModeratorIndicator: false,
           enableEmailInStats: false,
           prejoinPageEnabled: false,
+          disableDeepLinking: true,
+          enableWelcomePage: false,
           defaultLanguage: "ar",
         }}
         interfaceConfigOverwrite={{
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
+          MOBILE_APP_PROMO: false,
           DEFAULT_BACKGROUND: "#18180F",
           TOOLBAR_BUTTONS: isTeacher
             ? [
