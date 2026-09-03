@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
-import { toStandardDigits } from '@/actions/auth';
+import { toStandardDigits, verifyStudentCredentials } from '@/actions/auth';
 
 export default function RootLoginPage() {
   const params = useParams();
@@ -48,58 +48,16 @@ export default function RootLoginPage() {
       return;
     }
 
-    let matchedLocal = null;
     try {
-      const stored = localStorage.getItem('edu_students');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          matchedLocal = parsed.find(
-            (s: any) =>
-              (s.studentCode && s.studentCode.toUpperCase() === cleanCode.toUpperCase()) ||
-              (s.phone && s.phone === cleanCode)
-          );
-        }
-      }
-    } catch {}
+      const result = await verifyStudentCredentials(cleanCode, cleanPass);
 
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentCode: cleanCode,
-          password: cleanPass,
-          role: 'STUDENT',
-          localStudent: matchedLocal,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (data.error === 'SUSPENDED' || res.status === 403) {
+      if (!result.success) {
+        if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
           router.push(`/${locale}/suspended`);
           return;
         }
-        setError(data.error || data.message || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
+        setError(result.error || (isAr ? 'كود الطالب أو كلمة المرور غير صحيحة' : 'Invalid student code or password'));
         return;
-      }
-
-      if (typeof window !== 'undefined' && data.user) {
-        try {
-          localStorage.setItem('current_student', JSON.stringify(data.user));
-          sessionStorage.setItem('userRole', 'student');
-          const sessionPayload = {
-            id: data.user.id || data.user.studentCode,
-            name: data.user.name,
-            role: 'STUDENT',
-            studentCode: data.user.studentCode,
-            phone: data.user.phone,
-            grade: data.user.grade || 'الصف الثالث الإعدادي',
-            isActive: true,
-          };
-          document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-        } catch {}
       }
 
       router.push(`/${locale}/student`);

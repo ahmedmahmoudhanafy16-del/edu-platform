@@ -6,7 +6,7 @@ import { Lock, Mail, KeyRound, GraduationCap, Users, Eye, EyeOff } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
-import { normalizeArabic, toStandardDigits } from '@/actions/auth';
+import { normalizeArabic, toStandardDigits, verifyStudentCredentials } from '@/actions/auth';
 
 export function LoginForm() {
   const params = useParams();
@@ -44,131 +44,16 @@ export function LoginForm() {
     setLoading(true);
 
     try {
-      // 1. Fetch live dynamic students from local store
-      let studentsList: any[] = [];
-      try {
-        const stored = localStorage.getItem('edu_students');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            studentsList = parsed;
-          }
-        }
-      } catch (err) {
-        console.error('Storage error:', err);
-      }
+      const result = await verifyStudentCredentials(inputIdentifier, inputPin);
 
-      // 2. Fallback to default initial students if storage is empty
-      if (!studentsList || studentsList.length === 0) {
-        studentsList = DEFAULT_INITIAL_STUDENTS;
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('edu_students', JSON.stringify(DEFAULT_INITIAL_STUDENTS));
-        }
-      }
-
-      // 3. Match against Code, Phone, Name, or ID (flexible & case-insensitive)
-      const normalizedInput = normalizeArabic(inputIdentifier);
-      let student = studentsList.find((s: any) => {
-        const sCode = toStandardDigits((s.studentCode || s.code || '').toString().trim().toLowerCase());
-        const sPhone = toStandardDigits((s.phone || '').toString().trim().toLowerCase());
-        const sName = (s.name || '').toString().trim().toLowerCase();
-        const sId = (s.id || '').toString().trim().toLowerCase();
-        const sNameNorm = normalizeArabic(s.name || '');
-
-        const matchCode = sCode === inputIdentifier;
-        const matchPhone = sPhone === inputIdentifier || sPhone === toStandardDigits(studentIdentifier.trim());
-        const matchName =
-          sName === inputIdentifier ||
-          (sNameNorm && (sNameNorm === normalizedInput || sNameNorm.includes(normalizedInput)));
-        const matchId = sId === inputIdentifier;
-
-        return matchCode || matchPhone || matchName || matchId;
-      });
-
-      if (!student) {
-        student = DEFAULT_INITIAL_STUDENTS.find((s: any) => {
-          const sCode = toStandardDigits((s.studentCode || s.code || '').toString().trim().toLowerCase());
-          const sPhone = toStandardDigits((s.phone || '').toString().trim().toLowerCase());
-          const sName = (s.name || '').toString().trim().toLowerCase();
-          const sNameNorm = normalizeArabic(s.name || '');
-          return sCode === inputIdentifier || sPhone === inputIdentifier || sName === inputIdentifier || sNameNorm === normalizedInput;
-        });
-      }
-
-      if (!student) {
-        try {
-          const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              studentCode: inputIdentifier,
-              password: inputPin,
-              role: 'STUDENT',
-            }),
-          });
-          const data = await res.json().catch(() => ({}));
-          if (res.ok && data.user) {
-            student = data.user;
-          } else {
-            setError(isAr ? 'كود الطالب أو رقم الهاتف غير مسجل في المنصة' : 'Student code or phone not registered');
-            setLoading(false);
-            return;
-          }
-        } catch {
-          setError(isAr ? 'كود الطالب أو رقم الهاتف غير مسجل في المنصة' : 'Student code or phone not registered');
-          setLoading(false);
+      if (!result.success) {
+        if (result.error?.includes('تعليق') || result.error?.includes('محظور')) {
+          router.push(`/${locale}/suspended`);
           return;
         }
-      }
-
-      if (student.isActive === false) {
-        router.push(`/${locale}/suspended`);
+        setError(result.error || (isAr ? 'كلمة المرور غير صحيحة، يرجى كتابة الرمز الخاص بحسابك' : 'Invalid credentials'));
         return;
       }
-
-      // 4. Password Match (accepts student assigned PIN, 3293, or 1234)
-      const expectedPin = toStandardDigits(String(student.password || '').trim());
-      const expectedDefPin = toStandardDigits(String(student.defaultPassword || '').trim());
-
-      const isPinValid =
-        (expectedPin && inputPin === expectedPin) ||
-        (expectedDefPin && inputPin === expectedDefPin) ||
-        inputPin === '1234';
-
-      if (!isPinValid) {
-        setError(isAr ? 'كلمة المرور غير صحيحة، يرجى كتابة الرمز الخاص بحسابك' : 'Incorrect password, please enter your assigned PIN');
-        setLoading(false);
-        return;
-      }
-
-      // 5. Save Authenticated Session and Direct Redirect
-      try {
-        localStorage.setItem('current_student', JSON.stringify(student));
-        sessionStorage.setItem('userRole', 'student');
-
-        const sessionPayload = {
-          id: student.id || student.studentCode || student.code,
-          name: student.name,
-          role: 'STUDENT',
-          studentCode: student.studentCode || student.code,
-          phone: student.phone,
-          grade: student.grade || student.gradeLevel || 'الصف الثالث الإعدادي',
-          isActive: true,
-        };
-        document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-      } catch (e) {}
-
-      // Ping server route in background to synchronize session cookies
-      fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentCode: student.studentCode || student.code || inputIdentifier,
-          password: inputPin,
-          role: 'STUDENT',
-          localStudent: student,
-        }),
-      }).catch(() => {});
 
       router.push(`/${locale}/student`);
     } catch (err) {
