@@ -2,6 +2,7 @@ import nextDynamic from 'next/dynamic';
 import { prisma } from '@/lib/prisma';
 import { ShieldCheck } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -23,8 +24,14 @@ export default async function StudentLivePage({
   const locale = resolvedParams?.locale || 'ar';
 
   const student = await getAuthenticatedStudent();
-  const room = resolvedSearch?.room || 'LIVE-MATH1';
-  const displayName = resolvedSearch?.name || student?.name || 'الطالب';
+  const room = resolvedSearch?.room || '';
+
+  if (!student) {
+    const returnPath = `/${locale}/student/live${room ? `?room=${encodeURIComponent(room)}` : ''}`;
+    redirect(`/${locale}/student-login?redirect=${encodeURIComponent(returnPath)}`);
+  }
+
+  const displayName = student.name || 'الطالب';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">

@@ -1,18 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { verifyStudentCredentials } from '@/actions/auth';
 
-export default function StudentLoginPage() {
+function StudentLoginForm() {
   const t = useTranslations('auth.studentLogin');
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect');
 
   const [studentIdentifier, setStudentIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -37,7 +39,11 @@ export default function StudentLoginPage() {
         return;
       }
 
-      router.push(`/${locale}/student`);
+      if (redirectUrl && (redirectUrl.startsWith(`/${locale}/student`) || redirectUrl.startsWith('/student') || redirectUrl.startsWith(`/${locale}`))) {
+        router.push(redirectUrl);
+      } else {
+        router.push(`/${locale}/student`);
+      }
     } catch {
       setError('حدث خطأ في الاتصال');
     } finally {
@@ -120,5 +126,13 @@ export default function StudentLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function StudentLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-slate-400">جاري التحميل...</div>}>
+      <StudentLoginForm />
+    </Suspense>
   );
 }
