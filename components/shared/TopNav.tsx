@@ -26,10 +26,13 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const base = `/${locale}/${role === 'TEACHER' ? 'teacher' : 'student'}`;
+  // Strict route isolation: Student pages can NEVER render teacher links
+  const isTeacherArea = pathname.includes('/teacher');
+  const effectiveRole = isTeacherArea ? 'TEACHER' : 'STUDENT';
+  const base = `/${locale}/${effectiveRole === 'TEACHER' ? 'teacher' : 'student'}`;
 
   const links: NavLink[] =
-    role === 'STUDENT'
+    effectiveRole === 'STUDENT'
       ? [
           { label: 'الرئيسية',       href: base },
           { label: 'الاختبارات',     href: `${base}/quizzes` },
@@ -51,7 +54,12 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
   const isActive = (href: string) =>
     href === base ? pathname === href : pathname.startsWith(href);
 
-  const initials = userName
+  const displayUserName =
+    effectiveRole === 'STUDENT'
+      ? (userName && !userName.includes('سارة') ? userName : 'الطالب')
+      : (userName || 'أ/ سارة أحمد');
+
+  const initials = displayUserName
     .trim()
     .split(' ')
     .slice(0, 2)
@@ -103,7 +111,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
                 <span className="text-[11px] font-bold text-accent-text leading-none">{initials}</span>
               </div>
               <span className="text-xs font-semibold text-n-700 dark:text-n-600 max-w-[110px] truncate">
-                {userName}
+                {displayUserName}
               </span>
               <Link
                 href={`/${locale}/logout`}
@@ -149,7 +157,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
                   <span className="text-[11px] font-bold text-accent-text">{initials}</span>
                 </div>
                 <span className="text-xs font-semibold text-n-700 dark:text-n-600 truncate max-w-[120px]">
-                  {userName}
+                  {displayUserName}
                 </span>
               </div>
               <Link
