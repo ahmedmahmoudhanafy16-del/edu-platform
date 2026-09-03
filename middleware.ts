@@ -8,7 +8,16 @@ const intlMiddleware = createMiddleware(routing);
 export default function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // Split path to find locale and target resource
+  // 1. Never intercept internal or static files
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+
+  // 2. Split path to find locale and target resource
   const segments = pathname.split('/');
   const hasLocalePrefix = routing.locales.includes(segments[1] as any);
   const locale = hasLocalePrefix ? segments[1] : routing.defaultLocale;
@@ -16,10 +25,29 @@ export default function middleware(req: NextRequest) {
     ? '/' + segments.slice(2).join('/')
     : pathname;
 
-  const isTeacherRoute = pathWithoutLocale.startsWith('/teacher');
-  const isStudentRoute = pathWithoutLocale.startsWith('/student');
+  // 3. Public Auth Pages: NEVER redirect or protect (Prevents infinite loops!)
+  if (
+    pathWithoutLocale === '' ||
+    pathWithoutLocale === '/' ||
+    pathWithoutLocale === '/student-login' ||
+    pathWithoutLocale.startsWith('/student-login/') ||
+    pathWithoutLocale === '/login' ||
+    pathWithoutLocale.startsWith('/login/') ||
+    pathWithoutLocale === '/logout' ||
+    pathWithoutLocale === '/suspended'
+  ) {
+    return intlMiddleware(req);
+  }
 
-  // Read session from user_session cookie
+  // 4. Strict route identification: Must be '/teacher/' or '/student/' (NOT '/student-login')
+  const isTeacherRoute = pathWithoutLocale === '/teacher' || pathWithoutLocale.startsWith('/teacher/');
+  const isStudentRoute = pathWithoutLocale === '/student' || pathWithoutLocale.startsWith('/student/');
+
+  if (!isTeacherRoute && !isStudentRoute) {
+    return intlMiddleware(req);
+  }
+
+  // 5. Read session safely
   const sessionCookie = req.cookies.get('user_session')?.value;
   let userSession: any = null;
   if (sessionCookie) {
@@ -32,7 +60,7 @@ export default function middleware(req: NextRequest) {
     }
   }
 
-  // 1. Guard Teacher Pages: Strictly TEACHER or ADMIN only
+  // 6. Guard Teacher Pages: Strictly TEACHER or ADMIN only
   if (isTeacherRoute) {
     if (!userSession || (userSession.role !== 'TEACHER' && userSession.role !== 'ADMIN')) {
       const loginUrl = new URL(`/${locale}/login`, req.url);
@@ -40,7 +68,7 @@ export default function middleware(req: NextRequest) {
     }
   }
 
-  // 2. Guard Student Pages: Strictly authenticated STUDENT only
+  // 7. Guard Student Pages: Strictly authenticated STUDENT only
   if (isStudentRoute) {
     if (!userSession || userSession.role !== 'STUDENT') {
       const returnTarget = pathname + search;
@@ -56,6 +84,6 @@ export default function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Match every path except: API routes, Next.js internals, static files, favicon
+  // Match every path except: API routes, Next.js internals, static files
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
