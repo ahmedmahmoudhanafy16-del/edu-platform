@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
             title: memMatch.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
             roomCode: memMatch.roomCode || 'LIVE-MATH1',
             isActive: true,
-            classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
+            classroom: { name: 'الصف الرابع الابتدائي' },
           },
         };
         isMemoryCode = true;

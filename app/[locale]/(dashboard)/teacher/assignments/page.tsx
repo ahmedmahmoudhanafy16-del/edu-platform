@@ -45,7 +45,7 @@ export default async function TeacherAssignmentsPage({
   }
 
   if (!classrooms || classrooms.length === 0) {
-    classrooms = [{ id: 'class-math-3', name: 'الصف الثالث الإعدادي - رياضيات' }];
+    classrooms = [{ id: 'class-science-4', name: 'الصف الرابع الابتدائي' }];
   }
 
   const serialized = (assignments || []).map((a) => ({

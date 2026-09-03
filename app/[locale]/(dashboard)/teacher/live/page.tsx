@@ -63,14 +63,6 @@ export default async function TeacherLivePage({
         teacherId,
         createdAt: new Date(),
       },
-      {
-        id: 'class-math-3',
-        name: 'الصف الثالث الإعدادي - رياضيات',
-        subject: 'الرياضيات',
-        code: 'MATH-301',
-        teacherId,
-        createdAt: new Date(),
-      },
     ];
   }
 
@@ -79,8 +71,8 @@ export default async function TeacherLivePage({
     title: s.title || 'حصة البث المباشر',
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: Boolean(s.isActive),
-    classroomId: s.classroomId || classrooms[0]?.id || 'class-1',
-    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات' },
+    classroomId: s.classroomId || classrooms[0]?.id || 'class-science-4',
+    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'الصف الرابع الابتدائي' },
     startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : new Date().toISOString(),
   }));
 
@@ -89,8 +81,8 @@ export default async function TeacherLivePage({
     title: s.title || 'حصة سابقة',
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: false,
-    classroomId: s.classroomId || classrooms[0]?.id || 'class-1',
-    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات' },
+    classroomId: s.classroomId || classrooms[0]?.id || 'class-science-4',
+    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'الصف الرابع الابتدائي' },
     startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : new Date().toISOString(),
     endedAt: s.endedAt ? new Date(s.endedAt).toISOString() : null,
   }));

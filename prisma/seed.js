@@ -168,41 +168,29 @@ async function main() {
     },
   });
 
-  // 4. Sample Classrooms
-  const class1 = await prisma.classroom.upsert({
-    where: { id: 'class-math-3a' },
-    update: {
-      name: 'فصل الرياضيات (3ع - أ)',
-      subject: 'رياضيات',
-      code: 'MATH3A',
-      teacherId: teacher.id,
+  // Clean up any legacy phantom math classrooms
+  await prisma.liveSession.deleteMany({
+    where: { classroom: { name: { contains: 'رياضيات' } } },
+  }).catch(() => null);
+  await prisma.assignment.deleteMany({
+    where: { classroom: { name: { contains: 'رياضيات' } } },
+  }).catch(() => null);
+  await prisma.quiz.deleteMany({
+    where: { classroom: { name: { contains: 'رياضيات' } } },
+  }).catch(() => null);
+  await prisma.enrollment.deleteMany({
+    where: { classroom: { name: { contains: 'رياضيات' } } },
+  }).catch(() => null);
+  await prisma.classroom.deleteMany({
+    where: {
+      OR: [
+        { id: { in: ['class-math-3a', 'class-math-3b', 'class-math-3', 'cmt61lblz0003imjgkclvkfdr'] } },
+        { name: { contains: 'رياضيات' } },
+      ],
     },
-    create: {
-      id: 'class-math-3a',
-      name: 'فصل الرياضيات (3ع - أ)',
-      subject: 'رياضيات',
-      code: 'MATH3A',
-      teacherId: teacher.id,
-    },
-  });
+  }).catch(() => null);
 
-  const class2 = await prisma.classroom.upsert({
-    where: { id: 'class-math-3b' },
-    update: {
-      name: 'فصل الرياضيات (3ع - ب)',
-      subject: 'رياضيات',
-      code: 'MATH3B',
-      teacherId: teacher.id,
-    },
-    create: {
-      id: 'class-math-3b',
-      name: 'فصل الرياضيات (3ع - ب)',
-      subject: 'رياضيات',
-      code: 'MATH3B',
-      teacherId: teacher.id,
-    },
-  });
-
+  // 4. Primary Classroom: الصف الرابع الابتدائي (Science)
   const classScience4 = await prisma.classroom.upsert({
     where: { id: 'class-science-4' },
     update: {
@@ -220,61 +208,25 @@ async function main() {
     },
   });
 
-  // 5. Enrollments
-  await prisma.enrollment.upsert({
-    where: {
-      userId_classroomId: {
-        userId: student003.id,
-        classroomId: classScience4.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: student003.id,
-      classroomId: classScience4.id,
-    },
-  });
-  await prisma.enrollment.upsert({
-    where: {
-      userId_classroomId: {
-        userId: student1.id,
-        classroomId: class1.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: student1.id,
-      classroomId: class1.id,
-    },
-  });
-
-  await prisma.enrollment.upsert({
-    where: {
-      userId_classroomId: {
-        userId: student633.id,
-        classroomId: class1.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: student633.id,
-      classroomId: class1.id,
-    },
-  });
-
-  await prisma.enrollment.upsert({
-    where: {
-      userId_classroomId: {
-        userId: student2.id,
-        classroomId: class1.id,
-      },
-    },
-    update: {},
-    create: {
-      userId: student2.id,
-      classroomId: class1.id,
-    },
-  });
+  // 5. Enrollments in الصف الرابع الابتدائي
+  const studentsToEnroll = [student003, student1, student633, student2, student645];
+  for (const s of studentsToEnroll) {
+    if (s && s.id) {
+      await prisma.enrollment.upsert({
+        where: {
+          userId_classroomId: {
+            userId: s.id,
+            classroomId: classScience4.id,
+          },
+        },
+        update: {},
+        create: {
+          userId: s.id,
+          classroomId: classScience4.id,
+        },
+      }).catch(() => null);
+    }
+  }
 
   // 6. Sample Quiz
   const quiz = await prisma.quiz.upsert({
@@ -286,7 +238,7 @@ async function main() {
       passingScore: 60,
       isPublished: true,
       accessCode: 'MATH2026',
-      classroomId: class1.id,
+      classroomId: classScience4.id,
     },
     create: {
       id: 'sample-quiz-1',
@@ -296,7 +248,7 @@ async function main() {
       passingScore: 60,
       isPublished: true,
       accessCode: 'MATH2026',
-      classroomId: class1.id,
+      classroomId: classScience4.id,
     },
   });
 
@@ -351,17 +303,17 @@ async function main() {
   await prisma.assignment.upsert({
     where: { id: 'sample-hw-1' },
     update: {
-      title: 'واجب الدرس الأول: الدوال الخطية',
-      description: 'حل تمارين كتاب الوزارة صفحة 14 و 15 كاملة وإرفاق صورة للحل.',
+      title: 'واجب مادة الساينس الأسبوعي',
+      description: 'حل تدريبات الدرس وإرفاق صورة للحل.',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      classroomId: class1.id,
+      classroomId: classScience4.id,
     },
     create: {
       id: 'sample-hw-1',
-      title: 'واجب الدرس الأول: الدوال الخطية',
-      description: 'حل تمارين كتاب الوزارة صفحة 14 و 15 كاملة وإرفاق صورة للحل.',
+      title: 'واجب مادة الساينس الأسبوعي',
+      description: 'حل تدريبات الدرس وإرفاق صورة للحل.',
       dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      classroomId: class1.id,
+      classroomId: classScience4.id,
     },
   });
 

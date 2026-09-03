@@ -49,7 +49,7 @@ export async function UnlockedSessions({
         title: m.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
         roomCode: m.roomCode || 'LIVE-MATH1',
         isActive: true,
-        classroom: { name: 'الصف الثالث الإعدادي - رياضيات' },
+        classroom: { name: 'الصف الرابع الابتدائي' },
       },
     }));
 

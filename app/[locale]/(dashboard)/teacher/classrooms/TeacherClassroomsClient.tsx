@@ -87,19 +87,21 @@ export function TeacherClassroomsClient({
 
       const map = new Map<string, ClassroomItem>();
 
-      // Load stored classrooms that are not deleted
-      localList.forEach((c) => {
-        if (c?.id && !deletedIds.has(c.id)) {
-          map.set(c.id, c);
-        }
-      });
-
-      // Merge server initialClassrooms that are not deleted
-      initialClassrooms.forEach((c) => {
-        if (c?.id && !deletedIds.has(c.id) && !map.has(c.id)) {
-          map.set(c.id, c);
-        }
-      });
+      if (localList.length > 0) {
+        // Authoritative client store
+        localList.forEach((c) => {
+          if (c?.id && !deletedIds.has(c.id)) {
+            map.set(c.id, c);
+          }
+        });
+      } else {
+        // First-time fallback from server
+        initialClassrooms.forEach((c) => {
+          if (c?.id && !deletedIds.has(c.id)) {
+            map.set(c.id, c);
+          }
+        });
+      }
 
       const allStudents = getStudentsFromStore();
       const allQuizzes = getQuizzes();

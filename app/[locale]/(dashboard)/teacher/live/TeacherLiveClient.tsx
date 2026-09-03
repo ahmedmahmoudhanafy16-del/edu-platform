@@ -47,14 +47,19 @@ export function TeacherLiveClient({
   initialSession?: any;
 }) {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const initialClass = classrooms[0];
+  const initialGradeMatch = initialClass?.name
+    ? ACADEMIC_GRADES.find((g) => initialClass.name.includes(g) || g.includes(initialClass.name))
+    : 'الصف الرابع الابتدائي';
+
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [classList, setClassList] = useState<any[]>(classrooms);
-  const [classroomId, setClassroomId] = useState(classrooms[0]?.id || '');
-  const [targetGrade, setTargetGrade] = useState(ACADEMIC_GRADES[0]);
+  const [classroomId, setClassroomId] = useState(initialClass?.id || '');
+  const [targetGrade, setTargetGrade] = useState(initialGradeMatch || 'الصف الرابع الابتدائي');
 
-  // Synchronize classrooms from localStorage and props
+  // Synchronize classrooms strictly matching /teacher/classrooms (Master Controller)
   useEffect(() => {
     function syncClassrooms() {
       try {
@@ -67,24 +72,31 @@ export function TeacherLiveClient({
           if (Array.isArray(parsed)) localList = parsed;
         }
 
-        const map = new Map<string, any>();
-        classrooms.forEach((c) => {
-          if (c?.id && !deletedIds.has(c.id)) {
-            map.set(c.id, c);
-          }
-        });
-        localList.forEach((c) => {
-          if (c?.id && !deletedIds.has(c.id)) {
-            map.set(c.id, c);
-          }
-        });
+        // The classrooms page (/teacher/classrooms) is the Master Controller.
+        // If localList is configured, use it exclusively so no phantom server fallbacks ever appear!
+        let effectiveList: any[] = [];
+        if (localList.length > 0) {
+          effectiveList = localList.filter((c) => c?.id && !deletedIds.has(c.id) && c.isActive !== false);
+        } else {
+          effectiveList = classrooms.filter((c) => c?.id && !deletedIds.has(c.id) && c.isActive !== false);
+        }
 
-        const merged = Array.from(map.values()).filter((c) => c.isActive !== false);
-        if (merged.length > 0) {
-          setClassList(merged);
+        if (effectiveList.length > 0) {
+          setClassList(effectiveList);
           setClassroomId((prev: string) => {
-            if (prev && merged.some((c) => c.id === prev)) return prev;
-            return merged[0].id;
+            const exists = effectiveList.some((c) => c.id === prev);
+            const chosenId = exists ? prev : effectiveList[0].id;
+
+            const chosenClass = effectiveList.find((c) => c.id === chosenId);
+            if (chosenClass?.name) {
+              const matchedGrade = ACADEMIC_GRADES.find(
+                (g) => chosenClass.name.includes(g) || g.includes(chosenClass.name)
+              );
+              if (matchedGrade) {
+                setTargetGrade(matchedGrade);
+              }
+            }
+            return chosenId;
           });
         }
       } catch (e) {
