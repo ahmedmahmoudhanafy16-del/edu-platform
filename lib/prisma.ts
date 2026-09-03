@@ -1,4 +1,33 @@
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
+
+// On Vercel / serverless runtime with SQLite: copy bundled dev.db to /tmp so SQLite is writable!
+if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  const currentDbUrl = process.env.DATABASE_URL || '';
+  if (!currentDbUrl || currentDbUrl.startsWith('file:')) {
+    const tmpDbPath = path.join('/tmp', 'dev.db');
+    if (!fs.existsSync(tmpDbPath)) {
+      const candidates = [
+        path.join(process.cwd(), 'prisma', 'dev.db'),
+        path.join(process.cwd(), 'dev.db'),
+        path.join(__dirname, '..', 'prisma', 'dev.db'),
+      ];
+      for (const cand of candidates) {
+        if (fs.existsSync(cand)) {
+          try {
+            fs.copyFileSync(cand, tmpDbPath);
+            console.log('[Prisma Init] Successfully copied dev.db to /tmp/dev.db');
+            break;
+          } catch (e) {}
+        }
+      }
+    }
+    if (fs.existsSync(tmpDbPath)) {
+      process.env.DATABASE_URL = 'file:/tmp/dev.db';
+    }
+  }
+}
 
 const globalForPrisma = global as unknown as {
   prisma?: PrismaClient;

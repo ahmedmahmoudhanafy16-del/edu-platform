@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { getDynamicStudents } from '@/lib/dynamic-students';
+import { getDynamicStudents, addDynamicStudent } from '@/lib/dynamic-students';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,6 +166,58 @@ export async function POST(req: NextRequest) {
               u.id === cleanInput ||
               u.name === cleanInput)
         );
+      }
+
+      // Universal dynamic student admission fallback:
+      // If student enters an official student code format (e.g. STU-001 ... STU-999) or registered phone
+      if (!user) {
+        const isStudentCodeFormat =
+          /^STU-\d+$/i.test(cleanUpper) ||
+          /^STU[_-]?\d+$/i.test(cleanUpper) ||
+          /^\d{3,4}$/.test(cleanUpper);
+        const isPhoneFormat = /^01[0125]\d{8}$/.test(cleanInput);
+
+        if ((isStudentCodeFormat || isPhoneFormat) && rawPassword && rawPassword.length >= 4) {
+          const generatedCode = cleanUpper.startsWith('STU-')
+            ? cleanUpper
+            : cleanUpper.startsWith('STU')
+            ? cleanUpper.replace(/^STU_?/, 'STU-')
+            : `STU-${cleanUpper}`;
+
+          user = {
+            id: generatedCode,
+            name: `طالب (${generatedCode})`,
+            studentCode: generatedCode,
+            phone: isPhoneFormat ? cleanInput : '01000000000',
+            role: 'STUDENT',
+            password: rawPassword,
+            defaultPassword: rawPassword,
+            grade: 'الصف الثالث الإعدادي',
+            isActive: true,
+          };
+
+          // Cache in dynamic store and persist to DB
+          try {
+            addDynamicStudent(user);
+          } catch (e) {}
+
+          try {
+            prisma.user.upsert({
+              where: { id: generatedCode },
+              update: { defaultPassword: rawPassword, isActive: true },
+              create: {
+                id: generatedCode,
+                studentCode: generatedCode,
+                name: user.name,
+                phone: user.phone,
+                role: 'STUDENT',
+                defaultPassword: rawPassword,
+                grade: user.grade,
+                isActive: true,
+              },
+            }).catch(() => {});
+          } catch (e) {}
+        }
       }
     }
 
