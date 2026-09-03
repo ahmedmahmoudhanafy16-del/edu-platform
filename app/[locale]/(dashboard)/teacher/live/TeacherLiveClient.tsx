@@ -182,51 +182,51 @@ export function TeacherLiveClient({
     return (
       <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
             <span className="font-bold text-slate-900 dark:text-white text-sm">بث مباشر نشط الآن</span>
             <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold">
               {targetGrade}
             </Badge>
+
             <span className="text-slate-400 text-xs">|</span>
-            <span className="text-slate-500 text-xs">كود الغرفة:</span>
-            <code className="bg-blue-50 dark:bg-slate-800 text-blue-700 dark:text-blue-300 font-bold font-mono px-3 py-1 rounded-md text-xs tracking-wider border border-blue-200 dark:border-slate-700">
-              {activeRoom}
-            </code>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(activeRoom);
-                toast.success('تم نسخ كود الغرفة');
-              }}
-              title="نسخ كود الغرفة فقط"
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-800 transition-colors"
-            >
-              <Copy className="h-3.5 w-3.5" />
-            </button>
+
+            {/* Direct Student Live URL Input & Copy Button exactly where circled */}
+            <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-slate-700">
+              <span className="text-blue-900 dark:text-blue-200 text-xs font-bold shrink-0">رابط الحصة:</span>
+              <input
+                type="text"
+                readOnly
+                value={typeof window !== 'undefined' ? `${window.location.origin}/ar/student/live?room=${activeRoom}` : `https://edu-platform-phi-pearl.vercel.app/ar/student/live?room=${activeRoom}`}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+                className="bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-300 font-mono text-xs px-2 py-0.5 rounded border border-blue-200 dark:border-slate-700 outline-none w-56 sm:w-72 select-all truncate font-semibold"
+                title="اضغط لتحديد الرابط كاملاً"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app';
+                  const link = `${origin}/ar/student/live?room=${activeRoom}`;
+                  navigator.clipboard.writeText(link);
+                  toast.success('تم نسخ رابط الحصة المباشرة بنجاح! 📋 جاهز للإرسال للطلاب وأولياء الأمور');
+                }}
+                title="نسخ الرابط المباشر للطلاب"
+                className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1 rounded transition-colors shrink-0 shadow-sm"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>نسخ الرابط</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              onClick={() => {
-                const origin = typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app';
-                const link = `${origin}/ar/student/live?room=${activeRoom}`;
-                navigator.clipboard.writeText(link);
-                toast.success('تم نسخ رابط انضمام الطلاب للحصة المباشرة بنجاح! 📋');
-              }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold gap-1.5"
-            >
-              <Copy className="h-3.5 w-3.5" />
-              نسخ رابط الطلاب
-            </Button>
-
             <a
               href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
                 `🔴 تنبيه بث مباشر الآن (${targetGrade})!\n\nرابط الدخول المباشر للحصة التفاعلية:\n${typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app'}/ar/student/live?room=${activeRoom}\n\nكود الغرفة: ${activeRoom}\nيرجى دخول الطلاب فوراً.`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors shadow-sm"
             >
               <MessageSquare className="h-3.5 w-3.5" />
               مشاركة على WhatsApp
