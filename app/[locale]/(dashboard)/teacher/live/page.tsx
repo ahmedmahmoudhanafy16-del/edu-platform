@@ -61,9 +61,28 @@ export default async function TeacherLivePage({
         subject: 'Science',
         code: 'LX2WJS',
         teacherId,
-        createdAt: new Date(),
+        isActive: true,
       },
     ];
+  }
+
+  const serializedClassrooms = classrooms.map((c) => ({
+    id: String(c.id || 'class-science-4'),
+    name: String(c.name || 'الصف الرابع الابتدائي'),
+    subject: String(c.subject || 'Science'),
+    code: String(c.code || 'LX2WJS'),
+    isActive: c.isActive !== false,
+  }));
+
+  function safeIsoString(dateVal: any): string {
+    if (!dateVal) return new Date().toISOString();
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return new Date().toISOString();
+      return d.toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
   }
 
   const serializedActive = (activeSessions || []).map((s) => ({
@@ -71,9 +90,9 @@ export default async function TeacherLivePage({
     title: s.title || 'حصة البث المباشر',
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: Boolean(s.isActive),
-    classroomId: s.classroomId || classrooms[0]?.id || 'class-science-4',
-    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'الصف الرابع الابتدائي' },
-    startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : new Date().toISOString(),
+    classroomId: s.classroomId || serializedClassrooms[0]?.id || 'class-science-4',
+    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || 'الصف الرابع الابتدائي' },
+    startedAt: safeIsoString(s.startedAt),
   }));
 
   const serializedPast = (pastSessions || []).map((s) => ({
@@ -81,10 +100,10 @@ export default async function TeacherLivePage({
     title: s.title || 'حصة سابقة',
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: false,
-    classroomId: s.classroomId || classrooms[0]?.id || 'class-science-4',
-    classroom: { name: s.classroom?.name || classrooms[0]?.name || 'الصف الرابع الابتدائي' },
-    startedAt: s.startedAt ? new Date(s.startedAt).toISOString() : new Date().toISOString(),
-    endedAt: s.endedAt ? new Date(s.endedAt).toISOString() : null,
+    classroomId: s.classroomId || serializedClassrooms[0]?.id || 'class-science-4',
+    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || 'الصف الرابع الابتدائي' },
+    startedAt: safeIsoString(s.startedAt),
+    endedAt: s.endedAt ? safeIsoString(s.endedAt) : null,
   }));
 
   return (
@@ -97,7 +116,7 @@ export default async function TeacherLivePage({
       </div>
 
       <TeacherLiveClient
-        classrooms={classrooms}
+        classrooms={serializedClassrooms}
         activeSessions={serializedActive}
         pastSessions={serializedPast}
         teacherName={teacherName}
