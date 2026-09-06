@@ -32,18 +32,41 @@ export function StudentDashboardQuizzesClient({
       const activeQuizzes = getStudentQuizzes();
       setQuizzes(activeQuizzes);
 
-      // 2. Sync student submissions
-      const activeSubmissions = getSubmissions(studentId);
+      // 2. Sync student submissions with dynamic student ID resolution
+      let currentTargetId = studentId;
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          if (parsed.studentCode || parsed.id) {
+            currentTargetId = parsed.studentCode || parsed.id;
+          }
+        }
+      } catch {}
+
+      let activeSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
+      if (!activeSubmissions || activeSubmissions.length === 0) {
+        const allSubs = getSubmissions();
+        const norm = (currentTargetId || '').trim().toUpperCase();
+        activeSubmissions = norm
+          ? allSubs.filter((s: any) => {
+              const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
+              return sId === norm;
+            })
+          : allSubs;
+      }
       setResults(activeSubmissions);
     }
 
     syncQuizzesAndResults();
 
     window.addEventListener('edu_store_updated', syncQuizzesAndResults);
+    window.addEventListener('edu_classrooms_updated', syncQuizzesAndResults);
     window.addEventListener('storage', syncQuizzesAndResults);
 
     return () => {
       window.removeEventListener('edu_store_updated', syncQuizzesAndResults);
+      window.removeEventListener('edu_classrooms_updated', syncQuizzesAndResults);
       window.removeEventListener('storage', syncQuizzesAndResults);
     };
   }, [studentId]);
