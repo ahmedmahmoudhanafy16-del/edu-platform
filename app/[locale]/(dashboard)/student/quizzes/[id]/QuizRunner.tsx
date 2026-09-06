@@ -532,7 +532,8 @@ export function QuizRunner({
         studentName={studentInfo.name}
         studentCode={studentInfo.studentCode}
         studentPhone={studentInfo.phone}
-        maxViolations={activeQuiz?.maxViolations ?? 3}
+        quizId={activeQuiz?.id || quiz?.id}
+        maxViolations={2}
         onViolation={(count) => setViolations(count)}
         onMaxViolationsExceeded={() => handleSubmit(true)}
         isActive={!submitted}
@@ -542,10 +543,10 @@ export function QuizRunner({
       <div className="flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold">
         <div className="flex items-center gap-1.5">
           <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>حماية الامتحان مفعّلة: ترتيب عشوائي للأسئلة والخيارات • حظر النسخ والتصوير • علامة مائية أمنية</span>
+          <span>حماية مشددة: الترتيب عشوائي • حظر مغادرة الصفحة • إنهاء فوري عند محاولة الغش</span>
         </div>
         <span className="text-[10px] font-mono text-emerald-600/80 dark:text-emerald-400/80 hidden sm:inline">
-          ID: {studentInfo.studentCode}
+          طالب: {studentInfo.studentCode}
         </span>
       </div>
 
@@ -559,9 +560,9 @@ export function QuizRunner({
         </div>
         <div className="flex items-center gap-3">
           {violations > 0 && (
-            <span className="flex items-center gap-1 text-xs text-warn bg-warn-light px-2 py-1 rounded border border-warn/20 font-bold">
+            <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 dark:bg-red-950/50 px-2 py-1 rounded border border-red-200 font-bold animate-pulse">
               <AlertTriangle className="h-3.5 w-3.5" />
-              {violations} مخالفة
+              {violations} مخالفة مسجلة
             </span>
           )}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-n-100 dark:bg-n-200 text-n-800 font-mono text-sm font-bold border border-n-200">
@@ -600,8 +601,14 @@ export function QuizRunner({
         />
       </div>
 
-      {/* Question Card */}
-      <div className="rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-5 shadow-sm">
+      {/* Question Card Wrapped with Secure Blanking Container */}
+      <div className="exam-secure-area-content rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-4 shadow-sm relative">
+        {/* Inline Student Identity Watermark Header */}
+        <div className="flex items-center justify-between pb-2 border-b border-n-100 dark:border-n-200 text-[11px] font-mono text-amber-700 dark:text-amber-400 font-bold select-none">
+          <span>🔒 نسخة امتحان خاصة بالطالب: {studentInfo.name} ({studentInfo.studentCode})</span>
+          <span>{studentInfo.phone ? `هاتف: ${studentInfo.phone}` : 'سري وخاص'}</span>
+        </div>
+
         <div className="flex items-start gap-3">
           <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
             {current + 1}
@@ -617,29 +624,34 @@ export function QuizRunner({
                 <label
                   key={i}
                   className={cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-lg border cursor-pointer text-sm font-medium transition-colors',
+                    'flex items-center justify-between gap-3 px-4 py-3 rounded-lg border cursor-pointer text-sm font-medium transition-colors',
                     isSelected
                       ? 'border-accent bg-accent-light text-accent-text font-bold'
                       : 'border-n-200 dark:border-n-300 hover:bg-n-50 dark:hover:bg-n-200 text-n-700 dark:text-n-600'
                   )}
                 >
-                  <input
-                    type="radio"
-                    name={`q-${q.id}`}
-                    value={opt}
-                    checked={isSelected}
-                    onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
-                    className="sr-only"
-                  />
-                  <span
-                    className={cn(
-                      'w-5 h-5 rounded border flex items-center justify-center text-[10px] font-bold shrink-0',
-                      isSelected ? 'border-accent bg-accent text-white' : 'border-n-300 text-n-400'
-                    )}
-                  >
-                    {i + 1}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name={`q-${q.id}`}
+                      value={opt}
+                      checked={isSelected}
+                      onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: opt }))}
+                      className="sr-only"
+                    />
+                    <span
+                      className={cn(
+                        'w-5 h-5 rounded border flex items-center justify-center text-[10px] font-bold shrink-0',
+                        isSelected ? 'border-accent bg-accent text-white' : 'border-n-300 text-n-400'
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                    <span>{opt}</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-400/60 dark:text-slate-500/60 select-none">
+                    {studentInfo.studentCode}
                   </span>
-                  <span>{opt}</span>
                 </label>
               );
             })}

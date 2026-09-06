@@ -6,6 +6,7 @@ interface ExamSecurityShieldProps {
   studentName?: string;
   studentCode?: string;
   studentPhone?: string;
+  quizId?: string;
   maxViolations?: number;
   onViolation?: (count: number) => void;
   onMaxViolationsExceeded?: () => void;
@@ -16,7 +17,8 @@ export function ExamSecurityShield({
   studentName = 'طالب مسجل',
   studentCode = 'STU-001',
   studentPhone = '',
-  maxViolations = 3,
+  quizId = 'default_quiz',
+  maxViolations = 2,
   onViolation,
   onMaxViolationsExceeded,
   isActive = true,
@@ -24,8 +26,9 @@ export function ExamSecurityShield({
   const [isBlurred, setIsBlurred] = useState(false);
   const [violations, setViolations] = useState(0);
   const [watermarkDate, setWatermarkDate] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState(0);
   const sessionTraceId = useId().replace(/[:]/g, '').slice(0, 6).toUpperCase();
+  const violationStorageKey = `edu_quiz_violations_${quizId}_${studentCode}`;
 
   useEffect(() => {
     setWatermarkDate(
@@ -37,39 +40,84 @@ export function ExamSecurityShield({
         minute: '2-digit',
       })
     );
-  }, []);
+
+    // Restore persistent violations from storage
+    try {
+      const stored = localStorage.getItem(violationStorageKey);
+      if (stored) {
+        const count = parseInt(stored, 10);
+        if (!isNaN(count) && count > 0) {
+          setViolations(count);
+          if (count >= maxViolations && onMaxViolationsExceeded) {
+            onMaxViolationsExceeded();
+          }
+        }
+      }
+    } catch {}
+  }, [violationStorageKey, maxViolations, onMaxViolationsExceeded]);
 
   const handleSecurityViolation = useCallback(
     (reason: string) => {
       if (!isActive) return;
+      setIsBlurred(true);
+      setLockCountdown(5);
+
       setViolations((prev) => {
         const next = prev + 1;
+        try {
+          localStorage.setItem(violationStorageKey, String(next));
+        } catch {}
+
         if (onViolation) onViolation(next);
 
         if (next >= maxViolations) {
-          toast.error(`⚠️ تم تسجيل مخالفة أمنية قصوى (${next}/${maxViolations}) - جاري تسليم الامتحان!`);
-          if (onMaxViolationsExceeded) onMaxViolationsExceeded();
+          toast.error(`🚨 ضبط مخالفة نهائية (${next}/${maxViolations}) - جاري إنهاء وتسليم الامتحان فوراً!`, {
+            duration: 6000,
+          });
+          if (onMaxViolationsExceeded) {
+            setTimeout(() => onMaxViolationsExceeded(), 500);
+          }
         } else {
-          toast.warning(`⚠️ تحذير أمني: ${reason} (مخالفة ${next} من ${maxViolations})`, {
-            duration: 4500,
+          toast.error(`⚠️ تحذير أمني صارم: ${reason} (مخالفة ${next} من ${maxViolations}) - الخروج القادم ينهي الامتحان نهائياً!`, {
+            duration: 5000,
           });
         }
         return next;
       });
     },
-    [isActive, maxViolations, onViolation, onMaxViolationsExceeded]
+    [isActive, maxViolations, onViolation, onMaxViolationsExceeded, violationStorageKey]
   );
 
-  const requestFullscreenMode = () => {
-    try {
-      if (document.documentElement && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen?.().then(() => setIsFullscreen(true)).catch(() => {});
-      }
-    } catch {}
-  };
+  // Lock countdown timer when shield is displayed
+  useEffect(() => {
+    if (lockCountdown > 0 && isBlurred) {
+      const timer = setTimeout(() => {
+        setLockCountdown((c) => Math.max(0, c - 1));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [lockCountdown, isBlurred]);
 
   useEffect(() => {
     if (!isActive) return;
+
+    // Trap browser back button / gestures
+    try {
+      window.history.pushState(null, '', window.location.href);
+    } catch {}
+
+    const handlePopState = (e: PopStateEvent) => {
+      try {
+        window.history.pushState(null, '', window.location.href);
+      } catch {}
+      handleSecurityViolation('محاولة استخدام زر الرجوع للخلف محظورة أثناء الاختبار');
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = 'مغادرة الامتحان ستؤدي لتسليمه فوراً!';
+      return e.returnValue;
+    };
 
     const preventAction = (e: Event) => {
       e.preventDefault();
@@ -79,9 +127,7 @@ export function ExamSecurityShield({
     const handleCopyAttempt = (e: ClipboardEvent) => {
       e.preventDefault();
       try {
-        if (e.clipboardData) {
-          e.clipboardData.setData('text/plain', '');
-        }
+        if (e.clipboardData) e.clipboardData.setData('text/plain', '');
       } catch {}
       toast.error('🚫 محتوى الامتحان محمي: النسخ والنقل غير مسموح به نهائياً');
     };
@@ -96,7 +142,6 @@ export function ExamSecurityShield({
       if (e.touches && e.touches.length >= 2) {
         e.preventDefault();
         e.stopPropagation();
-        setIsBlurred(true);
         handleSecurityViolation('تم رصد إيماءة شاشة متعددة الأصابع (محاولة سكرين شوت أو تصوير)');
       }
     };
@@ -104,7 +149,7 @@ export function ExamSecurityShield({
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches && e.touches.length >= 2) {
         e.preventDefault();
-        setIsBlurred(true);
+        handleSecurityViolation('تم رصد حركة إيماءات محظورة على الشاشة');
       }
     };
 
@@ -157,7 +202,6 @@ export function ExamSecurityShield({
         try {
           navigator.clipboard.writeText('');
         } catch {}
-        setIsBlurred(true);
         handleSecurityViolation('تم رصد محاولة تصوير الشاشة (PrintScreen)');
       }
     };
@@ -167,34 +211,26 @@ export function ExamSecurityShield({
         try {
           navigator.clipboard.writeText('');
         } catch {}
-        setIsBlurred(true);
         handleSecurityViolation('محاولة التقاط لقطة شاشة محظورة');
       }
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        setIsBlurred(true);
         handleSecurityViolation('مغادرة نافذة الامتحان أو التبديل لتطبيق آخر');
       }
     };
 
     const handleWindowBlur = () => {
-      setIsBlurred(true);
+      handleSecurityViolation('الخروج من نافذة الامتحان أو فتح نافذة منبثقة');
     };
 
     const handlePageHide = () => {
-      setIsBlurred(true);
+      handleSecurityViolation('إغلاق الصفحة أو تبديل التطبيق');
     };
 
-    const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        setIsFullscreen(false);
-      } else {
-        setIsFullscreen(true);
-      }
-    };
-
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     document.addEventListener('copy', handleCopyAttempt, true);
     document.addEventListener('cut', preventAction, true);
     document.addEventListener('paste', preventAction, true);
@@ -208,9 +244,10 @@ export function ExamSecurityShield({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
     window.addEventListener('pagehide', handlePageHide);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
 
     return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('copy', handleCopyAttempt, true);
       document.removeEventListener('cut', preventAction, true);
       document.removeEventListener('paste', preventAction, true);
@@ -224,7 +261,6 @@ export function ExamSecurityShield({
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('pagehide', handlePageHide);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, [isActive, handleSecurityViolation]);
 
@@ -241,10 +277,20 @@ export function ExamSecurityShield({
           user-select: none !important;
         }
 
+        ${isBlurred ? `
+          .exam-secure-area-content {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            filter: blur(50px) !important;
+          }
+        ` : ''}
+
         @media print {
           html,
           body,
-          .exam-secure-area {
+          .exam-secure-area,
+          .exam-secure-area-content {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -294,10 +340,12 @@ export function ExamSecurityShield({
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-red-400 flex items-center justify-center gap-2">
                 <ShieldAlert className="h-5 w-5" />
-                تم حجب شاشة الامتحان أمنياً!
+                {violations >= maxViolations ? 'تم إنهاء الامتحان وضبط مخالفة!' : 'تم حجب شاشة الامتحان أمنياً!'}
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
-                تم رصد مغادرة نافذة الامتحان أو محاولة أخذ لقطة شاشة. تم حجب الأسئلة فوراً لحماية السرية ومنع التسريب.
+                {violations >= maxViolations
+                  ? 'تم تجاوز الحد المسموح به لمغادرة النافذة أو محاولة تصوير الشاشة. تم تسليم الامتحان وإنهاء الجلسة فوراً.'
+                  : 'تم رصد مغادرة نافذة الامتحان أو محاولة أخذ لقطة شاشة. تم حجب الأسئلة فوراً لحماية السرية ومنع التسريب.'}
               </p>
             </div>
 
@@ -318,17 +366,24 @@ export function ExamSecurityShield({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setIsBlurred(false)}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-white font-bold text-sm shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2"
-            >
-              <EyeOff className="h-4 w-4" />
-              العودة فوراً لمتابعة الامتحان
-            </button>
+            {violations < maxViolations ? (
+              <button
+                type="button"
+                disabled={lockCountdown > 0}
+                onClick={() => setIsBlurred(false)}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2"
+              >
+                <EyeOff className="h-4 w-4" />
+                {lockCountdown > 0 ? `انتظر (${lockCountdown} ثوانٍ) لفك الحظر...` : 'العودة فوراً لمتابعة الامتحان'}
+              </button>
+            ) : (
+              <div className="p-3 rounded-xl bg-red-950/80 border border-red-800 text-red-300 text-xs font-bold">
+                🔒 تم تسليم الامتحان رسمياً وقفل الجلسة
+              </div>
+            )}
 
             <p className="text-[11px] text-slate-500">
-              ⚠️ تنبيه: تجاوز الحد الأقصى للمخالفات سيسلم الامتحان تلقائياً ويقيد المحاولة.
+              ⚠️ تنبيه: نظام المراقبة يسجل أي خروج أو تبديل للتطبيقات ويسلمه تلقائياً.
             </p>
           </div>
         </div>
