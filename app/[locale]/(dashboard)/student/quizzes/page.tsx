@@ -31,9 +31,10 @@ export default async function StudentQuizzesPage({
       prisma.quiz.findMany({
         where: {
           isPublished: true,
-          classroom: {
-            isActive: true,
-          },
+          OR: [
+            { classroomId: null },
+            { classroom: { isActive: true } },
+          ],
         },
         include: { classroom: true },
         orderBy: { createdAt: 'desc' },

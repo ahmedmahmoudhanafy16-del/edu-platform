@@ -208,3 +208,65 @@ export async function updateStudentAcademicAction(
   }
 }
 
+/**
+ * Fetches all registered students directly from PostgreSQL
+ * with their classroom enrollments and academic summary for real-time cross-device sync.
+ */
+export async function getStudentsAction() {
+  try {
+    const students = await prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: {
+        id: true,
+        name: true,
+        studentCode: true,
+        phone: true,
+        parentPhone: true,
+        defaultPassword: true,
+        password: true,
+        isActive: true,
+        createdAt: true,
+        grade: true,
+        gradeLevel: true,
+        enrollments: {
+          include: {
+            classroom: {
+              select: { id: true, name: true, code: true },
+            },
+          },
+        },
+        submissions: {
+          select: { id: true },
+        },
+        attendance: {
+          select: { id: true },
+        },
+        quizResults: {
+          select: {
+            id: true,
+            totalScore: true,
+            autoScore: true,
+            maxScore: true,
+            isPassed: true,
+            submittedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      success: true,
+      students,
+    };
+  } catch (err: any) {
+    console.error('[getStudentsAction Error]:', err);
+    return {
+      success: false,
+      error: err?.message || 'فشل جلب بيانات الطلاب من قاعدة البيانات',
+      students: [],
+    };
+  }
+}
+
+

@@ -5,12 +5,19 @@ const { execSync } = require('child_process');
 const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
 let schema = fs.readFileSync(schemaPath, 'utf8');
 
-const dbUrl = process.env.DATABASE_URL || 'file:./dev.db';
-const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://');
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = "postgresql://postgres.sample:sample@aws-0-eu-central-1.pooler.supabase.com:6543/postgres?pgbouncer=true";
+}
+if (!process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
 
-console.log(`[Database Sync] Detected database URL protocol: ${isPostgres ? 'PostgreSQL (Cloud)' : 'SQLite (Local)'}`);
+const dbUrl = process.env.DATABASE_URL;
+const isPostgres = dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') || !dbUrl.startsWith('file:');
 
-// Update datasource provider in schema.prisma dynamically
+console.log(`[Database Sync] Detected database URL protocol: ${isPostgres ? 'PostgreSQL (Cloud / Supabase)' : 'SQLite (Local)'}`);
+
+// Update datasource provider in schema.prisma dynamically if needed
 if (isPostgres) {
   schema = schema.replace(/provider\s*=\s*"sqlite"/g, 'provider = "postgresql"');
   if (!schema.includes('directUrl')) {

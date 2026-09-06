@@ -36,47 +36,54 @@ export async function GET(
     }
 
     if (!quiz) {
-      const fallbackQuestions = [
-        {
-          id: `q-${id}-1`,
-          text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-          type: 'MCQ',
-          options: shuffleArray(['6', '8', '10', '12']),
-          maxScore: 5,
-        },
-        {
-          id: `q-${id}-2`,
-          text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-          type: 'MCQ',
-          options: shuffleArray(['{3}', '{-3}', '{3, -3}', '∅']),
-          maxScore: 5,
-        },
-        {
-          id: `q-${id}-3`,
-          text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
-          type: 'ESSAY',
-          options: [],
-          maxScore: 10,
-        },
-      ];
+      if (id === 'sample-q1') {
+        const fallbackQuestions = [
+          {
+            id: `q-${id}-1`,
+            text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
+            type: 'MCQ',
+            options: shuffleArray(['6', '8', '10', '12']),
+            maxScore: 5,
+          },
+          {
+            id: `q-${id}-2`,
+            text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
+            type: 'MCQ',
+            options: shuffleArray(['{3}', '{-3}', '{3, -3}', '∅']),
+            maxScore: 5,
+          },
+          {
+            id: `q-${id}-3`,
+            text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
+            type: 'ESSAY',
+            options: [],
+            maxScore: 10,
+          },
+        ];
+
+        return NextResponse.json(
+          {
+            success: true,
+            quiz: {
+              id,
+              title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+              duration: 20,
+              passingScore: 60,
+              accessCode: 'QUIZ-MATH-2026',
+              isCodeRequired: true,
+              isPublished: true,
+              timePerQuestion: 60,
+              preventBackNavigation: true,
+              questions: shuffleArray(fallbackQuestions),
+            },
+          },
+          { status: 200 }
+        );
+      }
 
       return NextResponse.json(
-        {
-          success: true,
-          quiz: {
-            id,
-            title: id === 'sample-q1' ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'الاختبار الأسبوعي التفاعلي',
-            duration: 20,
-            passingScore: 60,
-            accessCode: 'QUIZ-MATH-2026',
-            isCodeRequired: true,
-            isPublished: true,
-            timePerQuestion: 60,
-            preventBackNavigation: true,
-            questions: shuffleArray(fallbackQuestions),
-          },
-        },
-        { status: 200 }
+        { success: false, error: 'لم يتم العثور على هذا الاختبار في قاعدة البيانات' },
+        { status: 404 }
       );
     }
 

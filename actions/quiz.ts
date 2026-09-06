@@ -1338,4 +1338,104 @@ export async function toggleQuizVisibility(quizId: string, isPublished: boolean)
   return toggleQuizPublish(quizId, isPublished);
 }
 
+/**
+ * Fetches all quizzes directly from PostgreSQL with questions count
+ * and completed results count for real-time teacher synchronization across devices.
+ */
+export async function getTeacherQuizzesAction() {
+  try {
+    const quizzes = await prisma.quiz.findMany({
+      include: {
+        classroom: {
+          select: { id: true, name: true },
+        },
+        questions: {
+          select: { id: true },
+        },
+        results: {
+          select: { id: true, studentId: true, totalScore: true, isPassed: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const mapped = quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      type: q.type,
+      duration: q.duration,
+      passingScore: q.passingScore,
+      accessCode: q.accessCode,
+      isCodeRequired: q.isCodeRequired,
+      isPublished: q.isPublished,
+      grade: q.grade,
+      classroomId: q.classroomId,
+      classroomName: q.classroom?.name || 'عام لجميع الفصول',
+      questionsCount: q.questions.length,
+      resultsCount: q.results.length,
+      createdAt: q.createdAt.toISOString(),
+    }));
+
+    return { success: true, quizzes: mapped };
+  } catch (err: any) {
+    console.error('[getTeacherQuizzesAction Error]:', err);
+    return { success: false, error: err?.message || 'فشل جلب الاختبارات من قاعدة البيانات', quizzes: [] };
+  }
+}
+
+/**
+ * Fetches published quizzes directly from PostgreSQL for students
+ * and matches with any existing student QuizResult records.
+ */
+export async function getStudentQuizzesAction(studentId?: string) {
+  try {
+    const [quizzes, results] = await Promise.all([
+      prisma.quiz.findMany({
+        where: { isPublished: true },
+        include: {
+          classroom: { select: { id: true, name: true, isActive: true } },
+          questions: { select: { id: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      studentId
+        ? prisma.quizResult.findMany({
+            where: { studentId },
+            select: {
+              id: true,
+              quizId: true,
+              totalScore: true,
+              maxScore: true,
+              isPassed: true,
+              submittedAt: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const resultsMap = new Map((results as any[]).map((r) => [r.quizId, r]));
+
+    const mapped = quizzes.map((q) => ({
+      id: q.id,
+      title: q.title,
+      type: q.type,
+      duration: q.duration,
+      passingScore: q.passingScore,
+      accessCode: q.accessCode,
+      isCodeRequired: q.isCodeRequired,
+      grade: q.grade,
+      questionsCount: q.questions.length,
+      classroomName: q.classroom?.name || 'عام',
+      result: resultsMap.get(q.id) || null,
+      isCompleted: resultsMap.has(q.id),
+    }));
+
+    return { success: true, quizzes: mapped };
+  } catch (err: any) {
+    console.error('[getStudentQuizzesAction Error]:', err);
+    return { success: false, error: err?.message || 'فشل جلب اختبارات الطالب', quizzes: [] };
+  }
+}
+
+
 

@@ -2,8 +2,9 @@
 // SQLite for Local Development & Vercel Preview (dev.db)
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 generator client {

@@ -34,6 +34,9 @@ export function normalizeArabic(text: string): string {
 }
 
 import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
+import { verifyStudentCredentialsAction } from './auth-server';
+
+export { verifyStudentCredentialsAction };
 
 const defaultStudentsList = DEFAULT_INITIAL_STUDENTS;
 

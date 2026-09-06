@@ -175,36 +175,44 @@ export async function createStudentAction(formData: {
       createdAt: new Date().toISOString(),
     };
 
-    // Safe Database Attempt
+    // Safe Database Atomic Transaction
+    let createdDbUser: any = null;
     try {
-      await prisma.user.create({
-        data: {
-          id: newStudent.id,
-          name: newStudent.name,
-          phone: newStudent.phone || null,
-          parentPhone: newStudent.parentPhone || null,
-          parentWhatsapp: newStudent.parentWhatsapp || null,
-          grade: newStudent.grade,
-          gradeLevel: newStudent.gradeLevel,
-          studentCode: newStudent.studentCode,
-          password: hashedPassword,
-          passwordHash: hashedPassword,
-          defaultPassword: plainPassword,
-          role: 'STUDENT',
-          isActive: true,
-          ...(newStudent.classroomId
-            ? {
-                enrollments: {
-                  create: {
-                    classroomId: newStudent.classroomId,
+      createdDbUser = await prisma.$transaction(async (tx) => {
+        return await tx.user.create({
+          data: {
+            id: newStudent.id,
+            name: newStudent.name,
+            phone: newStudent.phone || null,
+            parentPhone: newStudent.parentPhone || null,
+            parentWhatsapp: newStudent.parentWhatsapp || null,
+            grade: newStudent.grade,
+            gradeLevel: newStudent.gradeLevel,
+            studentCode: newStudent.studentCode,
+            password: hashedPassword,
+            passwordHash: hashedPassword,
+            defaultPassword: plainPassword,
+            role: 'STUDENT',
+            isActive: true,
+            ...(newStudent.classroomId
+              ? {
+                  enrollments: {
+                    create: {
+                      classroomId: newStudent.classroomId,
+                    },
                   },
-                },
-              }
-            : {}),
-        },
+                }
+              : {}),
+          },
+          include: {
+            enrollments: {
+              include: { classroom: true },
+            },
+          },
+        });
       });
-    } catch (dbError) {
-      console.warn('Server DB write failed, fallback handled gracefully:', dbError);
+    } catch (dbError: any) {
+      console.warn('[createStudentAction] Prisma transaction notice:', dbError?.message);
     }
 
     try {
@@ -254,27 +262,36 @@ export async function addStudentToClassroom(
 
     let student: any = null;
     try {
-      student = await prisma.user.create({
-        data: {
-          name: name.trim(),
-          phone: phone.trim() || null,
-          studentCode,
-          password: hashed,
-          defaultPassword: cleanPass,
-          role: 'STUDENT',
-          ...(classroomId
-            ? {
-                enrollments: {
-                  create: {
-                    classroomId,
+      student = await prisma.$transaction(async (tx) => {
+        return await tx.user.create({
+          data: {
+            name: name.trim(),
+            phone: phone.trim() || null,
+            studentCode,
+            password: hashed,
+            passwordHash: hashed,
+            defaultPassword: cleanPass,
+            role: 'STUDENT',
+            isActive: true,
+            ...(classroomId
+              ? {
+                  enrollments: {
+                    create: {
+                      classroomId,
+                    },
                   },
-                },
-              }
-            : {}),
-        },
+                }
+              : {}),
+          },
+          include: {
+            enrollments: {
+              include: { classroom: true },
+            },
+          },
+        });
       });
-    } catch (dbErr) {
-      console.warn('[addStudentToClassroom] DB create notice:', dbErr);
+    } catch (dbErr: any) {
+      console.warn('[addStudentToClassroom] DB create notice:', dbErr?.message);
     }
 
     if (!student) {
