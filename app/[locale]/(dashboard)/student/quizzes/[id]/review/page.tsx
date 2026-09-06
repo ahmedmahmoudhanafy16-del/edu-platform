@@ -4,10 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
   CheckCircle2, XCircle, ArrowRight, ArrowLeft,
-  Trophy, ClipboardList, AlertCircle, Sparkles, HelpCircle
+  Trophy, ClipboardList, AlertCircle, Sparkles, HelpCircle, ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { ExamSecurityShield } from '@/components/shared/ExamSecurityShield';
 
 interface ReviewQuestion {
   questionId: string;
@@ -60,8 +61,31 @@ export default function QuizReviewPage() {
   const [result, setResult] = useState<ExamResult | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [studentInfo, setStudentInfo] = useState<{
+    name: string;
+    studentCode: string;
+    phone: string;
+  }>({
+    name: 'طالب مسجل',
+    studentCode: 'STU-001',
+    phone: '',
+  });
+
   useEffect(() => {
     setIsMounted(true);
+    try {
+      const stored = localStorage.getItem('current_student');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          setStudentInfo({
+            name: parsed.name || 'طالب مسجل',
+            studentCode: parsed.studentCode || parsed.id || 'STU-001',
+            phone: parsed.phone || '',
+          });
+        }
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -214,7 +238,15 @@ export default function QuizReviewPage() {
   const pct = result.percentage ?? Math.round((earned / Math.max(1, max)) * 100);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 exam-secure-area select-none relative" dir="rtl">
+      {/* Anti-Copy and Dynamic Student Watermark */}
+      <ExamSecurityShield
+        studentName={studentInfo.name}
+        studentCode={studentInfo.studentCode}
+        studentPhone={studentInfo.phone}
+        isActive={false}
+      />
+
       {/* Navigation breadcrumb */}
       <div className="flex items-center justify-between">
         <Link href={`/${locale}/student/quizzes`} className="text-xs font-semibold text-accent hover:underline flex items-center gap-1">

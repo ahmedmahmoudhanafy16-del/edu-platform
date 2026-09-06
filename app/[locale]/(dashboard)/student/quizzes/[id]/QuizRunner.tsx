@@ -4,12 +4,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
 import { saveSubmission } from '@/lib/store';
 import { shuffleArray } from '@/lib/shuffle';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { ExamSecurityShield } from '@/components/shared/ExamSecurityShield';
 
 interface Question {
   id: string;
@@ -25,8 +26,8 @@ interface Quiz {
   title: string;
   duration: number;
   passingScore?: number;
-  shuffleQuestions: boolean;
-  maxViolations: number;
+  shuffleQuestions?: boolean;
+  maxViolations?: number;
   accessCode?: string;
   questions: Question[];
 }
@@ -75,7 +76,11 @@ function isAnswerCorrect(
   return false;
 }
 
-function normalizeQuestions(raw: any[], studentId: string, shuffle: boolean): Question[] {
+/**
+ * Normalizes questions and ALWAYS randomly shuffles both question order
+ * and option choices for every student attempt to prevent copying and leaks.
+ */
+function normalizeQuestions(raw: any[], studentId: string): Question[] {
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
   const parsed: Question[] = raw.map((q, idx) => {
@@ -97,25 +102,21 @@ function normalizeQuestions(raw: any[], studentId: string, shuffle: boolean): Qu
       }
     }
 
+    // Always shuffle MCQ choices randomly so option letters/order differ per student
+    const randomizedOptions = q.type === 'MCQ' && opts.length > 1 ? shuffleArray(opts) : opts;
+
     return {
       id: q.id || `q-${idx + 1}`,
       text: q.text || `السؤال ${idx + 1}`,
       type: q.type || 'MCQ',
-      options: opts,
+      options: randomizedOptions,
       correctAnswer: q.correctAnswer,
       maxScore: Number(q.maxScore) || 5,
     };
   });
 
-  return shuffle
-    ? shuffleArray(
-        parsed.map((q) => ({
-          ...q,
-          options: q.type === 'MCQ' ? shuffleArray(q.options, studentId) : q.options,
-        })),
-        studentId
-      )
-    : parsed;
+  // Always shuffle question order uniquely per student and attempt
+  return shuffleArray(parsed);
 }
 
 export function QuizRunner({
@@ -133,8 +134,19 @@ export function QuizRunner({
   const [mounted, setMounted] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<Quiz>(quiz);
 
+  // Student Identity state for anti-leak watermark
+  const [studentInfo, setStudentInfo] = useState<{
+    name: string;
+    studentCode: string;
+    phone: string;
+  }>({
+    name: 'طالب مسجل',
+    studentCode: studentId || 'STU-001',
+    phone: '',
+  });
+
   const [questions, setQuestions] = useState<Question[]>(() =>
-    normalizeQuestions(quiz?.questions || [], studentId, quiz?.shuffleQuestions || false)
+    normalizeQuestions(quiz?.questions || [], studentId)
   );
 
   const [current, setCurrent] = useState(0);
@@ -150,10 +162,23 @@ export function QuizRunner({
 
   const autosaveKey = `quiz_answers_${activeQuiz?.id || quiz?.id || 'default'}_${studentId}`;
 
-  // 1. Client Mount Flag to guarantee zero SSR hydration mismatches
+  // 1. Client Mount Flag & Student Identity resolution
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      const stored = localStorage.getItem('current_student');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed) {
+          setStudentInfo({
+            name: parsed.name || 'طالب مسجل',
+            studentCode: parsed.studentCode || parsed.id || studentId || 'STU-001',
+            phone: parsed.phone || '',
+          });
+        }
+      }
+    } catch {}
+  }, [studentId]);
 
   // 2. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
   useEffect(() => {
@@ -180,8 +205,7 @@ export function QuizRunner({
             if (Array.isArray(match.questions) && match.questions.length > 0) {
               const syncedQuestions = normalizeQuestions(
                 match.questions,
-                studentId,
-                match.shuffleQuestions || false
+                studentId
               );
               setQuestions(syncedQuestions);
             }
@@ -502,18 +526,40 @@ export function QuizRunner({
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-4" dir="rtl">
+    <div className="max-w-3xl mx-auto w-full space-y-4 exam-secure-area select-none relative" dir="rtl">
+      {/* 🛡️ Universal Exam Security Shield (Anti-Copy, Anti-Screenshot, Tab-Switch Detection, Dynamic Watermark) */}
+      <ExamSecurityShield
+        studentName={studentInfo.name}
+        studentCode={studentInfo.studentCode}
+        studentPhone={studentInfo.phone}
+        maxViolations={activeQuiz?.maxViolations ?? 3}
+        onViolation={(count) => setViolations(count)}
+        onMaxViolationsExceeded={() => handleSubmit(true)}
+        isActive={!submitted}
+      />
+
+      {/* Security Protection Status Banner */}
+      <div className="flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold">
+        <div className="flex items-center gap-1.5">
+          <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>حماية الامتحان مفعّلة: ترتيب عشوائي للأسئلة والخيارات • حظر النسخ والتصوير • علامة مائية أمنية</span>
+        </div>
+        <span className="text-[10px] font-mono text-emerald-600/80 dark:text-emerald-400/80 hidden sm:inline">
+          ID: {studentInfo.studentCode}
+        </span>
+      </div>
+
       {/* Top Header */}
       <div className="flex items-center justify-between gap-4 rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-5 py-3.5 shadow-sm">
         <div>
           <p className="text-sm font-bold text-n-800 dark:text-n-700">{activeQuiz.title}</p>
           <p className="text-xs text-n-400 mt-0.5">
-            السؤال {current + 1} من {questions.length}
+            السؤال {current + 1} من {questions.length} (ترتيب عشوائي خاص بك)
           </p>
         </div>
         <div className="flex items-center gap-3">
           {violations > 0 && (
-            <span className="flex items-center gap-1 text-xs text-warn bg-warn-light px-2 py-1 rounded border border-warn/20">
+            <span className="flex items-center gap-1 text-xs text-warn bg-warn-light px-2 py-1 rounded border border-warn/20 font-bold">
               <AlertTriangle className="h-3.5 w-3.5" />
               {violations} مخالفة
             </span>

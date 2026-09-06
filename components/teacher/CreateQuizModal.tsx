@@ -493,9 +493,21 @@ export function CreateQuizModal({
                 </Button>
               </div>
             )}
-            <p className="text-[11px] text-n-500">
-              عند التفعيل، لن يتمكن الطالب من فتح شاشة الامتحان وبدء العد التنازلي إلا بعد كتابة هذا الكود.
-            </p>
+          </div>
+
+          {/* Security & Anti-Cheat Badge */}
+          <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 space-y-1.5 text-xs text-emerald-900 dark:text-emerald-300">
+            <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
+              <ShieldCheck className="h-4 w-4" />
+              <span>ميزات الأمان والحماية المشددة (مفعّلة تلقائياً):</span>
+            </div>
+            <ul className="text-[11px] list-disc list-inside space-y-0.5 text-emerald-800 dark:text-emerald-300 pr-1">
+              <li>ترتيب عشوائي للأسئلة والخيارات فريد لكل طالب (مستحيل يتطابق الترتيب بين طالبين).</li>
+              <li>حظر تحديد النص، النسخ، القص، اللصق، والنقر بزر الفأرة الأيمن.</li>
+              <li>حظر التقاط لقطات الشاشة (PrintScreen / Snipping) ومحاولات الطباعة.</li>
+              <li>ستار أمني فوري وتعتيم الشاشة عند مغادرة نافذة الامتحان أو فتح نافذة أخرى.</li>
+              <li>علامة مائية أمنية ديناميكية باسم وكود الطالب لمنع تصوير الشاشة بكاميرا خارجية.</li>
+            </ul>
           </div>
 
           {/* Questions Editor */}
