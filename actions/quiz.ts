@@ -60,6 +60,78 @@ export async function createQuizRetakeCodeAction(
 }
 
 /**
+ * Allows a teacher to directly reset and re-open a quiz attempt for a student.
+ * Deletes previous QuizResult records in Prisma and memory, clearing locks.
+ */
+export async function resetStudentQuizAttemptAction(
+  quizId: string,
+  studentId: string,
+  studentCode?: string
+) {
+  try {
+    const sId = (studentId || '').trim();
+    const sCode = (studentCode || sId).trim();
+
+    // 1. Memory results purge
+    for (let i = memoryQuizResults.length - 1; i >= 0; i--) {
+      const r = memoryQuizResults[i];
+      if (r.quizId === quizId && (r.studentId === sId || r.studentId === sCode)) {
+        memoryQuizResults.splice(i, 1);
+      }
+    }
+
+    // 2. Memory retake codes purge
+    for (let i = memoryRetakeCodes.length - 1; i >= 0; i--) {
+      const c = memoryRetakeCodes[i];
+      if (c.quizId === quizId && (c.studentId === sId || c.studentId === sCode)) {
+        memoryRetakeCodes.splice(i, 1);
+      }
+    }
+
+    // 3. Database QuizResult purge
+    try {
+      await prisma.quizResult.deleteMany({
+        where: {
+          quizId,
+          OR: [{ studentId: sId }, { studentId: sCode }],
+        },
+      });
+    } catch (dbErr) {
+      if (!isDatabaseReadOnlyError(dbErr)) {
+        console.warn('[resetStudentQuizAttemptAction] DB delete error:', dbErr);
+      }
+    }
+
+    // 4. Memory unlock so student can start immediately
+    const unlockedExists = memoryUnlockedQuizzes.some(
+      (u) => u.quizId === quizId && (u.studentId === sId || u.studentId === sCode)
+    );
+    if (!unlockedExists) {
+      memoryUnlockedQuizzes.push({
+        quizId,
+        studentId: sId,
+        unlockedAt: Date.now(),
+      });
+    }
+
+    revalidatePath('/student/quizzes');
+    revalidatePath('/student');
+    revalidatePath('/teacher/quizzes');
+
+    return {
+      success: true,
+      message: 'تم إعادة فتح الاختبار للطالب بنجاح',
+    };
+  } catch (err: any) {
+    console.error('[resetStudentQuizAttemptAction] error:', err);
+    return {
+      success: false,
+      error: err?.message || 'فشل إعادة فتح الاختبار',
+    };
+  }
+}
+
+/**
  * Verifies student quiz passcode on the server side.
  * Supports both master quiz passcodes AND student-specific retake codes.
  * Stores verified status in memory and sets an HTTP cookie for server-side guard.

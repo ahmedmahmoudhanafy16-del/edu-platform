@@ -590,6 +590,80 @@ export function consumeRetakeCode(
     return { success: false, message: err?.message || 'حدث خطأ أثناء معالجة كود الإعادة' };
   }
 }
+
+/**
+ * 7.4 Reset student attempt directly by Teacher (Instant Retake Re-open)
+ */
+export function resetStudentQuizAttempt(
+  quizId: string,
+  studentId: string,
+  studentCode?: string
+): { success: boolean; message?: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'بيئة المتصفح غير جاهزة' };
+  try {
+    const targetQuizId = (quizId || '').trim();
+    const targetStudentId = (studentId || '').trim();
+    const targetStudentCode = (studentCode || targetStudentId).trim();
+
+    // 1. Delete submission from local store
+    deleteSubmission(targetQuizId, targetStudentId);
+    if (targetStudentCode && targetStudentCode !== targetStudentId) {
+      deleteSubmission(targetQuizId, targetStudentCode);
+    }
+
+    // 2. Clear anti-cheat violations and autosaved answers
+    try {
+      localStorage.removeItem(`edu_quiz_violations_${targetQuizId}_${targetStudentCode}`);
+      localStorage.removeItem(`edu_quiz_violations_${targetQuizId}_${targetStudentId}`);
+      localStorage.removeItem(`quiz_answers_${targetQuizId}_${targetStudentId}`);
+      localStorage.removeItem(`quiz_answers_${targetQuizId}_${targetStudentCode}`);
+      sessionStorage.setItem(`unlocked_quiz_${targetQuizId}`, 'true');
+      document.cookie = `unlocked_quiz_${targetQuizId}=true; path=/; max-age=86400; SameSite=Lax`;
+    } catch (e) {}
+
+    // 3. Mark any pending retake code as used or delete it
+    try {
+      const allCodes = getRetakeCodes();
+      const filtered = allCodes.filter((r) => {
+        const qMatch = r.quizId === targetQuizId;
+        const sMatch =
+          r.studentId.toUpperCase() === targetStudentId.toUpperCase() ||
+          (r.studentCode && r.studentCode.toUpperCase() === targetStudentCode.toUpperCase());
+        return !(qMatch && sMatch);
+      });
+      localStorage.setItem(STORAGE_KEYS.RETAKE_CODES, JSON.stringify(filtered));
+    } catch (e) {}
+
+    // 4. Update teacher quiz resultsCount if possible
+    try {
+      const currentQuizzes: any[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.QUIZZES) || '[]');
+      if (Array.isArray(currentQuizzes)) {
+        const updated = currentQuizzes.map((q) => {
+          if (q.id === targetQuizId) {
+            return { ...q, resultsCount: Math.max(0, (q.resultsCount || 1) - 1) };
+          }
+          return q;
+        });
+        localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(updated));
+      }
+    } catch (e) {}
+
+    notifyStoreUpdated();
+    try {
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('edu_store_updated'));
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: 'تم إعادة فتح الامتحان للطالب بنجاح! يمكنه الآن خوض الامتحان مجدداً.',
+    };
+  } catch (err: any) {
+    console.error('[resetStudentQuizAttempt] error:', err);
+    return { success: false, message: err?.message || 'حدث خطأ أثناء إعادة فتح الاختبار' };
+  }
+}
+
 export function usePlatformQuizzes(filterForStudent: boolean = false) {
   const [quizzes, setQuizzes] = useState<QuizData[]>(() =>
     filterForStudent ? getStudentQuizzes() : getQuizzes()

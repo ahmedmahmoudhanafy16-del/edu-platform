@@ -9,7 +9,6 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ExamSecurityShield } from '@/components/shared/ExamSecurityShield';
-import { QuizPasscodeModal } from '@/components/student/QuizPasscodeModal';
 
 interface ReviewQuestion {
   questionId: string;
@@ -71,8 +70,6 @@ export default function QuizReviewPage() {
     studentCode: 'STU-001',
     phone: '',
   });
-
-  const [passcodeModalOpen, setPasscodeModalOpen] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -433,22 +430,12 @@ export default function QuizReviewPage() {
 
       {/* Bottom Actions */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-n-200">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Link href={`/${locale}/student/quizzes`} className="flex-1 sm:flex-initial">
-            <Button variant="secondary" className="w-full text-xs">
-              <ArrowRight className="h-4 w-4 me-1" />
-              العودة لبنك الامتحانات
-            </Button>
-          </Link>
-          <Button
-            variant="secondary"
-            onClick={() => setPasscodeModalOpen(true)}
-            className="flex-1 sm:flex-initial text-xs text-accent font-bold border-accent/30 hover:bg-accent-light"
-          >
-            <RotateCcw className="h-3.5 w-3.5 me-1" />
-            إعادة بكود جديد 🔄
+        <Link href={`/${locale}/student/quizzes`} className="w-full sm:w-auto">
+          <Button variant="secondary" className="w-full sm:w-auto text-xs">
+            <ArrowRight className="h-4 w-4 me-1" />
+            العودة لبنك الامتحانات
           </Button>
-        </div>
+        </Link>
 
         <Link href={`/${locale}/student/grades`} className="w-full sm:w-auto">
           <Button variant="primary" className="w-full sm:w-auto text-xs">
@@ -457,15 +444,6 @@ export default function QuizReviewPage() {
           </Button>
         </Link>
       </div>
-
-      <QuizPasscodeModal
-        isOpen={passcodeModalOpen}
-        onClose={() => setPasscodeModalOpen(false)}
-        quizId={quizId}
-        quizTitle={result.quizTitle}
-        studentId={studentInfo.studentCode}
-        locale={locale}
-      />
     </div>
   );
 }

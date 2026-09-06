@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Timer, BarChart3, CheckCircle2, Lock, ArrowLeft, Trophy } from 'lucide-react';
+import { Timer, BarChart3, CheckCircle2, Lock, ArrowLeft, Trophy, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getRetakeCodes } from '@/lib/store';
 import { QuizPasscodeModal } from './QuizPasscodeModal';
 
 interface QuizResultSummary {
@@ -41,6 +42,44 @@ export function StudentQuizCard({
 }: QuizCardProps) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
+  const [hasTeacherAuthorizedRetake, setHasTeacherAuthorizedRetake] = useState(false);
+
+  useEffect(() => {
+    function checkRetakeStatus() {
+      try {
+        let currentStudentCode = studentId;
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          if (parsed.studentCode || parsed.id) {
+            currentStudentCode = parsed.studentCode || parsed.id;
+          }
+        }
+
+        const codes = getRetakeCodes(quiz.id);
+        const myCode = codes.find(
+          (c) =>
+            !c.isUsed &&
+            (c.studentId?.toUpperCase() === currentStudentCode?.toUpperCase() ||
+              (c.studentCode && c.studentCode.toUpperCase() === currentStudentCode?.toUpperCase()) ||
+              c.studentId?.toUpperCase() === studentId?.toUpperCase())
+        );
+        setHasTeacherAuthorizedRetake(Boolean(myCode));
+      } catch {
+        setHasTeacherAuthorizedRetake(false);
+      }
+    }
+
+    checkRetakeStatus();
+
+    window.addEventListener('edu_store_updated', checkRetakeStatus);
+    window.addEventListener('storage', checkRetakeStatus);
+
+    return () => {
+      window.removeEventListener('edu_store_updated', checkRetakeStatus);
+      window.removeEventListener('storage', checkRetakeStatus);
+    };
+  }, [quiz.id, studentId]);
 
   const quizTypeBadge: Record<string, string> = {
     WEEKLY: 'text-[11px] bg-accent-light text-accent-text px-2 py-0.5 rounded-full font-medium',
@@ -118,15 +157,18 @@ export function StudentQuizCard({
                   الدرجات
                 </Button>
               </Link>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => setModalOpen(true)}
-                className="text-xs h-7 px-2 font-semibold text-accent hover:bg-accent-light"
-                title="إعادة الاختبار باستخدام كود الإعادة الممنوح من المعلم"
-              >
-                إعادة بكود جديد 🔄
-              </Button>
+              {hasTeacherAuthorizedRetake && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setModalOpen(true)}
+                  className="text-xs h-7 px-2 font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 flex items-center gap-1 animate-pulse"
+                  title="صرح المعلم لك بإعادة الامتحان، اضغط لإدخال الكود الممنوح"
+                >
+                  <KeyRound className="h-3 w-3 text-amber-600" />
+                  <span>صرح المعلم بالإعادة (أدخل الكود) 🔑</span>
+                </Button>
+              )}
             </div>
           ) : (
             <Button size="sm" variant="primary" onClick={handleStart} className="flex items-center gap-1">

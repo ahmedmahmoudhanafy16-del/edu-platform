@@ -25,9 +25,10 @@ import {
   deleteRetakeCode,
   getSubmissions,
   getStudentsFromStore,
+  resetStudentQuizAttempt,
   QuizRetakeCode,
 } from '@/lib/store';
-import { createQuizRetakeCodeAction } from '@/actions/quiz';
+import { createQuizRetakeCodeAction, resetStudentQuizAttemptAction } from '@/actions/quiz';
 import { toast } from 'sonner';
 
 interface StudentQuizResultView {
@@ -206,6 +207,31 @@ export function QuizResultsAndRetakeModal({
     }
   }
 
+  // Handle direct one-click instant reopen
+  async function handleDirectReset(student: StudentQuizResultView) {
+    if (!quiz) return;
+    setLoadingStudentId(student.studentId);
+
+    try {
+      // 1. Reset client store
+      const res = resetStudentQuizAttempt(quiz.id, student.studentId, student.studentCode);
+      // 2. Reset server side
+      resetStudentQuizAttemptAction(quiz.id, student.studentId, student.studentCode).catch(() => null);
+
+      if (res.success) {
+        toast.success(`تم إعادة فتح الاختبار فوراً للطالب "${student.studentName}" بنجاح! يمكنه الدخول وبدء الامتحان الآن.`);
+        setSubmissions(getSubmissions());
+        setRetakeCodes(getRetakeCodes(quiz.id));
+      } else {
+        toast.error(res.message || 'حدث خطأ أثناء إعادة فتح الاختبار');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'تعذر إعادة فتح الاختبار');
+    } finally {
+      setLoadingStudentId(null);
+    }
+  }
+
   // Handle quick copy
   function handleCopy(code: string) {
     navigator.clipboard.writeText(code);
@@ -337,13 +363,29 @@ export function QuizResultsAndRetakeModal({
               onClick={() => {
                 const target = studentRows.find((s) => s.studentId === selectedStudentForRetake);
                 if (target) {
+                  handleDirectReset(target);
+                  setSelectedStudentForRetake('');
+                }
+              }}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+            >
+              <RotateCcw className="h-3.5 w-3.5 me-1" />
+              إعادة فتح فوري
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!selectedStudentForRetake}
+              onClick={() => {
+                const target = studentRows.find((s) => s.studentId === selectedStudentForRetake);
+                if (target) {
                   handleIssueRetake(target);
                   setSelectedStudentForRetake('');
                 }
               }}
-              className="text-xs"
+              className="text-xs text-accent border-accent/30 hover:bg-accent-light"
             >
-              <Sparkles className="h-3.5 w-3.5 me-1" />
+              <KeyRound className="h-3.5 w-3.5 me-1" />
               توليد كود
             </Button>
           </div>
@@ -428,8 +470,22 @@ export function QuizResultsAndRetakeModal({
                       )}
                     </div>
 
-                    {/* Retake Code State / Actions */}
+                    {/* Retake Code State / Actions - Teacher Control */}
                     <div className="flex items-center gap-2 flex-wrap">
+                      {isTested && (
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          loading={loadingStudentId === student.studentId}
+                          onClick={() => handleDirectReset(student)}
+                          className="text-xs flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                          title="إعادة فتح الامتحان للطالب فوراً ومسح درجته ومخالفاته السابقة"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          <span>إعادة فتح فورية للطالب 🔄</span>
+                        </Button>
+                      )}
+
                       {activeRetake && !activeRetake.isUsed ? (
                         <div className="flex items-center gap-2 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
                           <div className="text-start">
@@ -488,9 +544,10 @@ export function QuizResultsAndRetakeModal({
                           loading={loadingStudentId === student.studentId}
                           onClick={() => handleIssueRetake(student)}
                           className="text-xs flex items-center gap-1 text-accent border-accent/30 hover:bg-accent-light"
+                          title="توليد كود سري للمشاركة على واتساب"
                         >
-                          <RotateCcw className="h-3 w-3" />
-                          <span>منح كود إعادة</span>
+                          <KeyRound className="h-3 w-3" />
+                          <span>كود سري 🔑</span>
                         </Button>
                       )}
                     </div>
