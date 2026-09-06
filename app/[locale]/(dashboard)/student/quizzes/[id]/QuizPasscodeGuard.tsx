@@ -6,6 +6,7 @@ import { Lock, KeyRound, ArrowLeft, AlertCircle, ArrowRight } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { verifyQuizAccessCode } from '@/actions/quiz';
+import { consumeRetakeCode } from '@/lib/store';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
@@ -49,7 +50,23 @@ export function QuizPasscodeGuard({
     setLoading(true);
     setErrorMsg('');
 
-    // 1. Check local storage
+    // 1. Check if it's a Retake Code (كود إعادة استثنائي)
+    if (cleanCode.startsWith('RETAKE-') || cleanCode.startsWith('RETRY-')) {
+      const retakeRes = consumeRetakeCode(cleanCode, quizId, studentId);
+      if (retakeRes.success) {
+        unlockClientLocally(quizId);
+        toast.success(retakeRes.message || 'تم تفعيل كود إعادة الامتحان بنجاح!');
+        if (onUnlocked) {
+          onUnlocked();
+        } else {
+          router.refresh();
+        }
+        setLoading(false);
+        return;
+      }
+    }
+
+    // 2. Check local storage
     let clientMatched = false;
     try {
       const stored = localStorage.getItem('edu_quizzes');
@@ -85,7 +102,7 @@ export function QuizPasscodeGuard({
       const res = await verifyQuizAccessCode(quizId, studentId, cleanCode);
       if (res?.success) {
         unlockClientLocally(res?.quizId || quizId);
-        toast.success('تم التحقق من كود الامتحان بنجاح!');
+        toast.success(res?.message || 'تم التحقق من كود الامتحان بنجاح!');
         if (onUnlocked) {
           onUnlocked();
         } else {

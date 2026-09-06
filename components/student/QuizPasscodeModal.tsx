@@ -6,6 +6,7 @@ import { X, Lock, KeyRound, ArrowLeft, AlertCircle, CheckCircle2 } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { verifyQuizAccessCode } from '@/actions/quiz';
+import { consumeRetakeCode } from '@/lib/store';
 import { toast } from 'sonner';
 
 interface QuizPasscodeModalProps {
@@ -63,7 +64,21 @@ export function QuizPasscodeModal({
     setLoading(true);
     setErrorMsg('');
 
-    // 1. Check client-side stored quizzes in localStorage
+    // 1. Check if it's a Retake Code (كود إعادة استثنائي)
+    if (cleanCode.startsWith('RETAKE-') || cleanCode.startsWith('RETRY-')) {
+      const retakeRes = consumeRetakeCode(cleanCode, quizId, studentId);
+      if (retakeRes.success) {
+        const finalQuizId = retakeRes.retake?.quizId || quizId;
+        unlockClientLocally(finalQuizId);
+        toast.success(retakeRes.message || 'تم تفعيل كود إعادة الامتحان بنجاح!');
+        onClose();
+        router.push(`/${locale}/student/quizzes/${finalQuizId}`);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // 2. Check client-side stored quizzes in localStorage
     let clientMatched = false;
     let targetQuizId = quizId;
 
@@ -101,13 +116,13 @@ export function QuizPasscodeModal({
       console.warn('LocalStorage check skipped:', localErr);
     }
 
-    // 2. Call Server Action verification
+    // 3. Call Server Action verification
     try {
       const res = await verifyQuizAccessCode(targetQuizId, studentId, cleanCode);
       if (res?.success) {
         const finalId = res?.quizId || targetQuizId;
         unlockClientLocally(finalId);
-        toast.success('تم التحقق من كود الامتحان بنجاح!');
+        toast.success(res?.message || 'تم التحقق من كود الامتحان بنجاح!');
         onClose();
         router.push(`/${locale}/student/quizzes/${finalId}`);
         return;

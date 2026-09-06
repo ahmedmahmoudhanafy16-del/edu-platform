@@ -521,6 +521,13 @@ export function QuizRunner({
             عرض سجل الدرجات
           </Button>
         </div>
+
+        {/* Retake Notice */}
+        <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-center">
+          <p className="text-[11px] text-amber-800 dark:text-amber-300">
+            💡 <strong>إعادة الامتحان:</strong> في حال واجهتك مشكلة تقنية أو انقطاع بالإنترنت، تواصل مع معلمك للحصول على <strong>كود إعادة استثنائي (Retake Code)</strong> لبدء محاولة جديدة.
+          </p>
+        </div>
       </div>
     );
   }

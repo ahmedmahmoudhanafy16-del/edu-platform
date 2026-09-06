@@ -118,6 +118,15 @@ export function StudentQuizCard({
                   الدرجات
                 </Button>
               </Link>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setModalOpen(true)}
+                className="text-xs h-7 px-2 font-semibold text-accent hover:bg-accent-light"
+                title="إعادة الاختبار باستخدام كود الإعادة الممنوح من المعلم"
+              >
+                إعادة بكود جديد 🔄
+              </Button>
             </div>
           ) : (
             <Button size="sm" variant="primary" onClick={handleStart} className="flex items-center gap-1">

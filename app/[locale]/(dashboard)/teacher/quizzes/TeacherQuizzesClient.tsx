@@ -14,9 +14,11 @@ import {
   EyeOff,
   AlertTriangle,
   Sparkles,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
+import { QuizResultsAndRetakeModal } from '@/components/teacher/QuizResultsAndRetakeModal';
 import { deleteQuiz as deleteQuizAction, toggleQuizPublish as toggleQuizPublishAction } from '@/actions/quiz';
 import {
   getQuizzes,
@@ -70,6 +72,9 @@ export function TeacherQuizzesClient({
   // Delete dialog state
   const [quizToDelete, setQuizToDelete] = useState<QuizItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // Results & Retake Codes dialog state
+  const [quizForResults, setQuizForResults] = useState<QuizItem | null>(null);
 
   // Print state
   const [printableQuiz, setPrintableQuiz] = useState<QuizItem | null>(null);
@@ -465,20 +470,32 @@ export function TeacherQuizzesClient({
               })()}
 
               {/* Bottom Actions */}
-              <div className="flex items-center justify-between gap-2">
-                <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
-                  <Printer className="h-3.5 w-3.5 me-1" />
-                  طباعة ورقة الامتحان A4
-                </Button>
+              <div className="space-y-2 pt-1">
                 <Button
-                  variant="secondary"
+                  variant="primary"
                   size="sm"
-                  className="flex-1 text-xs font-semibold"
-                  onClick={() => handleEdit(q)}
+                  className="w-full text-xs font-bold bg-accent hover:bg-accent/90 shadow-sm flex items-center justify-center gap-1.5 py-2"
+                  onClick={() => setQuizForResults(q)}
                 >
-                  <Edit className="h-3.5 w-3.5 me-1 text-accent" />
-                  تعديل الأسئلة
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>نتائج الطلاب وأكواد الإعادة 🔄 ({q.resultsCount} طالب)</span>
                 </Button>
+
+                <div className="flex items-center justify-between gap-2">
+                  <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
+                    <Printer className="h-3.5 w-3.5 me-1" />
+                    طباعة ورقة A4
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="flex-1 text-xs font-semibold"
+                    onClick={() => handleEdit(q)}
+                  >
+                    <Edit className="h-3.5 w-3.5 me-1 text-accent" />
+                    تعديل الأسئلة
+                  </Button>
+                </div>
               </div>
             </div>
           ))
@@ -596,6 +613,13 @@ export function TeacherQuizzesClient({
         }}
         onSuccess={handleQuizSaved}
         quizToEdit={quizToEdit}
+      />
+
+      {/* Quiz Results & Retake Codes Modal */}
+      <QuizResultsAndRetakeModal
+        quiz={quizForResults}
+        isOpen={Boolean(quizForResults)}
+        onClose={() => setQuizForResults(null)}
       />
     </>
   );

@@ -1,11 +1,22 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Ticket, Plus, Download, Copy, Check, Filter,
-  CheckCircle2, Clock, XCircle, AlertCircle, Sparkles, DollarSign, Calendar
+  CheckCircle2, Clock, XCircle, AlertCircle, Sparkles, DollarSign, Calendar,
+  RotateCcw, Share2, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  getRetakeCodes,
+  generateRetakeCode,
+  deleteRetakeCode,
+  getQuizzes,
+  getStudentsFromStore,
+  QuizRetakeCode,
+} from '@/lib/store';
+import { createQuizRetakeCodeAction } from '@/actions/quiz';
+import { toast } from 'sonner';
 
 interface LiveSessionItem {
   id: string;
@@ -38,12 +49,39 @@ export function TeacherAccessCodesClient({
   sessions: LiveSessionItem[];
   initialCodes: AccessCodeItem[];
 }) {
+  const [activeTab, setActiveTab] = useState<'LIVE_SESSIONS' | 'EXAM_RETAKES'>('LIVE_SESSIONS');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(
     sessions[0]?.id || 'ALL'
   );
   const [codes, setCodes] = useState<AccessCodeItem[]>(initialCodes);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'USED' | 'EXPIRED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Retake Codes state
+  const [retakeCodes, setRetakeCodes] = useState<QuizRetakeCode[]>([]);
+  const [allQuizzes, setAllQuizzes] = useState<any[]>([]);
+  const [allStudents, setAllStudents] = useState<any[]>([]);
+  const [isRetakeModalOpen, setIsRetakeModalOpen] = useState(false);
+  const [retakeQuizId, setRetakeQuizId] = useState('');
+  const [retakeStudentId, setRetakeStudentId] = useState('');
+  const [retakeReason, setRetakeReason] = useState('إعادة استثنائية مصرح بها من المعلم');
+  const [isGeneratingRetake, setIsGeneratingRetake] = useState(false);
+
+  // Sync retake data on mount
+  useEffect(() => {
+    function syncRetakeData() {
+      setRetakeCodes(getRetakeCodes());
+      setAllQuizzes(getQuizzes());
+      setAllStudents(getStudentsFromStore());
+    }
+    syncRetakeData();
+    window.addEventListener('edu_store_updated', syncRetakeData);
+    window.addEventListener('storage', syncRetakeData);
+    return () => {
+      window.removeEventListener('edu_store_updated', syncRetakeData);
+      window.removeEventListener('storage', syncRetakeData);
+    };
+  }, []);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -207,76 +245,344 @@ export function TeacherAccessCodesClient({
     document.body.removeChild(link);
   }
 
+  // Handle Generate Retake Code
+  async function handleGenerateRetakeCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!retakeQuizId || !retakeStudentId) {
+      toast.error('يرجى اختيار الامتحان والطالب');
+      return;
+    }
+
+    setIsGeneratingRetake(true);
+    try {
+      const targetQuiz = allQuizzes.find((q) => q.id === retakeQuizId);
+      const targetStudent = allStudents.find((s) => s.id === retakeStudentId || s.studentCode === retakeStudentId);
+
+      const newCode = generateRetakeCode(
+        retakeQuizId,
+        targetStudent?.id || retakeStudentId,
+        targetStudent?.name || 'طالب',
+        targetStudent?.studentCode || retakeStudentId,
+        targetQuiz?.title || 'الاختبار الأكاديمي',
+        retakeReason
+      );
+
+      createQuizRetakeCodeAction(
+        retakeQuizId,
+        targetStudent?.id || retakeStudentId,
+        targetStudent?.name || 'طالب',
+        targetStudent?.studentCode || retakeStudentId,
+        targetQuiz?.title || 'الاختبار الأكاديمي',
+        retakeReason
+      ).catch(() => null);
+
+      setRetakeCodes(getRetakeCodes());
+      setIsRetakeModalOpen(false);
+      toast.success(`تم إنشاء كود إعادة استثنائي بنجاح: ${newCode.code}`);
+    } catch (err: any) {
+      toast.error(err?.message || 'فشل توليد كود الإعادة');
+    } finally {
+      setIsGeneratingRetake(false);
+    }
+  }
+
+  // Handle WhatsApp Share for Retake
+  function handleRetakeWhatsAppShare(retake: QuizRetakeCode) {
+    const student = allStudents.find((s) => s.id === retake.studentId || s.studentCode === retake.studentCode);
+    const rawPhone = student?.parentPhone || student?.parentWhatsapp || student?.phone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.startsWith('0') ? `2${cleanPhone}` : cleanPhone;
+
+    const message = `السلام عليكم ورحمة الله وبركاته،
+ولي أمر الطالب: *${retake.studentName}* (${retake.studentCode})
+
+بناءً على طلبكم، تم تفعيل *إعادة استثنائية* لاختبار:
+📝 *${retake.quizTitle}*
+
+🔑 *كود الدخول الجديد للاختبار:*
+\`${retake.code}\`
+
+⚠️ *تنبيهات هامة للطالب:*
+• الكود صالح للاستخدام لمرة واحدة فقط.
+• سيتم فتح محاولة جديدة بترتيب عشوائي للأسئلة والخيارات.
+• يُرجى عدم مغادرة شاشة الامتحان لتجنب الإلغاء التلقائي.
+
+نتمنى له دوام التوفيق والنجاح! 🌟`;
+
+    const url = cleanPhone
+      ? `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    window.open(url, '_blank');
+  }
+
+  // Handle Delete Retake
+  function handleDeleteRetake(codeId: string) {
+    deleteRetakeCode(codeId);
+    setRetakeCodes(getRetakeCodes());
+    toast.info('تم حذف كود الإعادة');
+  }
+
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
 
   return (
     <div className="space-y-6">
-      {/* ── Top Action Bar ────────────────────────────────────────── */}
-      <div className={`${card} p-5 flex flex-wrap items-center justify-between gap-4`}>
-        {/* Session Selector */}
-        <div className="flex items-center gap-3 min-w-[280px]">
-          <label className="text-xs font-bold text-n-600 dark:text-n-400 whitespace-nowrap">
-            اختر الحصة المباشرة:
-          </label>
-          <select
-            value={selectedSessionId}
-            onChange={(e) => setSelectedSessionId(e.target.value)}
-            className="w-full text-xs font-semibold bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
-          >
-            <option value="ALL">جميع الحصص المباشرة ({codes.length} كود)</option>
-            {sessions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title} ({s.classroomName}) {s.isActive ? '🟢 مباشر الآن' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* ── Main Category Switcher (Live Codes vs Exam Retake Codes) ── */}
+      <div className="flex items-center gap-2 p-1.5 bg-n-100 dark:bg-n-200 rounded-2xl border border-n-200 dark:border-n-300 w-fit">
+        <button
+          onClick={() => setActiveTab('LIVE_SESSIONS')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'LIVE_SESSIONS'
+              ? 'bg-accent text-white shadow-sm'
+              : 'text-n-600 dark:text-n-400 hover:text-n-800'
+          }`}
+        >
+          <Ticket className="h-4 w-4" />
+          <span>أكواد الحصص المباشرة والسنتر ({codes.length})</span>
+        </button>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleCopyAllUnused}
-            className="flex items-center gap-1.5 text-xs"
-          >
-            {copiedAll ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-ok" />
-                <span className="text-ok font-bold">تم نسخ الأكواد المتاحة!</span>
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5 text-n-500" />
-                <span>نسخ الأكواد المتاحة ({stats.available})</span>
-              </>
-            )}
-          </Button>
-
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportCSV}
-            className="flex items-center gap-1.5 text-xs"
-          >
-            <Download className="h-3.5 w-3.5 text-n-500" />
-            <span>تصدير CSV</span>
-          </Button>
-
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => {
-              setModalSessionId(selectedSessionId !== 'ALL' ? selectedSessionId : sessions[0]?.id || '');
-              setIsModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 text-xs"
-          >
-            <Plus className="h-4 w-4" />
-            <span>توليد أكواد جديدة</span>
-          </Button>
-        </div>
+        <button
+          onClick={() => setActiveTab('EXAM_RETAKES')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+            activeTab === 'EXAM_RETAKES'
+              ? 'bg-accent text-white shadow-sm'
+              : 'text-n-600 dark:text-n-400 hover:text-n-800'
+          }`}
+        >
+          <RotateCcw className="h-4 w-4" />
+          <span>أكواد إعادة الامتحانات الاستثنائية ({retakeCodes.length})</span>
+        </button>
       </div>
+
+      {activeTab === 'EXAM_RETAKES' ? (
+        /* ── EXAM RETAKE CODES SECTION ─────────────────────────────────── */
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Top Bar for Retake Codes */}
+          <div className={`${card} p-5 flex flex-wrap items-center justify-between gap-4`}>
+            <div>
+              <h2 className="text-base font-bold text-n-800 dark:text-n-700">سجل أكواد إعادة الامتحانات (Retake Codes)</h2>
+              <p className="text-xs text-n-500 mt-0.5">
+                الأكواد الممنوحة للطلاب لإعادة الاختبارات الملغية أو لمشاكل الاتصال
+              </p>
+            </div>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setIsRetakeModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold"
+            >
+              <Plus className="h-4 w-4" />
+              <span>توليد كود إعادة لطالب</span>
+            </Button>
+          </div>
+
+          {/* Retake Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className={`${card} p-4 flex items-center justify-between`}>
+              <div>
+                <p className="text-xs text-n-500 dark:text-n-400">إجمالي أكواد الإعادة</p>
+                <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-0.5">{retakeCodes.length}</p>
+              </div>
+              <RotateCcw className="h-6 w-6 text-accent" />
+            </div>
+
+            <div className={`${card} p-4 flex items-center justify-between`}>
+              <div>
+                <p className="text-xs text-n-500 dark:text-n-400">أكواد متاحة ولم تُستخدم بعد</p>
+                <p className="text-2xl font-bold text-amber-600 mt-0.5">
+                  {retakeCodes.filter((r) => !r.isUsed).length}
+                </p>
+              </div>
+              <Clock className="h-6 w-6 text-amber-500" />
+            </div>
+
+            <div className={`${card} p-4 flex items-center justify-between`}>
+              <div>
+                <p className="text-xs text-n-500 dark:text-n-400">أكواد تم استخدامها</p>
+                <p className="text-2xl font-bold text-ok mt-0.5">
+                  {retakeCodes.filter((r) => r.isUsed).length}
+                </p>
+              </div>
+              <CheckCircle2 className="h-6 w-6 text-ok" />
+            </div>
+          </div>
+
+          {/* Retake Codes Table */}
+          <div className={`${card} overflow-hidden`}>
+            {retakeCodes.length === 0 ? (
+              <div className="p-12 text-center text-sm text-n-400">
+                <RotateCcw className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
+                <p className="font-semibold text-n-700 dark:text-n-600">لا توجد أكواد إعادة منشأة حالياً</p>
+                <p className="text-xs text-n-400 mt-1">اضغط على زر "توليد كود إعادة لطالب" لمنح كود استثنائي</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-start text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-n-50 dark:bg-n-200 border-b border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 font-bold">
+                      <th className="p-3 text-start">كود الإعادة (Retake Code)</th>
+                      <th className="p-3 text-start">الامتحان المستهدف</th>
+                      <th className="p-3 text-start">الطالب المصرح له</th>
+                      <th className="p-3 text-start">سبب المنح</th>
+                      <th className="p-3 text-start">الحالة</th>
+                      <th className="p-3 text-start">تاريخ الإنشاء</th>
+                      <th className="p-3 text-start">تاريخ الاستخدام</th>
+                      <th className="p-3 text-center">إجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-n-100 dark:divide-n-200">
+                    {retakeCodes.map((r) => (
+                      <tr key={r.id} className="hover:bg-n-50/60 dark:hover:bg-n-200/50 transition-colors">
+                        <td className="p-3 font-mono font-bold">
+                          <span className="bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300/50 px-2 py-1 rounded">
+                            {r.code}
+                          </span>
+                        </td>
+                        <td className="p-3 font-bold text-n-800 dark:text-n-700 max-w-[180px] truncate">
+                          {r.quizTitle}
+                        </td>
+                        <td className="p-3">
+                          <p className="font-bold text-n-800 dark:text-n-700">{r.studentName}</p>
+                          <p className="text-[10px] text-accent font-mono">{r.studentCode}</p>
+                        </td>
+                        <td className="p-3 text-n-600 dark:text-n-400 text-[11px] max-w-[160px] truncate">
+                          {r.reason || 'إعادة استثنائية'}
+                        </td>
+                        <td className="p-3">
+                          {r.isUsed ? (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok bg-ok-light border border-ok/20 px-2 py-0.5 rounded">
+                              <CheckCircle2 className="h-3 w-3" /> تم الاستخدام
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 px-2 py-0.5 rounded">
+                              <Clock className="h-3 w-3" /> متاح للاستخدام 🟡
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-n-500 tabular-nums">
+                          {new Date(r.createdAt).toLocaleDateString('ar-EG')}
+                        </td>
+                        <td className="p-3 text-n-500 tabular-nums">
+                          {r.usedAt ? new Date(r.usedAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleCopySingle(r.code)}
+                              className="h-7 px-2 text-xs"
+                              title="نسخ الكود"
+                            >
+                              {copiedCode === r.code ? (
+                                <span className="text-ok font-bold flex items-center gap-1">
+                                  <Check className="h-3 w-3" /> تم
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  <Copy className="h-3 w-3" /> نسخ
+                                </span>
+                              )}
+                            </Button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRetakeWhatsAppShare(r)}
+                              className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-1 text-[11px] px-2 font-bold shadow-sm"
+                              title="مشاركة على واتساب لولي الأمر"
+                            >
+                              <Share2 className="h-3 w-3" />
+                              <span className="hidden sm:inline">واتساب</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRetake(r.id)}
+                              className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+                              title="حذف هذا الكود"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        /* ── LIVE SESSION CODES SECTION ─────────────────────────────────── */
+        <>
+          {/* ── Top Action Bar ────────────────────────────────────────── */}
+          <div className={`${card} p-5 flex flex-wrap items-center justify-between gap-4`}>
+            {/* Session Selector */}
+            <div className="flex items-center gap-3 min-w-[280px]">
+              <label className="text-xs font-bold text-n-600 dark:text-n-400 whitespace-nowrap">
+                اختر الحصة المباشرة:
+              </label>
+              <select
+                value={selectedSessionId}
+                onChange={(e) => setSelectedSessionId(e.target.value)}
+                className="w-full text-xs font-semibold bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
+              >
+                <option value="ALL">جميع الحصص المباشرة ({codes.length} كود)</option>
+                {sessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title} ({s.classroomName}) {s.isActive ? '🟢 مباشر الآن' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCopyAllUnused}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                {copiedAll ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-ok" />
+                    <span className="text-ok font-bold">تم نسخ الأكواد المتاحة!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 text-n-500" />
+                    <span>نسخ الأكواد المتاحة ({stats.available})</span>
+                  </>
+                )}
+              </Button>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleExportCSV}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <Download className="h-3.5 w-3.5 text-n-500" />
+                <span>تصدير CSV</span>
+              </Button>
+
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setModalSessionId(selectedSessionId !== 'ALL' ? selectedSessionId : sessions[0]?.id || '');
+                  setIsModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <Plus className="h-4 w-4" />
+                <span>توليد أكواد جديدة</span>
+              </Button>
+            </div>
+          </div>
 
       {/* ── Stats Summary Grid ────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -591,6 +897,116 @@ export function TeacherAccessCodesClient({
                   className="px-6"
                 >
                   توليد وحفظ الأكواد الآن
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      </>
+      )}
+
+      {/* ── Generate Retake Code Modal ────────────────────────────── */}
+      {isRetakeModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-n-900/60 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" dir="rtl">
+            <div className="px-6 py-4 border-b border-n-200 dark:border-n-300 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-accent-light text-accent">
+                  <RotateCcw className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">توليد كود إعادة امتحان استثنائي</h3>
+                  <p className="text-xs text-n-500 dark:text-n-400">منح كود فريد لمرة واحدة لطالب لإعادة الاختبار</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsRetakeModalOpen(false)}
+                className="text-n-400 hover:text-n-700 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleGenerateRetakeCode} className="p-6 space-y-4">
+              {/* Target Quiz */}
+              <div>
+                <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
+                  الاختبار المستهدف *
+                </label>
+                <select
+                  value={retakeQuizId}
+                  onChange={(e) => setRetakeQuizId(e.target.value)}
+                  className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
+                  required
+                >
+                  <option value="">-- اختر الامتحان --</option>
+                  {allQuizzes.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title} ({q.classroomName || 'فصل عام'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Target Student */}
+              <div>
+                <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
+                  الطالب المصرح له *
+                </label>
+                <select
+                  value={retakeStudentId}
+                  onChange={(e) => setRetakeStudentId(e.target.value)}
+                  className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
+                  required
+                >
+                  <option value="">-- اختر الطالب --</option>
+                  {allStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.studentCode || s.code || s.id}) - {s.grade || s.gradeLevel || ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
+                  سبب منح الإعادة
+                </label>
+                <input
+                  type="text"
+                  value={retakeReason}
+                  onChange={(e) => setRetakeReason(e.target.value)}
+                  placeholder="مثال: انقطاع الكهرباء / عطل بالجهاز / إعادة تقييم"
+                  className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
+                />
+              </div>
+
+              {/* Notice */}
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
+                <p className="font-bold">⚠️ ما الذي يحدث عند استخدام كود الإعادة؟</p>
+                <p>• يتم مسح تسليم الطالب السابق والمخالفات المسجلة ضده بشكل كامل.</p>
+                <p>• يتم فتح الامتحان بترتيب عشوائي جديد تماماً للأسئلة والخيارات.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="md"
+                  onClick={() => setIsRetakeModalOpen(false)}
+                >
+                  إلغاء
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  loading={isGeneratingRetake}
+                  className="px-6 font-bold"
+                >
+                  توليد كود الإعادة الآن
                 </Button>
               </div>
             </form>

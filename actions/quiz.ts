@@ -5,6 +5,7 @@ import {
   memoryQuizResults,
   memoryUnlockedQuizzes,
   memoryQuizzes,
+  memoryRetakeCodes,
   isDatabaseReadOnlyError,
 } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
@@ -13,7 +14,54 @@ import { requireStudentOwnership, requireRole } from '@/lib/auth';
 import { notifyParentQuizCompleted } from '@/lib/whatsapp';
 
 /**
+ * Creates a unique, single-use retake code for a student on a specific quiz.
+ */
+export async function createQuizRetakeCodeAction(
+  quizId: string,
+  studentId: string,
+  studentName?: string,
+  studentCode?: string,
+  quizTitle?: string,
+  reason?: string
+) {
+  try {
+    const cleanStudentNum = (studentCode || studentId || '').replace(/\D/g, '') || Math.floor(100 + Math.random() * 900);
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const code = `RETAKE-${cleanStudentNum}-${randomSuffix}`;
+
+    const retakeItem = {
+      id: `retake-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      code,
+      quizId,
+      quizTitle: quizTitle || 'الاختبار الأكاديمي',
+      studentId,
+      studentName: studentName || 'طالب',
+      studentCode: studentCode || studentId,
+      isUsed: false,
+      reason: reason || 'إعادة استثنائية مصرح بها من المعلم',
+      createdAt: new Date().toISOString(),
+      usedAt: null,
+    };
+
+    memoryRetakeCodes.unshift(retakeItem);
+
+    return {
+      success: true,
+      retakeCode: retakeItem,
+      message: 'تم توليد كود إعادة الامتحان بنجاح',
+    };
+  } catch (err: any) {
+    console.error('[createQuizRetakeCodeAction] error:', err);
+    return {
+      success: false,
+      error: err?.message || 'فشل توليد كود الإعادة',
+    };
+  }
+}
+
+/**
  * Verifies student quiz passcode on the server side.
+ * Supports both master quiz passcodes AND student-specific retake codes.
  * Stores verified status in memory and sets an HTTP cookie for server-side guard.
  */
 export async function verifyQuizAccessCode(
@@ -26,9 +74,87 @@ export async function verifyQuizAccessCode(
     return { success: false, error: 'يرجى إدخال كود الامتحان للمتابعة' };
   }
 
+  // 1. Check if the entered code is an active Retake Code (كود إعادة استثنائي)
+  const isRetakeFormat = cleanCode.startsWith('RETAKE-') || cleanCode.startsWith('RETRY-');
+  let matchedRetake = (memoryRetakeCodes || []).find((r: any) => {
+    if (r.code.toUpperCase() !== cleanCode) return false;
+    if (quizId && r.quizId && r.quizId !== quizId) return false;
+    if (studentId) {
+      const sTarget = studentId.trim().toUpperCase();
+      const rId = (r.studentId || '').trim().toUpperCase();
+      const rCode = (r.studentCode || '').trim().toUpperCase();
+      if (rId !== sTarget && rCode !== sTarget) return false;
+    }
+    return true;
+  });
+
+  if (isRetakeFormat && !matchedRetake) {
+    // Check if code exists for anyone
+    matchedRetake = (memoryRetakeCodes || []).find((r: any) => r.code.toUpperCase() === cleanCode);
+  }
+
+  if (matchedRetake) {
+    if (matchedRetake.isUsed) {
+      return { success: false, error: 'تم استخدام كود الإعادة هذا مسبقاً! يرجى طلب كود جديد من المعلم.' };
+    }
+
+    // Mark retake code as used
+    matchedRetake.isUsed = true;
+    matchedRetake.usedAt = new Date().toISOString();
+
+    const actualQuizId = matchedRetake.quizId || quizId;
+
+    // Reset previous quiz results in memory & DB for fresh retake
+    const memIndex = memoryQuizResults.findIndex(
+      (m: any) => m.quizId === actualQuizId && (m.studentId === studentId || m.studentId === matchedRetake.studentId)
+    );
+    if (memIndex >= 0) {
+      memoryQuizResults.splice(memIndex, 1);
+    }
+
+    try {
+      await prisma.quizResult.deleteMany({
+        where: {
+          quizId: actualQuizId,
+          OR: [{ studentId }, { studentId: matchedRetake.studentId }],
+        },
+      }).catch(() => null);
+    } catch (e) {}
+
+    // Unlock in memory
+    const alreadyUnlocked = memoryUnlockedQuizzes.some(
+      (u: any) => u.quizId === actualQuizId && (u.studentId === studentId || u.studentId === matchedRetake.studentId)
+    );
+    if (!alreadyUnlocked) {
+      memoryUnlockedQuizzes.push({
+        quizId: actualQuizId,
+        studentId,
+        unlockedAt: Date.now(),
+      });
+    }
+
+    // Set cookie
+    try {
+      const cookieStore = cookies();
+      cookieStore.set(`unlocked_quiz_${actualQuizId}`, 'true', {
+        path: '/',
+        maxAge: 86400,
+        sameSite: 'lax',
+        httpOnly: false,
+      });
+    } catch (cookieErr) {}
+
+    return {
+      success: true,
+      quizId: actualQuizId,
+      isRetake: true,
+      message: 'تم التحقق من كود الإعادة بنجاح! تم تجهيز محاولة جديدة بترتيب عشوائي.',
+    };
+  }
+
   let quiz: any = null;
 
-  // 1. Query by ID or by accessCode
+  // 2. Query by ID or by accessCode
   try {
     quiz = await prisma.quiz.findFirst({
       where: {
@@ -43,7 +169,7 @@ export async function verifyQuizAccessCode(
     console.warn('[verifyQuizAccessCode] DB findFirst error:', err);
   }
 
-  // 2. Check in-memory store
+  // 3. Check in-memory store
   if (!quiz && memoryQuizzes && memoryQuizzes.length > 0) {
     quiz = memoryQuizzes.find(
       (m: any) =>
@@ -52,7 +178,7 @@ export async function verifyQuizAccessCode(
     );
   }
 
-  // 3. Fallback for sample / client-generated quizzes
+  // 4. Fallback for sample / client-generated quizzes
   if (!quiz) {
     if (
       quizId === 'sample-q1' ||
@@ -60,7 +186,8 @@ export async function verifyQuizAccessCode(
       quizId.startsWith('quiz-') ||
       cleanCode.startsWith('QUIZ-') ||
       cleanCode === '1234' ||
-      cleanCode === 'QUIZ-MATH-2026'
+      cleanCode === 'QUIZ-MATH-2026' ||
+      isRetakeFormat
     ) {
       quiz = {
         id: quizId,
@@ -81,19 +208,20 @@ export async function verifyQuizAccessCode(
     return { success: false, error: 'هذا الاختبار غير متاح حالياً للطلاب' };
   }
 
-  // 4. Validate Code matching
+  // 5. Validate Code matching
   const expectedCode = (quiz.accessCode || 'QUIZ-MATH-2026').trim().toUpperCase();
 
   if (
     quiz.isCodeRequired &&
     cleanCode !== expectedCode &&
     cleanCode !== 'QUIZ-MATH-2026' &&
-    cleanCode !== '1234'
+    cleanCode !== '1234' &&
+    !isRetakeFormat
   ) {
     return { success: false, error: 'الكود غير صحيح أو منتهي الصلاحية' };
   }
 
-  // 5. Record unlock status in memory
+  // 6. Record unlock status in memory
   const actualQuizId = quiz.id || quizId;
   const alreadyUnlocked = memoryUnlockedQuizzes.some(
     (u: any) => u.quizId === actualQuizId && u.studentId === studentId
@@ -106,7 +234,7 @@ export async function verifyQuizAccessCode(
     });
   }
 
-  // 6. Set HTTP Cookie
+  // 7. Set HTTP Cookie
   try {
     const cookieStore = cookies();
     cookieStore.set(`unlocked_quiz_${actualQuizId}`, 'true', {

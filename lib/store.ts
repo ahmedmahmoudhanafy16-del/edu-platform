@@ -49,10 +49,25 @@ export interface QuizSubmissionData {
   status?: string;
 }
 
+export interface QuizRetakeCode {
+  id: string;
+  code: string;
+  quizId: string;
+  quizTitle: string;
+  studentId: string;
+  studentName: string;
+  studentCode: string;
+  isUsed: boolean;
+  reason?: string;
+  createdAt: string;
+  usedAt?: string | null;
+}
+
 export const STORAGE_KEYS = {
   QUIZZES: 'edu_quizzes',
   DELETED_QUIZZES: 'edu_deleted_quiz_ids',
   RESULTS: 'edu_quiz_results',
+  RETAKE_CODES: 'edu_quiz_retake_codes',
   STUDENTS: 'edu_students',
   ASSIGNMENTS: 'edu_assignments',
   CLASSROOMS: 'edu_classrooms',
@@ -366,8 +381,215 @@ export function saveSubmission(submission: QuizSubmissionData): void {
 }
 
 /**
- * 8. Reactive Custom Hook for Components
+ * 7.1 Delete submission when a retake is granted/started
  */
+export function deleteSubmission(quizId: string, studentId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RESULTS);
+    if (!raw) return;
+    const current: any[] = JSON.parse(raw);
+    const targetQuizId = (quizId || '').trim();
+    const targetStudentId = (studentId || '').trim().toUpperCase();
+
+    const filtered = current.filter((s: any) => {
+      const qMatch = s.quizId === targetQuizId || s.id === targetQuizId || s.accessCode === targetQuizId;
+      const sMatch =
+        (s.studentId && s.studentId.trim().toUpperCase() === targetStudentId) ||
+        (s.studentCode && s.studentCode.trim().toUpperCase() === targetStudentId);
+      return !(qMatch && sMatch);
+    });
+
+    localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(filtered));
+    notifyStoreUpdated();
+  } catch (err) {
+    console.warn('[deleteSubmission] error:', err);
+  }
+}
+
+/**
+ * 7.2 Retake Codes Management Functions
+ */
+export function getRetakeCodes(quizId?: string, studentId?: string): QuizRetakeCode[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RETAKE_CODES);
+    if (!raw) return [];
+    const list: QuizRetakeCode[] = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+
+    return list.filter((r) => {
+      if (!r || !r.code) return false;
+      if (quizId && r.quizId !== quizId) return false;
+      if (studentId) {
+        const sTarget = studentId.trim().toUpperCase();
+        const sId = (r.studentId || '').trim().toUpperCase();
+        const sCode = (r.studentCode || '').trim().toUpperCase();
+        if (sId !== sTarget && sCode !== sTarget) return false;
+      }
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
+export function saveRetakeCode(retakeCode: QuizRetakeCode): QuizRetakeCode {
+  if (typeof window === 'undefined') return retakeCode;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.RETAKE_CODES);
+    const current: QuizRetakeCode[] = raw ? JSON.parse(raw) : [];
+
+    const existingIndex = current.findIndex((r) => r.id === retakeCode.id || r.code === retakeCode.code);
+    let updated: QuizRetakeCode[];
+    if (existingIndex !== -1) {
+      updated = [...current];
+      updated[existingIndex] = { ...updated[existingIndex], ...retakeCode };
+    } else {
+      updated = [retakeCode, ...current];
+    }
+
+    localStorage.setItem(STORAGE_KEYS.RETAKE_CODES, JSON.stringify(updated));
+    notifyStoreUpdated();
+    return retakeCode;
+  } catch (err) {
+    console.warn('[saveRetakeCode] error:', err);
+    return retakeCode;
+  }
+}
+
+export function generateRetakeCode(
+  quizId: string,
+  studentId: string,
+  studentName?: string,
+  studentCode?: string,
+  quizTitle?: string,
+  reason: string = 'إعادة استثنائية مصرح بها من المعلم'
+): QuizRetakeCode {
+  const currentCodes = getRetakeCodes();
+  const existingCodeStrings = new Set(currentCodes.map((c) => c.code.toUpperCase()));
+
+  // Generate clean, memorable, unique retake code
+  let generatedCode = '';
+  let attempts = 0;
+  const cleanStudentNum = (studentCode || studentId || '').replace(/\D/g, '') || Math.floor(100 + Math.random() * 900);
+  
+  do {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    generatedCode = `RETAKE-${cleanStudentNum}-${randomSuffix}`;
+    attempts++;
+  } while (existingCodeStrings.has(generatedCode) && attempts < 100);
+
+  const newRetake: QuizRetakeCode = {
+    id: `retake-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    code: generatedCode,
+    quizId: quizId,
+    quizTitle: quizTitle || 'الاختبار الأكاديمي',
+    studentId: studentId,
+    studentName: studentName || 'طالب',
+    studentCode: studentCode || studentId,
+    isUsed: false,
+    reason,
+    createdAt: new Date().toISOString(),
+    usedAt: null,
+  };
+
+  saveRetakeCode(newRetake);
+  return newRetake;
+}
+
+export function deleteRetakeCode(codeOrId: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const cleanTarget = (codeOrId || '').trim().toUpperCase();
+    const current = getRetakeCodes();
+    const filtered = current.filter((r) => r.id !== codeOrId && r.code.toUpperCase() !== cleanTarget);
+    localStorage.setItem(STORAGE_KEYS.RETAKE_CODES, JSON.stringify(filtered));
+    notifyStoreUpdated();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 7.3 Consumes a retake code: marks it used, resets student submission & violations
+ */
+export function consumeRetakeCode(
+  code: string,
+  quizId?: string,
+  studentId?: string
+): { success: boolean; retake?: QuizRetakeCode; message?: string } {
+  if (typeof window === 'undefined') return { success: false, message: 'بيئة المتصفح غير جاهزة' };
+  try {
+    const clean = (code || '').trim().toUpperCase();
+    if (!clean) return { success: false, message: 'يرجى إدخال كود إعادة الامتحان' };
+
+    const all = getRetakeCodes();
+    const matched = all.find((r) => {
+      if (r.code.toUpperCase() !== clean) return false;
+      if (quizId && r.quizId !== quizId) return false;
+      if (studentId) {
+        const sTarget = studentId.trim().toUpperCase();
+        const sId = (r.studentId || '').trim().toUpperCase();
+        const sCode = (r.studentCode || '').trim().toUpperCase();
+        if (sId !== sTarget && sCode !== sTarget) return false;
+      }
+      return true;
+    });
+
+    if (!matched) {
+      // If code starts with RETAKE- or RETRY- and exists generally
+      const anyMatch = all.find((r) => r.code.toUpperCase() === clean);
+      if (anyMatch) {
+        if (anyMatch.isUsed) {
+          return { success: false, message: 'تم استخدام كود الإعادة هذا مسبقاً! يرجى طلب كود جديد من المعلم.' };
+        }
+        return { success: false, message: 'هذا الكود مخصص لامتحان أو طالب آخر.' };
+      }
+      return { success: false, message: 'كود الإعادة غير صحيح أو غير مسجل بالنظام' };
+    }
+
+    if (matched.isUsed) {
+      return { success: false, message: 'تم استخدام كود الإعادة هذا مسبقاً! يرجى طلب كود جديد من المعلم.' };
+    }
+
+    // 1. Mark as used
+    matched.isUsed = true;
+    matched.usedAt = new Date().toISOString();
+    saveRetakeCode(matched);
+
+    const targetQuizId = matched.quizId || quizId || '';
+    const targetStudentId = matched.studentId || studentId || '';
+    const targetStudentCode = matched.studentCode || targetStudentId;
+
+    // 2. Delete old submission so student starts completely fresh
+    deleteSubmission(targetQuizId, targetStudentId);
+    if (targetStudentCode && targetStudentCode !== targetStudentId) {
+      deleteSubmission(targetQuizId, targetStudentCode);
+    }
+
+    // 3. Clear anti-cheat violations tracking
+    try {
+      localStorage.removeItem(`edu_quiz_violations_${targetQuizId}_${targetStudentCode}`);
+      localStorage.removeItem(`edu_quiz_violations_${targetQuizId}_${targetStudentId}`);
+      localStorage.removeItem(`quiz_answers_${targetQuizId}_${targetStudentId}`);
+      localStorage.removeItem(`quiz_answers_${targetQuizId}_${targetStudentCode}`);
+      sessionStorage.setItem(`unlocked_quiz_${targetQuizId}`, 'true');
+      document.cookie = `unlocked_quiz_${targetQuizId}=true; path=/; max-age=86400; SameSite=Lax`;
+    } catch (e) {}
+
+    notifyStoreUpdated();
+    return {
+      success: true,
+      retake: matched,
+      message: 'تم تفعيل كود إعادة الامتحان بنجاح! تم تجهيز محاولة جديدة بترتيب عشوائي بالكامل.',
+    };
+  } catch (err: any) {
+    console.error('[consumeRetakeCode] error:', err);
+    return { success: false, message: err?.message || 'حدث خطأ أثناء معالجة كود الإعادة' };
+  }
+}
 export function usePlatformQuizzes(filterForStudent: boolean = false) {
   const [quizzes, setQuizzes] = useState<QuizData[]>(() =>
     filterForStudent ? getStudentQuizzes() : getQuizzes()
