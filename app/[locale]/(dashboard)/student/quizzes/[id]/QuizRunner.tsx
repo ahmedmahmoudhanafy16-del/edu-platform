@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck, Maximize2 } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck, Maximize2, Timer, Lock, ShieldAlert } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
 import { saveSubmission } from '@/lib/store';
 import { shuffleArray } from '@/lib/shuffle';
@@ -17,7 +17,6 @@ interface Question {
   text: string;
   type: string;
   options: string[];
-  correctAnswer?: string;
   maxScore: number;
 }
 
@@ -29,58 +28,17 @@ interface Quiz {
   shuffleQuestions?: boolean;
   maxViolations?: number;
   accessCode?: string;
+  timePerQuestion?: number;
+  preventBackNavigation?: boolean;
   questions: Question[];
-}
-
-function normalizeAnswerText(str: any): string {
-  if (str === undefined || str === null) return '';
-  return String(str)
-    .trim()
-    .toLowerCase()
-    .replace(/[\u064B-\u0652]/g, '')
-    .replace(/[أإآ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/\s+/g, ' ');
-}
-
-function isAnswerCorrect(
-  studentAns: string | undefined | null,
-  correctAnswer: string | undefined | null,
-  options: string[] = []
-): boolean {
-  if (!studentAns || !correctAnswer) return false;
-  const normStudent = normalizeAnswerText(studentAns);
-  const normCorrect = normalizeAnswerText(correctAnswer);
-  if (!normStudent || !normCorrect) return false;
-
-  if (normStudent === normCorrect) return true;
-
-  const numCorrect = parseInt(normCorrect, 10);
-  if (!isNaN(numCorrect)) {
-    if (options[numCorrect] && normalizeAnswerText(options[numCorrect]) === normStudent) return true;
-    if (numCorrect > 0 && options[numCorrect - 1] && normalizeAnswerText(options[numCorrect - 1]) === normStudent) return true;
-  }
-
-  const numStudent = parseInt(normStudent, 10);
-  if (!isNaN(numStudent)) {
-    if (options[numStudent] && normalizeAnswerText(options[numStudent]) === normCorrect) return true;
-    if (numStudent > 0 && options[numStudent - 1] && normalizeAnswerText(options[numStudent - 1]) === normCorrect) return true;
-  }
-
-  if (!isNaN(numStudent) && !isNaN(numCorrect)) {
-    if (numStudent === numCorrect) return true;
-    if (numStudent === numCorrect - 1 || numStudent - 1 === numCorrect) return true;
-  }
-
-  return false;
 }
 
 /**
  * Normalizes questions and ALWAYS randomly shuffles both question order
  * and option choices for every student attempt to prevent copying and leaks.
+ * Strips any correct answers completely so client never receives them.
  */
-function normalizeQuestions(raw: any[], studentId: string): Question[] {
+function normalizeQuestions(raw: any[], studentId?: string): Question[] {
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
   const parsed: Question[] = raw.map((q, idx) => {
@@ -110,12 +68,10 @@ function normalizeQuestions(raw: any[], studentId: string): Question[] {
       text: q.text || `السؤال ${idx + 1}`,
       type: q.type || 'MCQ',
       options: randomizedOptions,
-      correctAnswer: q.correctAnswer,
       maxScore: Number(q.maxScore) || 5,
     };
   });
 
-  // Always shuffle question order uniquely per student and attempt
   return shuffleArray(parsed);
 }
 
@@ -161,6 +117,16 @@ export function QuizRunner({
   const isSubmitting = useRef(false);
 
   const autosaveKey = `quiz_answers_${activeQuiz?.id || quiz?.id || 'default'}_${studentId}`;
+
+  const secondsPerQuestion = Number(activeQuiz?.timePerQuestion || quiz?.timePerQuestion) || 60;
+  const isLinearMode = activeQuiz?.preventBackNavigation !== false && quiz?.preventBackNavigation !== false;
+
+  const [questionTimeLeft, setQuestionTimeLeft] = useState<number>(secondsPerQuestion);
+
+  // Reset per-question timer whenever moving to a new question
+  useEffect(() => {
+    setQuestionTimeLeft(secondsPerQuestion);
+  }, [current, secondsPerQuestion]);
 
   // 1. Client Mount Flag & Student Identity resolution
   useEffect(() => {
@@ -258,28 +224,27 @@ export function QuizRunner({
           console.warn('[QuizRunner] Server submission action fallback:', serverErr);
         }
 
-        const clientReviewQuestions = questions.map((qn, idx) => {
-          const studentAnsText = answers[qn.id] ? String(answers[qn.id]).trim() : '';
-          const max = Number(qn.maxScore) || Math.round(100 / Math.max(1, questions.length));
-          const correct = (qn as any).correctAnswer || (qn.options[0] || '');
-          const isCorrect = (qn as any).correctAnswer
-            ? isAnswerCorrect(studentAnsText, (qn as any).correctAnswer, qn.options)
-            : Boolean(studentAnsText);
-          return {
-            questionId: qn.id || `q-${idx + 1}`,
-            text: qn.text,
-            type: qn.type,
-            options: qn.options,
-            studentAnswer: studentAnsText,
-            correctAnswer: correct,
-            isCorrect,
-            earnedScore: isCorrect ? max : 0,
-            maxScore: max,
-          };
-        });
+        const clientReviewQuestions =
+          res?.reviewQuestions && Array.isArray(res.reviewQuestions) && res.reviewQuestions.length > 0
+            ? res.reviewQuestions
+            : questions.map((qn, idx) => {
+                const studentAnsText = answers[qn.id] ? String(answers[qn.id]).trim() : '';
+                const max = Number(qn.maxScore) || Math.round(100 / Math.max(1, questions.length));
+                return {
+                  questionId: qn.id || `q-${idx + 1}`,
+                  text: qn.text,
+                  type: qn.type,
+                  options: qn.options,
+                  studentAnswer: studentAnsText,
+                  correctAnswer: '',
+                  isCorrect: Boolean(studentAnsText),
+                  earnedScore: studentAnsText ? max : 0,
+                  maxScore: max,
+                };
+              });
 
-        const calculatedEarned = clientReviewQuestions.reduce((acc, q) => acc + q.earnedScore, 0);
-        const calculatedMax = clientReviewQuestions.reduce((acc, q) => acc + q.maxScore, 0);
+        const calculatedEarned = clientReviewQuestions.reduce((acc: number, q: any) => acc + (Number(q.earnedScore) || 0), 0);
+        const calculatedMax = clientReviewQuestions.reduce((acc: number, q: any) => acc + (Number(q.maxScore) || 0), 0);
 
         if (!res || !res.success) {
           res = {
@@ -449,6 +414,29 @@ export function QuizRunner({
     return () => clearTimeout(t);
   }, [mounted, timeLeft, submitted, handleSubmit]);
 
+  // Per-Question Countdown Timer (Strict Anti-Cheat / Anti-Leak)
+  useEffect(() => {
+    if (!mounted || submitted || submitting) return;
+
+    if (questionTimeLeft <= 0) {
+      if (current < questions.length - 1) {
+        toast.warning(`انتهى وقت السؤال (${current + 1})! تم الانتقال للسؤال التالي وقفل السؤال السابق.`);
+        setCurrent((p) => p + 1);
+        setQuestionTimeLeft(secondsPerQuestion);
+      } else {
+        toast.error('انتهى وقت السؤال الأخير! جاري تسليم الامتحان تلقائياً...');
+        handleSubmit(true);
+      }
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setQuestionTimeLeft((p) => Math.max(0, p - 1));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [mounted, submitted, submitting, questionTimeLeft, current, questions.length, secondsPerQuestion, handleSubmit]);
+
   const mins = Math.floor(Math.max(0, timeLeft) / 60);
   const secs = Math.max(0, timeLeft) % 60;
 
@@ -608,6 +596,52 @@ export function QuizRunner({
         />
       </div>
 
+      {/* Per-Question Live Countdown & Strict Anti-Leak Linear Banner */}
+      <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-n-100 to-amber-500/10 dark:from-amber-950/30 dark:via-n-200 dark:to-amber-950/30 border border-amber-500/20 space-y-2.5">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-n-600 dark:text-n-400">
+              السؤال {current + 1} من {questions.length}
+            </span>
+            <div
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-mono text-xs font-bold border transition-colors',
+                questionTimeLeft <= 10
+                  ? 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30 animate-pulse'
+                  : questionTimeLeft <= 20
+                  ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+                  : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30'
+              )}
+            >
+              <Timer className="h-3.5 w-3.5" />
+              <span>متبقي للسؤال: {questionTimeLeft} ثانية</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+            <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+            <span>نمط خطي مشدد: لا يمكن الرجوع بعد الانتقال</span>
+          </div>
+        </div>
+
+        {/* Question-specific countdown bar */}
+        <div className="w-full bg-n-200 dark:bg-n-300 h-1.5 rounded-full overflow-hidden">
+          <div
+            className={cn(
+              'h-full transition-all duration-1000 ease-linear rounded-full',
+              questionTimeLeft <= 10
+                ? 'bg-red-500'
+                : questionTimeLeft <= 20
+                ? 'bg-amber-500'
+                : 'bg-emerald-500'
+            )}
+            style={{
+              width: `${Math.max(0, Math.min(100, (questionTimeLeft / secondsPerQuestion) * 100))}%`,
+            }}
+          />
+        </div>
+      </div>
+
       {/* Question Card Wrapped with Secure Blanking Container */}
       <div className="exam-secure-area-content rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-4 shadow-sm relative">
         {/* Inline Student Identity Watermark Header */}
@@ -678,46 +712,81 @@ export function QuizRunner({
       </div>
 
       {/* Navigation Footer */}
-      <div className="flex items-center justify-between">
-        <Button
-          variant="secondary"
-          size="md"
-          disabled={current === 0}
-          onClick={() => setCurrent((p) => Math.max(0, p - 1))}
-        >
-          <ChevronRight className="h-4 w-4 ml-1" />
-          السابق
-        </Button>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        {isLinearMode ? (
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-n-100 dark:bg-n-200 text-n-400 dark:text-n-500 text-xs font-semibold border border-n-200 dark:border-n-300 cursor-not-allowed select-none">
+            <Lock className="h-3.5 w-3.5 text-n-400" />
+            <span>السابق مغلق</span>
+          </div>
+        ) : (
+          <Button
+            variant="secondary"
+            size="md"
+            disabled={current === 0}
+            onClick={() => setCurrent((p) => Math.max(0, p - 1))}
+          >
+            <ChevronRight className="h-4 w-4 ml-1" />
+            السابق
+          </Button>
+        )}
 
         {/* Dynamic Question Pagination Index Numbers */}
-        <div className="flex gap-1 flex-wrap justify-center max-w-[60%]">
-          {questions.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setCurrent(i)}
-              className={cn(
-                'w-7 h-7 rounded text-xs font-bold border transition-colors',
-                i === current
-                  ? 'border-accent bg-accent text-white shadow-sm'
-                  : answers[questions[i]?.id]
-                  ? 'border-ok/40 bg-ok-light text-ok'
-                  : 'border-n-200 text-n-400 hover:bg-n-100'
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
+        <div className="flex gap-1 flex-wrap justify-center max-w-[55%]">
+          {questions.map((_, i) => {
+            const isAnswered = Boolean(answers[questions[i]?.id]);
+            const isPast = i < current;
+            const isCurrent = i === current;
+            return (
+              <button
+                key={i}
+                disabled={isLinearMode && i !== current}
+                onClick={() => {
+                  if (!isLinearMode) setCurrent(i);
+                }}
+                title={
+                  isCurrent
+                    ? 'السؤال الحالي النشط'
+                    : isPast
+                    ? 'تم تجاوزه ومغلق (لا يمكن العودة)'
+                    : 'سؤال قادم'
+                }
+                className={cn(
+                  'w-7 h-7 rounded text-xs font-bold border transition-colors flex items-center justify-center',
+                  isCurrent
+                    ? 'border-accent bg-accent text-white shadow-sm ring-2 ring-accent/30'
+                    : isPast
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400'
+                    : 'border-n-200 text-n-400 opacity-60'
+                )}
+              >
+                {isPast ? '✓' : i + 1}
+              </button>
+            );
+          })}
         </div>
 
         {current < questions.length - 1 ? (
-          <Button size="md" onClick={() => setCurrent((p) => Math.min(questions.length - 1, p + 1))}>
-            التالي
-            <ChevronLeft className="h-4 w-4 mr-1" />
+          <Button
+            size="md"
+            onClick={() => {
+              setCurrent((p) => Math.min(questions.length - 1, p + 1));
+              setQuestionTimeLeft(secondsPerQuestion);
+            }}
+            className="font-bold gap-1.5"
+          >
+            <span>تأكيد والتالي</span>
+            <ChevronLeft className="h-4 w-4" />
           </Button>
         ) : (
-          <Button variant="primary" size="md" loading={submitting} onClick={() => handleSubmit(false)}>
-            <Send className="h-4 w-4 ml-1.5" />
-            تسليم الامتحان
+          <Button
+            variant="primary"
+            size="md"
+            loading={submitting}
+            onClick={() => handleSubmit(false)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5"
+          >
+            <Send className="h-4 w-4" />
+            <span>تسليم الامتحان</span>
           </Button>
         )}
       </div>

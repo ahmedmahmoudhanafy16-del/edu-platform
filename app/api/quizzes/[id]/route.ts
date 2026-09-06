@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, memoryQuizzes } from '@/lib/prisma';
+import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,30 @@ export async function GET(
     }
 
     if (!quiz) {
+      const fallbackQuestions = [
+        {
+          id: `q-${id}-1`,
+          text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
+          type: 'MCQ',
+          options: shuffleArray(['6', '8', '10', '12']),
+          maxScore: 5,
+        },
+        {
+          id: `q-${id}-2`,
+          text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
+          type: 'MCQ',
+          options: shuffleArray(['{3}', '{-3}', '{3, -3}', '∅']),
+          maxScore: 5,
+        },
+        {
+          id: `q-${id}-3`,
+          text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
+          type: 'ESSAY',
+          options: [],
+          maxScore: 10,
+        },
+      ];
+
       return NextResponse.json(
         {
           success: true,
@@ -46,29 +71,9 @@ export async function GET(
             accessCode: 'QUIZ-MATH-2026',
             isCodeRequired: true,
             isPublished: true,
-            questions: [
-              {
-                id: `q-${id}-1`,
-                text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-                type: 'MCQ',
-                options: ['6', '8', '10', '12'],
-                maxScore: 5,
-              },
-              {
-                id: `q-${id}-2`,
-                text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-                type: 'MCQ',
-                options: ['{3}', '{-3}', '{3, -3}', '∅'],
-                maxScore: 5,
-              },
-              {
-                id: `q-${id}-3`,
-                text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
-                type: 'ESSAY',
-                options: [],
-                maxScore: 10,
-              },
-            ],
+            timePerQuestion: 60,
+            preventBackNavigation: true,
+            questions: shuffleArray(fallbackQuestions),
           },
         },
         { status: 200 }
@@ -87,15 +92,23 @@ export async function GET(
         parsedOptions = [];
       }
 
+      // Server-side shuffle of MCQ choices
+      const safeOptions = Array.isArray(parsedOptions) ? parsedOptions.filter(Boolean) : [];
+      const shuffledOptions = q.type === 'MCQ' && safeOptions.length > 1 ? shuffleArray(safeOptions) : safeOptions;
+
       return {
         id: q.id || `q-${Math.random()}`,
         text: q.text || 'سؤال بدون نص',
         type: q.type || 'MCQ',
-        options: Array.isArray(parsedOptions) ? parsedOptions : [],
+        options: shuffledOptions,
         maxScore: q.maxScore ?? 5,
         order: q.order ?? 0,
+        // CRITICAL SECURITY: correctAnswer is NEVER returned in the student API payload
       };
     });
+
+    // Server-side shuffle of questions array
+    const randomizedQuestions = shuffleArray(sanitizedQuestions);
 
     return NextResponse.json({
       success: true,
@@ -107,9 +120,11 @@ export async function GET(
         accessCode: quiz.accessCode || 'QUIZ-MATH-2026',
         isCodeRequired: quiz.isCodeRequired !== false,
         isPublished: quiz.isPublished !== false,
-        shuffleQuestions: Boolean(quiz.shuffleQuestions),
-        maxViolations: quiz.maxViolations ?? 3,
-        questions: sanitizedQuestions,
+        shuffleQuestions: true,
+        preventBackNavigation: quiz.preventBackNavigation !== false,
+        timePerQuestion: Number(quiz.timePerQuestion) || 60,
+        maxViolations: quiz.maxViolations ?? 2,
+        questions: randomizedQuestions,
       },
     });
   } catch (err: any) {

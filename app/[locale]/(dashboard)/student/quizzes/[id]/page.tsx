@@ -6,6 +6,7 @@ import { QuizRunner } from './QuizRunner';
 import { QuizPasscodeGuard } from './QuizPasscodeGuard';
 import { Loader2, AlertCircle, ArrowRight, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getStudentQuizSecureAction } from '@/actions/quiz';
 import Link from 'next/link';
 
 export default function StudentQuizPage() {
@@ -48,28 +49,15 @@ export default function StudentQuizPage() {
 
       let resolvedQuiz: any = null;
 
-      // 1. Check LocalStorage first (instant offline/mock support)
+      // 1. Try secure server action first (server-side shuffle + stripped correctAnswer)
       try {
-        const stored = localStorage.getItem('edu_quizzes');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            const match = parsed.find(
-              (q: any) =>
-                q.id === quizId ||
-                q.accessCode === quizId ||
-                (q.accessCode && q.accessCode.trim().toUpperCase() === quizId.toUpperCase())
-            );
-            if (match) {
-              resolvedQuiz = match;
-            }
-          }
+        const secureRes = await getStudentQuizSecureAction(quizId, studentId);
+        if (secureRes && secureRes.success && secureRes.quiz) {
+          resolvedQuiz = secureRes.quiz;
         }
-      } catch (err) {
-        console.warn('[QuizPage Client] LocalStorage read skipped:', err);
-      }
+      } catch (e) {}
 
-      // 2. Fetch from API endpoint if not in localStorage or to sync updates
+      // 2. Fetch from secure API endpoint
       if (!resolvedQuiz) {
         try {
           const res = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}`);
@@ -81,6 +69,37 @@ export default function StudentQuizPage() {
           }
         } catch (fetchErr) {
           console.warn('[QuizPage Client] API fetch skipped:', fetchErr);
+        }
+      }
+
+      // 3. Fallback to LocalStorage but strictly SANITIZE and STRIP correctAnswer
+      if (!resolvedQuiz) {
+        try {
+          const stored = localStorage.getItem('edu_quizzes');
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) {
+              const match = parsed.find(
+                (q: any) =>
+                  q.id === quizId ||
+                  q.accessCode === quizId ||
+                  (q.accessCode && q.accessCode.trim().toUpperCase() === quizId.toUpperCase())
+              );
+              if (match) {
+                // Strip all correct answers so client can never see them
+                const cleanQuestions = (match.questions || []).map((q: any) => {
+                  const { correctAnswer, ...rest } = q;
+                  return rest;
+                });
+                resolvedQuiz = {
+                  ...match,
+                  questions: cleanQuestions,
+                };
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[QuizPage Client] LocalStorage read skipped:', err);
         }
       }
 

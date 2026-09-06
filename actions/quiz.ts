@@ -12,6 +12,98 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { requireStudentOwnership, requireRole } from '@/lib/auth';
 import { notifyParentQuizCompleted } from '@/lib/whatsapp';
+import { shuffleArray } from '@/lib/shuffle';
+
+/**
+ * Securely retrieves a quiz for student execution.
+ * 1. Shuffles question order on the server.
+ * 2. Shuffles MCQ option choices on the server.
+ * 3. STRIPS all correct answers from the response payload completely.
+ * 4. Injects strict per-question timing and linear progression parameters.
+ */
+export async function getStudentQuizSecureAction(quizId: string, studentId: string = '') {
+  try {
+    const cleanId = (quizId || '').trim();
+    if (!cleanId) return { success: false, error: 'معرف الاختبار مفقود' };
+
+    let quiz: any = null;
+    try {
+      quiz = await prisma.quiz.findFirst({
+        where: {
+          OR: [{ id: cleanId }, { accessCode: cleanId }],
+        },
+        include: {
+          questions: {
+            orderBy: { order: 'asc' },
+          },
+        },
+      });
+    } catch (err) {
+      console.warn('[getStudentQuizSecureAction] DB lookup warning:', err);
+    }
+
+    if (!quiz && memoryQuizzes && memoryQuizzes.length > 0) {
+      quiz = memoryQuizzes.find((m: any) => m.id === cleanId || m.accessCode === cleanId);
+    }
+
+    if (!quiz) {
+      return { success: false, error: 'لم يتم العثور على الاختبار المطلوب' };
+    }
+
+    if (quiz.isPublished === false || quiz.isHidden === true) {
+      return { success: false, error: 'هذا الاختبار غير متاح حالياً للطلاب' };
+    }
+
+    const sanitizedQuestions = (quiz.questions || []).map((q: any) => {
+      let parsedOptions: string[] = [];
+      try {
+        if (Array.isArray(q.options)) {
+          parsedOptions = q.options;
+        } else if (typeof q.options === 'string') {
+          parsedOptions = JSON.parse(q.options || '[]');
+        }
+      } catch (e) {
+        parsedOptions = [];
+      }
+
+      const safeOptions = Array.isArray(parsedOptions) ? parsedOptions.filter(Boolean) : [];
+      // Server-side shuffle of MCQ choices
+      const shuffledOptions = q.type === 'MCQ' && safeOptions.length > 1 ? shuffleArray(safeOptions) : safeOptions;
+
+      return {
+        id: q.id,
+        text: q.text,
+        type: q.type || 'MCQ',
+        options: shuffledOptions,
+        maxScore: Number(q.maxScore) || 5,
+        // ZERO correctAnswer sent to student!
+      };
+    });
+
+    // Server-side shuffle of questions
+    const randomizedQuestions = shuffleArray(sanitizedQuestions);
+
+    return {
+      success: true,
+      quiz: {
+        id: quiz.id,
+        title: quiz.title,
+        type: quiz.type,
+        duration: Number(quiz.duration) || 20,
+        passingScore: Number(quiz.passingScore) || 60,
+        accessCode: quiz.accessCode,
+        isCodeRequired: quiz.isCodeRequired !== false,
+        timePerQuestion: Number(quiz.timePerQuestion) || 60,
+        preventBackNavigation: quiz.preventBackNavigation !== false,
+        maxViolations: 2,
+        questions: randomizedQuestions,
+      },
+    };
+  } catch (err: any) {
+    console.error('[getStudentQuizSecureAction] error:', err);
+    return { success: false, error: err?.message || 'فشل تحميل بيانات الاختبار' };
+  }
+}
 
 /**
  * Creates a unique, single-use retake code for a student on a specific quiz.
