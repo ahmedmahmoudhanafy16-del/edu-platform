@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck, Maximize2 } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
 import { saveSubmission } from '@/lib/store';
 import { shuffleArray } from '@/lib/shuffle';
@@ -572,6 +572,23 @@ export function QuizRunner({
                 : `${String(activeQuiz?.duration || quiz?.duration || 20).padStart(2, '0')}:00`}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                if (!document.fullscreenElement) {
+                  document.documentElement.requestFullscreen?.().catch(() => {});
+                } else {
+                  document.exitFullscreen?.().catch(() => {});
+                }
+              } catch {}
+            }}
+            title="وضع ملء الشاشة الكامل"
+            className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 hover:text-accent hover:bg-n-50 dark:hover:bg-n-200 transition-colors"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
