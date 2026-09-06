@@ -140,7 +140,7 @@ async function main() {
     },
   });
 
-  // 3.6 Student STU-003 (أحمد محمود) - PIN: 7490 (also accepts 1234, 3293)
+  // 3.6 Student STU-003 (أحمد محمود) - PIN: 7490
   const pin003 = '7490';
   const student003Hash = bcrypt.hashSync(pin003, 10);
   const student003 = await prisma.user.upsert({
@@ -317,7 +317,7 @@ async function main() {
     },
   });
 
-  console.log('✅ Production Seeding Completed with Clean 1234 Student Passwords!');
+  console.log('✅ Production Seeding Completed with Unique Student Passwords!');
 }
 
 main()

@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 import { addDynamicStudent } from '@/lib/dynamic-students';
+import { generateRandomPin } from '@/lib/utils';
 
 export async function createClassroom(name: string, subject: string, teacherId?: string) {
   try {
@@ -79,8 +80,16 @@ export async function createClassroom(name: string, subject: string, teacherId?:
   }
 }
 
-export async function resetStudentPassword(studentId: string, newPassword: string) {
-  const plain = (newPassword || '1234').toString().trim() || '1234';
+export async function resetStudentPassword(studentId: string, newPassword?: string) {
+  let plain = (newPassword || '').toString().trim();
+  if (!plain) {
+    const existingUsers = await prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      select: { defaultPassword: true, password: true },
+    }).catch(() => []);
+    const existingPins = existingUsers.map((u) => u.defaultPassword || u.password);
+    plain = generateRandomPin(existingPins);
+  }
   const hashed = await bcrypt.hash(plain, 10);
   
   try {
@@ -128,7 +137,15 @@ export async function createStudentAction(formData: {
     const cleanGrade = formData.grade || formData.gradeLevel || 'الصف الثالث الإعدادي';
     const targetClassroomId = formData.classroom || formData.classroomId || '';
     
-    const plainPassword = (formData.password?.toString() || '').trim() || '1234';
+    let plainPassword = (formData.password?.toString() || '').trim();
+    if (!plainPassword) {
+      const existingUsers = await prisma.user.findMany({
+        where: { role: 'STUDENT' },
+        select: { defaultPassword: true, password: true },
+      }).catch(() => []);
+      const existingPins = existingUsers.map((u) => u.defaultPassword || u.password);
+      plainPassword = generateRandomPin(existingPins);
+    }
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
     let count = 0;
@@ -213,10 +230,18 @@ export async function addStudentToClassroom(
   name: string,
   phone: string,
   classroomId: string,
-  plainPassword: string = '1234'
+  plainPassword?: string
 ) {
   try {
-    const cleanPass = (plainPassword || '1234').toString().trim() || '1234';
+    let cleanPass = (plainPassword || '').toString().trim();
+    if (!cleanPass) {
+      const existingUsers = await prisma.user.findMany({
+        where: { role: 'STUDENT' },
+        select: { defaultPassword: true, password: true },
+      }).catch(() => []);
+      const existingPins = existingUsers.map((u) => u.defaultPassword || u.password);
+      cleanPass = generateRandomPin(existingPins);
+    }
     const hashed = await bcrypt.hash(cleanPass, 10);
     
     let count = 0;

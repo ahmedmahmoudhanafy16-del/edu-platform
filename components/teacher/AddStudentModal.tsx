@@ -5,7 +5,7 @@ import { X, UserPlus, Phone, User, BookOpen, KeyRound, MessageSquare, RefreshCw 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createStudentAction } from '@/actions/classroom';
-import { saveStudentToStore } from '@/lib/store';
+import { saveStudentToStore, getStudentsFromStore } from '@/lib/store';
 import { generateRandomPin } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -47,7 +47,9 @@ export function AddStudentModal({
   // Keep classroomId and password perfectly synchronized whenever modal opens or props change
   useEffect(() => {
     if (isOpen) {
-      setPassword(generateRandomPin());
+      const existingStudents = getStudentsFromStore();
+      const existingPins = existingStudents.map((s: any) => s.defaultPassword || s.password);
+      setPassword(generateRandomPin(existingPins));
 
       if (defaultClassroomId) {
         setClassroomId(defaultClassroomId);
@@ -82,10 +84,21 @@ export function AddStudentModal({
       return;
     }
 
+    const existingStudents = getStudentsFromStore();
+    const existingPins = existingStudents.map((s: any) => s.defaultPassword || s.password);
+    const plainPassword = password.trim() || generateRandomPin(existingPins);
+
+    // Prevent duplicate passwords across students
+    const duplicate = existingStudents.find(
+      (s: any) => (s.defaultPassword && s.defaultPassword === plainPassword) || (s.password && s.password === plainPassword)
+    );
+    if (duplicate) {
+      toast.error(`كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى اختيار كلمة مرور فريدة.`);
+      return;
+    }
+
     setLoading(true);
     try {
-      const plainPassword = password.trim() || '1234';
-
       const result = await createStudentAction({
         name: cleanName,
         phone: cleanPhone,
@@ -123,7 +136,7 @@ export function AddStudentModal({
       setName('');
       setPhone('');
       setParentWhatsapp('');
-      setPassword(generateRandomPin());
+      setPassword(generateRandomPin(existingPins));
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -257,7 +270,11 @@ export function AddStudentModal({
               </label>
               <button
                 type="button"
-                onClick={() => setPassword(generateRandomPin())}
+                onClick={() => {
+                  const existingStudents = getStudentsFromStore();
+                  const existingPins = existingStudents.map((s: any) => s.defaultPassword || s.password);
+                  setPassword(generateRandomPin(existingPins));
+                }}
                 className="text-[11px] text-accent hover:text-accent-hover font-semibold flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className="h-3 w-3" />

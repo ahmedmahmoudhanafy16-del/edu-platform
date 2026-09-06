@@ -691,7 +691,8 @@ export function saveStudentToStore(student: any): any {
   if (typeof window === 'undefined') return student;
   try {
     const current = getStudentsFromStore();
-    const cleanPassword = String(student.defaultPassword || student.password || '1234').trim() || '1234';
+    const existingPins = current.map((s: any) => s.defaultPassword || s.password);
+    const cleanPassword = String(student.defaultPassword || student.password || '').trim() || generateRandomPin(existingPins);
     const formatted = {
       id: student.id || student.studentCode || `STU-${Math.floor(100 + Math.random() * 900)}`,
       name: student.name,

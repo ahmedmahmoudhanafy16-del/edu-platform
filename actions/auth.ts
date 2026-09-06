@@ -128,7 +128,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       );
       if (seedMatch) {
         const seedPass = toStandardDigits(String(seedMatch.password || seedMatch.defaultPassword || '').trim());
-        if (cleanPin === seedPass || cleanPin === '1234') {
+        if (cleanPin === seedPass) {
           // Valid seed match!
           if (typeof window !== 'undefined') {
             localStorage.setItem('current_student', JSON.stringify(seedMatch));
@@ -209,8 +209,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
     const isPinMatch =
       (studentPassword && cleanPin === studentPassword) ||
       (studentDefaultPassword && cleanPin === studentDefaultPassword) ||
-      (seedPass && cleanPin === seedPass) ||
-      cleanPin === '1234';
+      (seedPass && cleanPin === seedPass);
 
     if (!isPinMatch) {
       return {

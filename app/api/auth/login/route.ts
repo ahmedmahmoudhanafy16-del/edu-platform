@@ -247,8 +247,7 @@ export async function POST(req: NextRequest) {
 
     if (
       (userPass && rawPassword === userPass) ||
-      (userDefPass && rawPassword === userDefPass) ||
-      rawPassword === '1234'
+      (userDefPass && rawPassword === userDefPass)
     ) {
       isMatch = true;
     } else if (localStudent) {

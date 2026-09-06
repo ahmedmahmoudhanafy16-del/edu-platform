@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       for (const s of students) {
         if (s && (s.studentCode || s.id)) {
           const code = String(s.studentCode || s.id).trim();
-          const pass = String(s.defaultPassword || s.password || '1234').trim();
+          const pass = String(s.defaultPassword || s.password || '').trim();
           try {
             await prisma.user.upsert({
               where: { id: code },

@@ -8,7 +8,7 @@ import {
   School, BookOpen, Layers, Phone
 } from 'lucide-react';
 import { exportToCsv } from '@/lib/export-csv';
-import { formatDateShort } from '@/lib/utils';
+import { formatDateShort, generateRandomPin } from '@/lib/utils';
 import { WhatsAppReportButton } from './WhatsAppButton';
 import { toggleStudentStatus, deleteStudent, updateStudentAcademicAction } from '@/actions/student';
 import { resetStudentPassword, updateStudentPhoneAction } from '@/actions/classroom';
@@ -76,7 +76,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
         return sId === lookupCode || sId === student.id || sId === student.studentCode;
       });
 
-      const studentPin = String(student.defaultPassword || student.password || '1234').trim();
+      const studentPin = String(student.defaultPassword || student.password || '').trim();
       const studentGrade = student.grade || student.gradeLevel || 'الصف الثالث الإعدادي';
 
       return {
@@ -95,7 +95,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
     });
   } catch {
     return studentList.map((s) => {
-      const pin = String(s.defaultPassword || s.password || '1234').trim();
+      const pin = String(s.defaultPassword || s.password || '').trim();
       const studentGrade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
       return {
         ...s,
@@ -180,7 +180,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
   // Password reset dialog state
   const [studentToResetPassword, setStudentToResetPassword] = useState<Student | null>(null);
-  const [newPasswordInput, setNewPasswordInput] = useState('1234');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
   const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Edit Phones & Parent WhatsApp dialog state
@@ -496,9 +496,21 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     if (e) e.preventDefault();
     if (!studentToResetPassword) return;
 
-    const plainPassword = (newPasswordInput || '1234').trim();
+    const plainPassword = newPasswordInput.trim();
     if (!plainPassword) {
       toast.error('يرجى إدخال كلمة المرور الجديدة');
+      return;
+    }
+
+    // Check for duplicate password with any other student
+    const duplicate = students.find(
+      (s) =>
+        s.id !== targetStudent.id &&
+        s.studentCode !== targetStudent.studentCode &&
+        ((s.defaultPassword && s.defaultPassword === plainPassword) || (s.password && s.password === plainPassword))
+    );
+    if (duplicate) {
+      toast.error(`كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى إدخال كلمة مرور فريدة.`);
       return;
     }
 
@@ -708,7 +720,8 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         password={plainPin}
                         onResetClick={() => {
                           setStudentToResetPassword(s);
-                          setNewPasswordInput('1234');
+                          const existingPins = students.filter((st) => st.id !== s.id).map((st) => st.defaultPassword || st.password);
+                          setNewPasswordInput(generateRandomPin(existingPins));
                         }}
                       />
                     </td>
@@ -859,7 +872,8 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         <button
                           onClick={() => {
                             setStudentToResetPassword(s);
-                            setNewPasswordInput('1234');
+                            const existingPins = students.filter((st) => st.id !== s.id).map((st) => st.defaultPassword || st.password);
+                            setNewPasswordInput(generateRandomPin(existingPins));
                           }}
                           title="إعادة تعيين كلمة المرور"
                           className="p-1.5 rounded-lg border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 transition-colors flex items-center gap-1 text-xs font-semibold"
@@ -1007,16 +1021,30 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
             <form onSubmit={handleConfirmPasswordReset} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  كلمة المرور الجديدة (4 أرقام):
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                    كلمة المرور الجديدة (فريدة وغير مكررة):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const existingPins = students
+                        .filter((st) => st.id !== studentToResetPassword.id)
+                        .map((st) => st.defaultPassword || st.password);
+                      setNewPasswordInput(generateRandomPin(existingPins));
+                    }}
+                    className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    توليد رمز جديد
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
                   autoFocus
                   value={newPasswordInput}
-                  onChange={(e) => setNewPasswordInput(e.target.value)}
-                  placeholder="1234"
+                  onChange={(e) => setNewPasswordInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                  placeholder="مثال: 8492"
                   className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold text-sm tracking-widest outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>

@@ -19,26 +19,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const DEFAULT = '1234';
-    const hashed = await bcrypt.hash(DEFAULT, 10);
-
-    const result = await prisma.user.updateMany({
+    const students = await prisma.user.findMany({
       where: { role: 'STUDENT' },
-      data: {
-        password: hashed,
-        passwordHash: hashed,
-        defaultPassword: DEFAULT,
-      },
+      select: { id: true, studentCode: true },
     });
 
-    const studentCount = await prisma.user.count({
-      where: { role: 'STUDENT' },
-    });
+    const usedPins = new Set<string>();
+    let updatedCount = 0;
+
+    for (const st of students) {
+      let pin = '';
+      while (!pin || usedPins.has(pin)) {
+        pin = Math.floor(1000 + Math.random() * 9000).toString();
+      }
+      usedPins.add(pin);
+      const hashed = await bcrypt.hash(pin, 10);
+
+      await prisma.user.update({
+        where: { id: st.id },
+        data: {
+          password: hashed,
+          passwordHash: hashed,
+          defaultPassword: pin,
+        },
+      });
+      updatedCount++;
+    }
 
     return NextResponse.json({
       success: true,
-      count: result.count || studentCount,
-      message: `Reset ${result.count || studentCount} students to password: ${DEFAULT}`,
+      count: updatedCount,
+      message: `Generated unique distinct PINs for ${updatedCount} students successfully!`,
     });
   } catch (error: any) {
     console.error('[Emergency Password Reset Error]:', error);

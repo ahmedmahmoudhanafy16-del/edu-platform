@@ -18,17 +18,18 @@ async function main() {
     },
   });
 
-  // 2. Student
+  // 2. Student (أحمد محمد علي) - PIN: 4829
   const student = await prisma.user.upsert({
     where: { studentCode: 'STU-001' },
     update: {
-      defaultPassword: '1234',
+      defaultPassword: '4829',
+      password: '4829',
     },
     create: {
       name: 'أحمد محمد علي',
       studentCode: 'STU-001',
-      password: '1234',
-      defaultPassword: '1234',
+      password: '4829',
+      defaultPassword: '4829',
       role: 'STUDENT',
       phone: '01099998888',
     },

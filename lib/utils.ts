@@ -66,10 +66,25 @@ export function relativeTimeAr(date: Date | string | number): { label: string; l
 }
 
 /**
- * Generate a random 4-digit PIN for NEW students only.
- * This is ONLY used in AddStudentModal as a suggestion.
- * The generated PIN is saved to the DB as defaultPassword — it is NEVER re-generated on display.
+ * Generate a unique 4-digit PIN for students.
+ * Guarantees no collision with existing student PINs and avoids trivial sequences (1234, 0000, 1111, etc.).
  */
-export function generateRandomPin(): string {
-  return Math.floor(1000 + Math.random() * 9000).toString();
+export function generateRandomPin(existingPins: (string | undefined | null)[] = []): string {
+  const forbidden = new Set(
+    existingPins
+      .filter((p): p is string => Boolean(p))
+      .map((p) => String(p).trim())
+      .concat(['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321', '0123'])
+  );
+
+  let attempts = 0;
+  while (attempts < 1000) {
+    attempts++;
+    const pin = Math.floor(1000 + Math.random() * 9000).toString();
+    if (!forbidden.has(pin)) {
+      return pin;
+    }
+  }
+  // Fallback to 5-digit if 4-digit space is dense
+  return Math.floor(10000 + Math.random() * 90000).toString();
 }
