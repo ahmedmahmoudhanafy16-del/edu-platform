@@ -8,9 +8,14 @@ export const revalidate = 0;
 
 export default async function DashboardLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params?: Promise<{ locale: string }> | { locale: string };
 }) {
+  const resolvedParams = params ? await Promise.resolve(params) : { locale: 'ar' };
+  const locale = resolvedParams?.locale || 'ar';
+
   let currentUser = null;
   try {
     currentUser = await getCurrentUser();
@@ -19,7 +24,7 @@ export default async function DashboardLayout({
   }
 
   if (currentUser && currentUser.role === 'STUDENT' && currentUser.isActive === false) {
-    redirect('/ar/suspended');
+    redirect(`/${locale}/suspended`);
   }
 
   return (

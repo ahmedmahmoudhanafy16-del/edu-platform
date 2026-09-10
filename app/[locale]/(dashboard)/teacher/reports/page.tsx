@@ -96,11 +96,11 @@ export default async function TeacherReportsPage({
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-accent" />
           {isAr ? 'التقارير الأكاديمية وتحليلات الأداء' : 'Academic Reports & Performance Analytics'}
         </h1>
-        <p className="text-xs text-n-500 dark:text-n-400 mt-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           {isAr
             ? 'تصدير كشوف الدرجات، إحصائيات الحضور، وإرسال تنبيهات واتساب جماعية لأولياء الأمور'
             : 'Export grade rosters, attendance stats, and broadcast WhatsApp alerts to parents'}

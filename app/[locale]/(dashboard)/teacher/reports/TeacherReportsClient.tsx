@@ -173,30 +173,30 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">{isAr ? 'إجمالي الطلاب المسجلين' : 'Total Enrolled Students'}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'إجمالي الطلاب المسجلين' : 'Total Enrolled Students'}</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{reports.length}</p>
           </div>
-          <Users className="h-7 w-7 text-blue-600" />
+          <Users className="h-7 w-7 text-blue-600 dark:text-blue-400" />
         </div>
 
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">{isAr ? 'متوسط نتائج آخر الاختبارات' : 'Latest Exams Average'}</p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'متوسط نتائج آخر الاختبارات' : 'Latest Exams Average'}</p>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-1">
               {avgPerformance}%
             </p>
           </div>
-          <TrendingUp className="h-7 w-7 text-emerald-600" />
+          <TrendingUp className="h-7 w-7 text-emerald-600 dark:text-emerald-400" />
         </div>
 
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">{isAr ? 'نسبة الطلاب المتفوقين' : 'Top Performers Rate'}</p>
-            <p className="text-2xl font-bold text-blue-600 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{isAr ? 'نسبة الطلاب المتفوقين' : 'Top Performers Rate'}</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
               {validScoreReports.length > 0 ? Math.round((validScoreReports.filter((r) => r.avgScore >= 65).length / validScoreReports.length) * 100) : 0}%
             </p>
           </div>
-          <CheckCircle2 className="h-7 w-7 text-blue-600" />
+          <CheckCircle2 className="h-7 w-7 text-blue-600 dark:text-blue-400" />
         </div>
       </div>
 
@@ -214,7 +214,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <Button onClick={exportToCSV} variant="secondary" className="text-xs font-semibold gap-1.5 h-10 flex-1 sm:flex-initial">
-            <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+            <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             {isAr ? 'تصدير إلى Excel / CSV' : 'Export to Excel / CSV'}
           </Button>
           <Button onClick={handleSendBulkWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 h-10 flex-1 sm:flex-initial">
@@ -245,30 +245,34 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
               {filtered.map((s) => (
                 <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">{s.name}</td>
-                  <td className="py-3.5 px-4 font-mono font-bold text-blue-600">{s.studentCode}</td>
+                  <td className="py-3.5 px-4 font-mono font-bold text-blue-600 dark:text-blue-400">{s.studentCode}</td>
                   <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{s.grade}</td>
-                  <td className="py-3.5 px-4 font-mono text-slate-500">{s.parentPhone}</td>
-                  <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600">
+                  <td className="py-3.5 px-4 font-mono text-slate-500 dark:text-slate-400">{s.parentPhone}</td>
+                  <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600 dark:text-emerald-400">
                     {s.hasSubmissions !== false && s.avgScore > 0 ? (
                       <div className="flex flex-col items-center">
                         <span dir="ltr">{s.avgScore}%</span>
                         {s.latestScore != null && s.latestMaxScore != null && (
-                          <span className="text-[10px] text-slate-400 font-mono font-normal">
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-normal">
                             ({s.latestScore} / {s.latestMaxScore})
                           </span>
                         )}
                       </div>
                     ) : (
-                      <span className="text-slate-400 font-normal">—</span>
+                      <span className="text-slate-400 dark:text-slate-500 font-normal">—</span>
                     )}
                   </td>
-                  <td className="py-3.5 px-4 text-center">{s.examsCompleted}</td>
-                  <td className="py-3.5 px-4 text-center">{s.homeworkCompleted}</td>
-                  <td className="py-3.5 px-4 text-center">{s.attendanceCount}</td>
+                  <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300">{s.examsCompleted}</td>
+                  <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300">{s.homeworkCompleted}</td>
+                  <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300">{s.attendanceCount}</td>
                   <td className="py-3.5 px-4 text-center">
                     <Badge
                       variant={s.avgScore >= 65 ? 'secondary' : 'outline'}
-                      className={s.avgScore >= 65 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'text-amber-600 border-amber-300'}
+                      className={
+                        s.avgScore >= 65
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                          : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                      }
                     >
                       {s.avgScore >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up')}
                     </Badge>

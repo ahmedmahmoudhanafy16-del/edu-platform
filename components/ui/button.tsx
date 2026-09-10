@@ -19,11 +19,11 @@ const base = [
 const variants = {
   primary: 'bg-accent text-white border-accent hover:bg-accent-mid hover:border-accent-mid shadow-sm',
   default: 'bg-accent text-white border-accent hover:bg-accent-mid hover:border-accent-mid shadow-sm',
-  secondary: 'bg-n-100 dark:bg-n-200 text-n-700 dark:text-n-600 border-n-200 dark:border-n-300 hover:bg-n-200 dark:hover:bg-n-300',
-  ghost: 'bg-transparent text-n-600 dark:text-n-400 hover:bg-n-100 dark:hover:bg-n-200 hover:text-n-800',
-  outline: 'bg-transparent border border-n-200 dark:border-n-300 text-n-700 dark:text-n-600 hover:bg-n-100 dark:hover:bg-n-200',
-  danger: 'bg-bad text-white border-bad hover:bg-[#6B1A1A] hover:border-[#6B1A1A]',
-  ok: 'bg-ok text-white border-ok hover:bg-[#245A42] hover:border-[#245A42]',
+  secondary: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 shadow-sm',
+  ghost: 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100',
+  outline: 'bg-transparent border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800',
+  danger: 'bg-bad text-white border-bad hover:bg-[#6B1A1A] hover:border-[#6B1A1A] shadow-sm',
+  ok: 'bg-ok text-white border-ok hover:bg-[#245A42] hover:border-[#245A42] shadow-sm',
 };
 
 const sizes = {

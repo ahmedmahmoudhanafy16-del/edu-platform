@@ -46,23 +46,23 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex flex-col h-full w-full',
-        'bg-white dark:bg-n-100',
+        'flex flex-col h-full w-full transition-colors duration-150',
+        'bg-white dark:bg-slate-900',
         // Border on the correct edge depending on reading direction
-        isRtl ? 'border-l border-n-200 dark:border-n-300' : 'border-r border-n-200 dark:border-n-300',
+        isRtl ? 'border-l border-slate-200 dark:border-slate-800' : 'border-r border-slate-200 dark:border-slate-800',
       )}
     >
       {/* Brand */}
       <div
         className={cn(
-          'px-5 py-5 border-b border-n-200 dark:border-n-300',
+          'px-5 py-5 border-b border-slate-200 dark:border-slate-800',
           isRtl ? 'text-right' : 'text-left',
         )}
       >
-        <p className="text-label font-semibold text-n-800 dark:text-n-700 leading-none">
+        <p className="text-label font-bold text-slate-900 dark:text-white leading-none">
           {isRtl ? 'منصة التعليم' : 'EduPlatform'}
         </p>
-        <p className="text-caption text-n-400 mt-1">
+        <p className="text-caption text-slate-500 dark:text-slate-400 mt-1">
           {role === 'TEACHER' ? t('teacher') : t('student')}
         </p>
       </div>
@@ -79,11 +79,11 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
               onClick={onNavClick}
               className={cn(
                 'flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-label font-medium',
-                'transition-colors duration-[140ms] w-full',
+                'transition-colors duration-150 w-full',
                 isRtl ? 'flex-row-reverse' : 'flex-row',
                 active
-                  ? 'bg-accent-light text-accent-text border border-accent/20'
-                  : 'text-n-600 dark:text-n-400 hover:bg-n-100 dark:hover:bg-n-200 hover:text-n-800 border border-transparent',
+                  ? 'bg-accent-light text-accent-text dark:bg-accent/20 dark:text-accent-text border border-accent/20'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white border border-transparent',
               )}
             >
               <Icon
@@ -99,7 +99,7 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
       </nav>
 
       {/* Bottom: controls + user + logout */}
-      <div className="px-3 py-4 border-t border-n-200 dark:border-n-300 space-y-3">
+      <div className="px-3 py-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
         {/* Theme + Language toggles */}
         <div
           className={cn(
@@ -113,10 +113,10 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
 
         {/* User info */}
         <div className={cn('px-3', isRtl ? 'text-right' : 'text-left')}>
-          <p className="text-label font-semibold text-n-700 dark:text-n-600 truncate leading-tight">
+          <p className="text-label font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight">
             {userName}
           </p>
-          <p className="text-caption text-n-400 mt-0.5">
+          <p className="text-caption text-slate-500 dark:text-slate-400 mt-0.5">
             {role === 'TEACHER' ? t('teacher') : t('student')}
           </p>
         </div>
@@ -127,8 +127,8 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
           onClick={onNavClick}
           className={cn(
             'flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg',
-            'text-label text-n-500 hover:bg-n-100 dark:hover:bg-n-200 hover:text-bad',
-            'transition-colors duration-[140ms]',
+            'text-label text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-bad',
+            'transition-colors duration-150',
             isRtl ? 'flex-row-reverse' : 'flex-row',
           )}
         >

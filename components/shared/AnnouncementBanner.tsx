@@ -32,15 +32,15 @@ export function AnnouncementBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="w-full border-b border-n-200 dark:border-n-300 bg-n-100 dark:bg-n-200 overflow-hidden"
+      className="w-full border-b border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 overflow-hidden transition-colors duration-150"
     >
-      <div className="max-w-full px-4 py-2 flex items-center gap-2.5 text-xs text-n-700 dark:text-n-600" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="max-w-full px-4 py-2 flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300" dir={isAr ? 'rtl' : 'ltr'}>
         <Megaphone className="h-3.5 w-3.5 flex-shrink-0 text-accent" strokeWidth={1.75} aria-hidden="true" />
         <p className="flex-1 min-w-0 truncate leading-5">{isAr ? current.messageAr : current.messageEn}</p>
         <button
           onClick={() => setDismissed((p) => new Set([...p, current.id]))}
           aria-label={isAr ? 'إغلاق الإعلان' : 'Dismiss announcement'}
-          className="flex-shrink-0 text-n-400 hover:text-n-700 dark:hover:text-n-500 transition-colors duration-[140ms] p-0.5 rounded"
+          className="flex-shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors duration-150 p-0.5 rounded"
         >
           <X className="h-3.5 w-3.5" strokeWidth={2} />
         </button>

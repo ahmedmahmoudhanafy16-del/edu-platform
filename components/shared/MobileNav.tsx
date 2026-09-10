@@ -23,12 +23,12 @@ export function MobileNav({ role, userName, isOpen, onOpen, onClose }: MobileNav
       <header
         className={cn(
           'lg:hidden flex items-center justify-between',
-          'px-4 h-14 border-b border-n-200 dark:border-n-300',
-          'bg-white dark:bg-n-100 sticky top-0 z-40',
+          'px-4 h-14 border-b border-slate-200 dark:border-slate-800',
+          'bg-white dark:bg-slate-900 sticky top-0 z-40 transition-colors duration-150',
         )}
       >
         {/* Brand name */}
-        <span className="text-label font-semibold text-n-800 dark:text-n-700">
+        <span className="text-label font-bold text-slate-900 dark:text-white">
           منصة التعليم
         </span>
 
@@ -38,8 +38,8 @@ export function MobileNav({ role, userName, isOpen, onOpen, onClose }: MobileNav
           aria-label="فتح القائمة"
           className={cn(
             'flex items-center justify-center w-9 h-9 rounded-lg',
-            'border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400',
-            'hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]',
+            'border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300',
+            'hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-150',
           )}
         >
           <Menu className="h-5 w-5" strokeWidth={1.75} />
@@ -49,7 +49,7 @@ export function MobileNav({ role, userName, isOpen, onOpen, onClose }: MobileNav
       {/* ── Backdrop ─────────────────────────────────────────────────── */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 z-50 bg-n-900/50 backdrop-blur-[2px]"
+          className="lg:hidden fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-[2px]"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -59,7 +59,7 @@ export function MobileNav({ role, userName, isOpen, onOpen, onClose }: MobileNav
       <div
         className={cn(
           'lg:hidden fixed top-0 z-50 h-full w-72',
-          'bg-white dark:bg-n-100',
+          'bg-white dark:bg-slate-900',
           'transition-transform duration-200 ease-out',
           // Slide from the correct edge
           isRtl
@@ -71,17 +71,17 @@ export function MobileNav({ role, userName, isOpen, onOpen, onClose }: MobileNav
         {/* Close button inside drawer */}
         <div
           className={cn(
-            'flex items-center justify-between px-4 h-14 border-b border-n-200 dark:border-n-300',
+            'flex items-center justify-between px-4 h-14 border-b border-slate-200 dark:border-slate-800',
             isRtl ? 'flex-row-reverse' : 'flex-row',
           )}
         >
-          <span className="text-label font-semibold text-n-800 dark:text-n-700">
+          <span className="text-label font-bold text-slate-900 dark:text-white">
             منصة التعليم
           </span>
           <button
             onClick={onClose}
             aria-label="إغلاق القائمة"
-            className="flex items-center justify-center w-8 h-8 rounded-lg text-n-500 hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]"
+            className="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-150"
           >
             <X className="h-4 w-4" strokeWidth={2} />
           </button>

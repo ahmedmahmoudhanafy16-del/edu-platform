@@ -4,13 +4,13 @@ import { cn } from '@/lib/utils';
 type BadgeVariant = 'default' | 'ok' | 'warn' | 'bad' | 'muted' | 'secondary' | 'outline';
 
 const variants: Record<BadgeVariant, string> = {
-  default: 'border-n-300 text-n-600 bg-n-100 dark:bg-n-200 dark:text-n-400 dark:border-n-400',
-  secondary: 'border-accent/20 text-accent-text bg-accent-light dark:bg-accent-light/30',
-  outline: 'border-n-200 text-n-600 bg-transparent dark:border-n-300',
-  ok: 'border-ok/30 text-ok bg-ok-light dark:bg-ok-light/30',
-  warn: 'border-warn/30 text-warn bg-warn-light dark:bg-warn-light/30',
-  bad: 'border-bad/30 text-bad bg-bad-light dark:bg-bad-light/30',
-  muted: 'border-n-200 text-n-400 bg-n-50 dark:bg-n-200 dark:border-n-300',
+  default: 'border-slate-200 text-slate-700 bg-slate-100 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  secondary: 'border-accent/20 text-accent-text bg-accent-light dark:bg-accent/20 dark:text-accent-text',
+  outline: 'border-slate-200 text-slate-600 bg-transparent dark:border-slate-700 dark:text-slate-300',
+  ok: 'border-emerald-500/30 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800/60',
+  warn: 'border-amber-500/30 text-amber-700 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60',
+  bad: 'border-rose-500/30 text-rose-700 bg-rose-50 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800/60',
+  muted: 'border-slate-200 text-slate-400 bg-slate-50 dark:bg-slate-800/60 dark:text-slate-400 dark:border-slate-700',
 };
 
 interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {

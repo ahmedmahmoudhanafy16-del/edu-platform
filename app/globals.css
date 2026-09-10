@@ -6,17 +6,17 @@
 :root {
   --font-sans: 'Cairo', system-ui, sans-serif;
 
-  /* Neutral stone palette */
-  --n-50:  #FAFAF7;
-  --n-100: #F4F4F0;
-  --n-200: #E8E8E2;
-  --n-300: #D0D0C8;
-  --n-400: #A8A89E;
-  --n-500: #787870;
-  --n-600: #58584E;
-  --n-700: #3C3C34;
-  --n-800: #262620;
-  --n-900: #18180F;
+  /* Neutral stone & slate palette - Light Mode */
+  --n-50:  #F8FAFC;
+  --n-100: #FFFFFF;
+  --n-200: #F1F5F9;
+  --n-300: #E2E8F0;
+  --n-400: #94A3B8;
+  --n-500: #64748B;
+  --n-600: #475569;
+  --n-700: #334155;
+  --n-800: #1E293B;
+  --n-900: #0F172A;
 
   /* Single teal accent */
   --accent:       #0E7C7B;
@@ -26,39 +26,57 @@
   --accent-text:  #0A5252;
 
   /* Semantic */
-  --ok:        #2D6A4F; --ok-light:   #EAF4EE;
-  --warn:      #92400E; --warn-light:  #FEF3E2;
-  --bad:       #7F1D1D; --bad-light:   #FEF2F2;
+  --ok:        #16A34A; --ok-light:   #DCFCE7;
+  --warn:      #D97706; --warn-light:  #FEF3C7;
+  --bad:       #DC2626; --bad-light:   #FEE2E2;
 
   --surface-page: var(--n-50);
   --surface-card: #FFFFFF;
-  --border:       var(--n-200);
+  --border:       var(--n-300);
 }
 
 .dark {
-  --n-50:  #0F1113;
-  --n-100: #171A1C;
-  --n-200: #1F2328;
-  --n-300: #2A2F36;
-  --n-400: #3C4249;
-  --n-500: #6B7280;
-  --n-600: #9CA3AF;
-  --n-700: #D4D0C8;
-  --n-800: #EDEBE4;
-  --n-900: #F8F6F0;
+  /* Neutral slate palette - Dark Mode */
+  --n-50:  #020617;
+  --n-100: #0F172A;
+  --n-200: #1E293B;
+  --n-300: #334155;
+  --n-400: #64748B;
+  --n-500: #94A3B8;
+  --n-600: #CBD5E1;
+  --n-700: #E2E8F0;
+  --n-800: #F1F5F9;
+  --n-900: #FFFFFF;
 
-  --accent:       #12A49C;
-  --accent-light: #0E2E2E;
-  --accent-mid:   #0F8F88;
-  --accent-text:  #5ECFC9;
+  /* Single teal accent */
+  --accent:       #14B8A6;
+  --accent-light: rgba(20, 184, 166, 0.15);
+  --accent-mid:   #0D9488;
+  --accent-dark:  #042F2E;
+  --accent-text:  #5EEAD4;
 
-  --ok:        #34D399; --ok-light:   #052E1A;
-  --warn:      #FCD34D; --warn-light:  #2D1D03;
-  --bad:       #F87171; --bad-light:   #2D0A0A;
+  /* Semantic */
+  --ok:        #4ADE80; --ok-light:   rgba(74, 222, 128, 0.15);
+  --warn:      #FBBF24; --warn-light:  rgba(251, 191, 36, 0.15);
+  --bad:       #F87171; --bad-light:   rgba(248, 113, 113, 0.15);
 
   --surface-page: var(--n-50);
   --surface-card: var(--n-100);
   --border:       var(--n-300);
+}
+
+/* ── Professional Theme Switching Transitions ──────────────────────────── */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              fill 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 200ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 200ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition-delay: 0s !important;
 }
 
 /* ── Base reset ─────────────────────────────────────────────────────────── */
