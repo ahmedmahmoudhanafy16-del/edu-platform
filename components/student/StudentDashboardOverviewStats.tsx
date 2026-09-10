@@ -20,32 +20,12 @@ export function StudentDashboardOverviewStats({
   initialLatestDetail?: string | null;
   studentId: string;
 }) {
-  const [stats, setStats] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const submissions = getSubmissions(studentId);
-      const summary = getStudentAcademicSummary(studentId, submissions);
-      const assignments = getAssignments();
-      const pendingCount = assignments.filter(
-        (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === studentId)
-      ).length;
-      const latest = getLatestStudentSubmission(studentId, submissions);
-
-      return {
-        completedExams: summary.totalExams,
-        pendingAssignments: pendingCount,
-        attendancePct: initialAttendancePct,
-        latestScore: latest ? latest.percentage : initialLatestScore,
-        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : initialLatestDetail,
-      };
-    }
-
-    return {
-      completedExams: initialExamsCount,
-      pendingAssignments: initialPendingCount,
-      attendancePct: initialAttendancePct,
-      latestScore: initialLatestScore,
-      latestDetail: initialLatestDetail,
-    };
+  const [stats, setStats] = useState({
+    completedExams: initialExamsCount,
+    pendingAssignments: initialPendingCount,
+    attendancePct: initialAttendancePct,
+    latestScore: initialLatestScore,
+    latestDetail: initialLatestDetail,
   });
 
   useEffect(() => {

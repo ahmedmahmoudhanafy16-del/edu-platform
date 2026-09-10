@@ -26,10 +26,14 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Strict route isolation: Student pages can NEVER render teacher links
+  // Strict route isolation: Teacher area vs Student area
   const isTeacherArea = pathname.includes('/teacher');
   const effectiveRole = isTeacherArea ? 'TEACHER' : 'STUDENT';
-  const base = `/${locale}/${effectiveRole === 'TEACHER' ? 'teacher' : 'student'}`;
+
+  // In next-intl with localePrefix: 'as-needed', Arabic has NO prefix, English has '/en'
+  const prefix = locale === 'en' ? '/en' : '';
+  const area = effectiveRole === 'TEACHER' ? '/teacher' : '/student';
+  const base = `${prefix}${area}`;
 
   const links: NavLink[] =
     effectiveRole === 'STUDENT'
@@ -50,8 +54,16 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
           { label: 'التقارير',         href: `${base}/reports` },
         ];
 
-  const isActive = (href: string) =>
-    href === base ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => {
+    // Normalize both paths by stripping optional locale prefixes for exact matching
+    const cleanPath = pathname.replace(/^\/(?:en|ar)(?=\/|$)/, '') || '/';
+    const cleanHref = href.replace(/^\/(?:en|ar)(?=\/|$)/, '') || '/';
+    const cleanBase = base.replace(/^\/(?:en|ar)(?=\/|$)/, '') || '/';
+
+    return cleanHref === cleanBase
+      ? cleanPath === cleanHref
+      : cleanPath.startsWith(cleanHref);
+  };
 
   const displayUserName =
     effectiveRole === 'STUDENT'
@@ -113,7 +125,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
                 {displayUserName}
               </span>
               <Link
-                href={`/${locale}/logout`}
+                href={prefix ? `${prefix}/logout` : '/logout'}
                 className="p-1.5 rounded-md text-n-400 hover:text-bad hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]"
                 title="تسجيل الخروج"
               >
@@ -124,6 +136,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
             {/* Hamburger (mobile) */}
             <button
               onClick={() => setMenuOpen((o) => !o)}
+              type="button"
               className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]"
               aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
             >
@@ -134,7 +147,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
 
         {/* ── Mobile dropdown menu ─────────────────────────────────── */}
         {menuOpen && (
-          <div className="md:hidden border-t border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-4 py-3 space-y-1">
+          <div className="md:hidden border-t border-n-200 dark:border-n-300 bg-white dark:bg-n-100 px-4 py-3 space-y-1 animate-in fade-in slide-in-from-top-2 duration-150">
             {links.map(({ label, href }) => (
               <Link
                 key={href}
@@ -160,7 +173,8 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
                 </span>
               </div>
               <Link
-                href={`/${locale}/logout`}
+                href={prefix ? `${prefix}/logout` : '/logout'}
+                onClick={() => setMenuOpen(false)}
                 className="text-xs text-bad flex items-center gap-1 font-semibold"
               >
                 <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
