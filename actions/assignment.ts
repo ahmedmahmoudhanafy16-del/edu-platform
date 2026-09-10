@@ -370,11 +370,27 @@ export async function submitAssignment(
     sanitizedFileUrl = fileMeta.dataUrl || fileMeta.name;
   }
 
+  // Resolve true User.id if studentCode was provided to prevent foreign key errors
+  let realStudentId = studentId;
+  try {
+    const studentUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: studentId },
+          { studentCode: studentId },
+          { phone: studentId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (studentUser?.id) realStudentId = studentUser.id;
+  } catch (e) {}
+
   const submission = await prisma.assignmentSubmission.upsert({
     where: {
       assignmentId_studentId: {
         assignmentId,
-        studentId,
+        studentId: realStudentId,
       },
     },
     update: {
@@ -385,7 +401,7 @@ export async function submitAssignment(
     },
     create: {
       assignmentId,
-      studentId,
+      studentId: realStudentId,
       textAnswer: answerText,
       fileUrl: sanitizedFileUrl,
       status: 'SUBMITTED',

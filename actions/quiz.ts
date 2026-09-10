@@ -137,6 +137,21 @@ export async function createQuizRetakeCodeAction(
 
     memoryRetakeCodes.unshift(retakeItem);
 
+    // Persist to PostgreSQL database for cross-device synchronization
+    try {
+      await prisma.notificationLog.create({
+        data: {
+          type: 'QUIZ_RETAKE_CODE',
+          recipient: code,
+          studentId: studentId || studentCode || null,
+          content: JSON.stringify(retakeItem),
+          status: 'ACTIVE',
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn('[createQuizRetakeCodeAction] DB persist notice:', dbErr?.message);
+    }
+
     return {
       success: true,
       retakeCode: retakeItem,
@@ -253,8 +268,29 @@ export async function verifyQuizAccessCode(
   });
 
   if (isRetakeFormat && !matchedRetake) {
-    // Check if code exists for anyone
+    // Check if code exists in global memory for anyone
     matchedRetake = (memoryRetakeCodes || []).find((r: any) => r.code.toUpperCase() === cleanCode);
+  }
+
+  // Check in PostgreSQL database if not found in memory (cross-device support)
+  if (isRetakeFormat && !matchedRetake) {
+    try {
+      const dbLog = await prisma.notificationLog.findFirst({
+        where: {
+          type: 'QUIZ_RETAKE_CODE',
+          recipient: cleanCode,
+        },
+      });
+      if (dbLog?.content) {
+        const parsed = JSON.parse(dbLog.content);
+        matchedRetake = {
+          ...parsed,
+          isUsed: dbLog.status === 'USED' || parsed.isUsed,
+        };
+      }
+    } catch (dbErr: any) {
+      console.warn('[verifyQuizAccessCode] DB retake lookup notice:', dbErr?.message);
+    }
   }
 
   if (matchedRetake) {
@@ -265,6 +301,13 @@ export async function verifyQuizAccessCode(
     // Mark retake code as used
     matchedRetake.isUsed = true;
     matchedRetake.usedAt = new Date().toISOString();
+
+    try {
+      await prisma.notificationLog.updateMany({
+        where: { type: 'QUIZ_RETAKE_CODE', recipient: cleanCode },
+        data: { status: 'USED' },
+      });
+    } catch (e) {}
 
     const actualQuizId = matchedRetake.quizId || quizId;
 
@@ -697,8 +740,29 @@ export async function submitQuizAnswers(
 
     // 5. Safe Database Persistence
     try {
+      const realQuizId = quiz?.id || quizId;
+
+      // Resolve real student User.id if studentCode was passed
+      let realStudentId = studentId;
+      try {
+        const studentUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: studentId },
+              { studentCode: studentId },
+              { phone: studentId },
+            ],
+          },
+          select: { id: true },
+        });
+        if (studentUser?.id) realStudentId = studentUser.id;
+      } catch (uErr) {}
+
       const existing = await prisma.quizResult.findFirst({
-        where: { quizId, studentId },
+        where: {
+          quizId: realQuizId,
+          OR: [{ studentId: realStudentId }, { studentId }],
+        },
       });
 
       if (existing?.id) {
@@ -718,8 +782,8 @@ export async function submitQuizAnswers(
       } else {
         const created = await prisma.quizResult.create({
           data: {
-            quizId,
-            studentId,
+            quizId: realQuizId,
+            studentId: realStudentId,
             autoScore,
             totalScore: hasEssay ? null : autoScore,
             maxScore: totalMaxScore,
@@ -1436,6 +1500,78 @@ export async function getStudentQuizzesAction(studentId?: string) {
     return { success: false, error: err?.message || 'فشل جلب اختبارات الطالب', quizzes: [] };
   }
 }
+
+/**
+ * Fetches a student's graded quiz result from PostgreSQL
+ * allowing the Review page to display real scores from any device.
+ */
+export async function getStudentQuizResultAction(quizId: string, studentId: string) {
+  try {
+    const qId = (quizId || '').trim();
+    const sId = (studentId || '').trim();
+    if (!qId || !sId) return { success: false, error: 'معرف الاختبار أو الطالب مفقود' };
+
+    let realStudentId = sId;
+    try {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ id: sId }, { studentCode: sId }, { phone: sId }] },
+        select: { id: true, name: true, studentCode: true },
+      });
+      if (user?.id) realStudentId = user.id;
+    } catch (e) {}
+
+    let realQuizId = qId;
+    try {
+      const quiz = await prisma.quiz.findFirst({
+        where: { OR: [{ id: qId }, { accessCode: qId }] },
+        select: { id: true, title: true, passingScore: true, duration: true },
+      });
+      if (quiz?.id) realQuizId = quiz.id;
+    } catch (e) {}
+
+    const result = await prisma.quizResult.findFirst({
+      where: {
+        quizId: realQuizId,
+        OR: [{ studentId: realStudentId }, { studentId: sId }],
+      },
+      include: {
+        quiz: {
+          select: { id: true, title: true, passingScore: true, duration: true },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    if (!result) {
+      return { success: false, error: 'لم يتم العثور على نتيجة مسجلة لهذا الاختبار' };
+    }
+
+    const earned = result.totalScore ?? result.autoScore;
+    const max = result.maxScore || 10;
+    const percentage = max > 0 ? Math.round((earned / max) * 100) : 0;
+
+    return {
+      success: true,
+      result: {
+        id: result.id,
+        quizId: result.quizId,
+        quizTitle: result.quiz?.title || 'الاختبار الأكاديمي',
+        studentId: result.studentId,
+        autoScore: result.autoScore,
+        totalScore: result.totalScore,
+        maxScore: result.maxScore,
+        percentage,
+        isPassed: result.isPassed,
+        status: result.status,
+        submittedAt: result.submittedAt.toISOString(),
+      },
+    };
+  } catch (err: any) {
+    console.error('[getStudentQuizResultAction Error]:', err);
+    return { success: false, error: err?.message || 'فشل جلب نتيجة الاختبار' };
+  }
+}
+
 
 
 

@@ -68,7 +68,7 @@ export default function middleware(req: NextRequest) {
     }
   }
 
-  // 7. Guard Student Pages: Strictly authenticated STUDENT only
+  // 7. Guard Student Pages: Strictly authenticated ACTIVE STUDENT only
   if (isStudentRoute) {
     if (!userSession || userSession.role !== 'STUDENT') {
       const returnTarget = pathname + search;
@@ -77,6 +77,12 @@ export default function middleware(req: NextRequest) {
         req.url
       );
       return NextResponse.redirect(studentLoginUrl);
+    }
+
+    // Gating check for suspended / deactivated students
+    if (userSession.isActive === false) {
+      const suspendedUrl = new URL(`/${locale}/suspended`, req.url);
+      return NextResponse.redirect(suspendedUrl);
     }
   }
 

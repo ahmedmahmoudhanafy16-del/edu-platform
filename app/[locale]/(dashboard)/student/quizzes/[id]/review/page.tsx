@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ExamSecurityShield } from '@/components/shared/ExamSecurityShield';
+import { getStudentQuizResultAction } from '@/actions/quiz';
 
 interface ReviewQuestion {
   questionId: string;
@@ -104,6 +105,20 @@ export default function QuizReviewPage() {
               (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
             );
           }
+        }
+
+        // 1.1 Fallback to server PostgreSQL if not in localStorage (cross-device review support)
+        if (!foundResult) {
+          try {
+            const currentStudentId = studentInfo?.studentCode || studentInfo?.phone || 'STU-001';
+            const serverRes = await getStudentQuizResultAction(quizId, currentStudentId);
+            if (serverRes.success && serverRes.result) {
+              foundResult = {
+                ...serverRes.result,
+                reviewQuestions: [],
+              };
+            }
+          } catch (serverErr) {}
         }
 
         // 2. Fetch quiz details if reviewQuestions are missing or result not found
