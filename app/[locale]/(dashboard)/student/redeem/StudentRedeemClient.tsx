@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Ticket, CheckCircle2, AlertCircle, ArrowLeft, Wifi, Sparkles, ShieldCheck } from 'lucide-react';
+import { Ticket, CheckCircle2, AlertCircle, ArrowLeft, Wifi, Sparkles, ShieldCheck, BookOpen, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function StudentRedeemClient({ locale, studentName }: { locale: string; studentName: string }) {
@@ -12,7 +12,14 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
   const [successData, setSuccessData] = useState<{
     message: string;
     code: string;
-    liveSession: {
+    type?: string;
+    classroom?: {
+      id: string;
+      name: string;
+      subject: string;
+      teacherName?: string;
+    };
+    liveSession?: {
       id: string;
       title: string;
       roomCode: string;
@@ -22,30 +29,25 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
   } | null>(null);
 
   /**
-   * Format input: auto-uppercase and auto-insert dashes for EDU-XXXX-XXXX
+   * Format input: auto-uppercase and smart dash formatting
    */
   function handleCodeChange(e: React.ChangeEvent<HTMLInputElement>) {
-    let raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    let raw = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
 
-    // Auto-prefix EDU if not already there or if user starts typing random chars
-    if (raw.length > 0 && !raw.startsWith('EDU')) {
-      if ('EDU'.startsWith(raw)) {
-        // user is typing E, ED, or EDU
-      } else {
-        raw = 'EDU' + raw;
+    // Auto format segments if starts with EDU
+    if (raw.startsWith('EDU') && !raw.includes('-')) {
+      const clean = raw.replace(/[^A-Z0-9]/g, '');
+      let formatted = clean;
+      if (clean.length > 3) {
+        formatted = clean.slice(0, 3) + '-' + clean.slice(3);
       }
+      if (clean.length > 7) {
+        formatted = clean.slice(0, 3) + '-' + clean.slice(3, 7) + '-' + clean.slice(7, 11);
+      }
+      raw = formatted;
     }
 
-    // Format segments: EDU-XXXX-XXXX
-    let formatted = raw;
-    if (raw.length > 3) {
-      formatted = raw.slice(0, 3) + '-' + raw.slice(3);
-    }
-    if (raw.length > 7) {
-      formatted = raw.slice(0, 3) + '-' + raw.slice(3, 7) + '-' + raw.slice(7, 11);
-    }
-
-    setCode(formatted);
+    setCode(raw);
     if (error) setError('');
   }
 
@@ -53,8 +55,8 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
     e.preventDefault();
     const clean = code.trim().toUpperCase();
 
-    if (!clean || clean.length < 5) {
-      setError('يرجى إدخال كود صحيح بالصيغة EDU-XXXX-XXXX');
+    if (!clean || clean.length < 3) {
+      setError('يرجى إدخال كود صحيح للحصة أو الفصل الدراسي');
       return;
     }
 
@@ -95,60 +97,113 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
       {successData ? (
         <div className="rounded-2xl border border-ok/30 bg-white dark:bg-n-100 p-8 shadow-lg text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
           <div className="w-16 h-16 rounded-full bg-ok-light border border-ok/30 text-ok mx-auto flex items-center justify-center shadow-inner">
-            <CheckCircle2 className="h-8 w-8" />
+            {successData.type === 'CLASSROOM' ? <BookOpen className="h-8 w-8" /> : <CheckCircle2 className="h-8 w-8" />}
           </div>
 
-          <div className="space-y-1.5">
-            <span className="text-[11px] font-bold text-ok bg-ok-light px-3 py-1 rounded-full border border-ok/20">
-              تم التفعيل والاشتراك بنجاح 🎉
-            </span>
-            <h2 className="text-xl font-bold text-n-800 dark:text-n-700 mt-2">
-              {successData.liveSession.title}
-            </h2>
-            <p className="text-xs text-n-500 dark:text-n-400">
-              {successData.liveSession.classroomName || 'الفصل الدراسي'} · الكود المفعل:{' '}
-              <span className="font-mono font-bold text-accent">{successData.code}</span>
-            </p>
-          </div>
-
-          {/* Session details card */}
-          <div className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-start space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-n-500">حالة الحصة الآن:</span>
-              {successData.liveSession.isActive ? (
-                <span className="font-bold text-ok flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> مباشر الآن
+          {successData.type === 'CLASSROOM' && successData.classroom ? (
+            <>
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-ok bg-ok-light px-3 py-1 rounded-full border border-ok/20">
+                  تم الانضمام للفصل الدراسي بنجاح 🎓
                 </span>
-              ) : (
-                <span className="font-medium text-n-500">مجدولة / لم تبدأ بعد</span>
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-n-500">كود الغرفة:</span>
-              <code className="font-mono font-bold text-accent bg-white dark:bg-n-100 px-2 py-0.5 rounded border border-accent/20">
-                {successData.liveSession.roomCode}
-              </code>
-            </div>
-          </div>
+                <h2 className="text-xl font-bold text-n-800 dark:text-n-700 mt-2">
+                  {successData.classroom.name}
+                </h2>
+                <p className="text-xs text-n-500 dark:text-n-400">
+                  المادة: <strong className="text-accent">{successData.classroom.subject}</strong> · كود الفصل:{' '}
+                  <span className="font-mono font-bold text-accent">{successData.code}</span>
+                </p>
+              </div>
 
-          {/* Action buttons */}
-          <div className="space-y-2.5 pt-2">
-            <Link
-              href={`/${locale}/student/live?room=${successData.liveSession.roomCode}&name=${encodeURIComponent(studentName || 'الطالب')}`}
-              className="block"
-            >
-              <Button variant="primary" size="lg" className="w-full text-base font-bold shadow-md">
-                <Wifi className="h-5 w-5 me-1" />
-                دخول الحصة المباشرة الآن
-              </Button>
-            </Link>
+              <div className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-start space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-n-500">معلم المادة:</span>
+                  <span className="font-bold text-n-700 dark:text-n-600">{successData.classroom.teacherName || 'أ/ المعلم الأكاديمي'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-n-500">حالة الفصل:</span>
+                  <span className="font-bold text-ok flex items-center gap-1">
+                    <span className="w-2 h-2 rounded-full bg-ok" /> نشط ومعتمد
+                  </span>
+                </div>
+              </div>
 
-            <Link href={`/${locale}/student`} className="block">
-              <Button variant="secondary" size="md" className="w-full text-xs">
-                العودة للوحة تحكم الطالب
-              </Button>
-            </Link>
-          </div>
+              <div className="space-y-2.5 pt-2">
+                <Link href={`/${locale}/student/quizzes`} className="block">
+                  <Button variant="primary" size="lg" className="w-full text-base font-bold shadow-md">
+                    <ClipboardList className="h-5 w-5 me-1" />
+                    عرض اختبارات هذا الفصل
+                  </Button>
+                </Link>
+
+                <Link href={`/${locale}/student/assignments`} className="block">
+                  <Button variant="secondary" size="md" className="w-full text-xs">
+                    عرض واجبات الفصل
+                  </Button>
+                </Link>
+
+                <Link href={`/${locale}/student`} className="block">
+                  <Button variant="ghost" size="sm" className="w-full text-xs text-n-500">
+                    العودة للوحة تحكم الطالب
+                  </Button>
+                </Link>
+              </div>
+            </>
+          ) : successData.liveSession ? (
+            <>
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold text-ok bg-ok-light px-3 py-1 rounded-full border border-ok/20">
+                  تم التفعيل والاشتراك بنجاح 🎉
+                </span>
+                <h2 className="text-xl font-bold text-n-800 dark:text-n-700 mt-2">
+                  {successData.liveSession.title}
+                </h2>
+                <p className="text-xs text-n-500 dark:text-n-400">
+                  {successData.liveSession.classroomName || 'الفصل الدراسي'} · الكود المفعل:{' '}
+                  <span className="font-mono font-bold text-accent">{successData.code}</span>
+                </p>
+              </div>
+
+              {/* Session details card */}
+              <div className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-start space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-n-500">حالة الحصة الآن:</span>
+                  {successData.liveSession.isActive ? (
+                    <span className="font-bold text-ok flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> مباشر الآن
+                    </span>
+                  ) : (
+                    <span className="font-medium text-n-500">مجدولة / لم تبدأ بعد</span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-n-500">كود الغرفة:</span>
+                  <code className="font-mono font-bold text-accent bg-white dark:bg-n-100 px-2 py-0.5 rounded border border-accent/20">
+                    {successData.liveSession.roomCode}
+                  </code>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="space-y-2.5 pt-2">
+                <Link
+                  href={`/${locale}/student/live?room=${successData.liveSession.roomCode}&name=${encodeURIComponent(studentName || 'الطالب')}`}
+                  className="block"
+                >
+                  <Button variant="primary" size="lg" className="w-full text-base font-bold shadow-md">
+                    <Wifi className="h-5 w-5 me-1" />
+                    دخول الحصة المباشرة الآن
+                  </Button>
+                </Link>
+
+                <Link href={`/${locale}/student`} className="block">
+                  <Button variant="secondary" size="md" className="w-full text-xs">
+                    العودة للوحة تحكم الطالب
+                  </Button>
+                </Link>
+              </div>
+            </>
+          ) : null}
         </div>
       ) : (
         /* ── Input Form View ─────────────────────────────────────────── */

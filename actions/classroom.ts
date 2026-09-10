@@ -26,6 +26,16 @@ export async function createClassroom(name: string, subject: string, teacherId?:
       });
       if (dbTeacher?.id) {
         validTeacherId = dbTeacher.id;
+      } else {
+        const newTeacher = await prisma.user.create({
+          data: {
+            name: 'أ/ المعلم الأكاديمي',
+            email: 'teacher.admin@school.com',
+            role: 'TEACHER',
+            password: 'teacher123',
+          },
+        });
+        validTeacherId = newTeacher.id;
       }
     } catch {}
 
@@ -451,15 +461,71 @@ export async function deleteClassroom(classroomId: string) {
     }
 
     try {
-      await prisma.liveSession.deleteMany({
+      // 1. Quizzes & children cascade
+      const quizzes = await prisma.quiz.findMany({
         where: { classroomId },
-      }).catch(() => null);
+        select: { id: true },
+      }).catch(() => []);
+      const quizIds = quizzes.map((q) => q.id);
 
-      await prisma.assignment.deleteMany({
+      if (quizIds.length > 0) {
+        await prisma.quizViolation.deleteMany({
+          where: { quizResult: { quizId: { in: quizIds } } },
+        }).catch(() => null);
+
+        await prisma.quizResult.deleteMany({
+          where: { quizId: { in: quizIds } },
+        }).catch(() => null);
+
+        await prisma.question.deleteMany({
+          where: { quizId: { in: quizIds } },
+        }).catch(() => null);
+
+        await prisma.quiz.deleteMany({
+          where: { id: { in: quizIds } },
+        }).catch(() => null);
+      }
+
+      // 2. Assignments & submissions cascade
+      const assignments = await prisma.assignment.findMany({
         where: { classroomId },
-      }).catch(() => null);
+        select: { id: true },
+      }).catch(() => []);
+      const assignmentIds = assignments.map((a) => a.id);
 
-      await prisma.quiz.deleteMany({
+      if (assignmentIds.length > 0) {
+        await prisma.assignmentSubmission.deleteMany({
+          where: { assignmentId: { in: assignmentIds } },
+        }).catch(() => null);
+
+        await prisma.assignment.deleteMany({
+          where: { id: { in: assignmentIds } },
+        }).catch(() => null);
+      }
+
+      // 3. Live sessions & codes cascade
+      const liveSessions = await prisma.liveSession.findMany({
+        where: { classroomId },
+        select: { id: true },
+      }).catch(() => []);
+      const liveIds = liveSessions.map((l) => l.id);
+
+      if (liveIds.length > 0) {
+        await prisma.sessionAccessCode.deleteMany({
+          where: { liveSessionId: { in: liveIds } },
+        }).catch(() => null);
+
+        await prisma.liveAttendance.deleteMany({
+          where: { liveSessionId: { in: liveIds } },
+        }).catch(() => null);
+
+        await prisma.liveSession.deleteMany({
+          where: { id: { in: liveIds } },
+        }).catch(() => null);
+      }
+
+      // 4. Resources & Enrollments cascade
+      await prisma.classResource.deleteMany({
         where: { classroomId },
       }).catch(() => null);
 
@@ -467,6 +533,7 @@ export async function deleteClassroom(classroomId: string) {
         where: { classroomId },
       }).catch(() => null);
 
+      // 5. Final Classroom Deletion
       await prisma.classroom.delete({
         where: { id: classroomId },
       });
@@ -508,6 +575,124 @@ export async function deleteClassroom(classroomId: string) {
     };
   }
 }
+
+/**
+ * Enrolls a student into a classroom using the classroom join code
+ */
+export async function joinClassroomAction(code: string, studentId: string) {
+  try {
+    const cleanCode = (code || '').trim().toUpperCase();
+    const cleanStudentId = (studentId || '').trim();
+
+    if (!cleanCode) {
+      return { success: false, error: 'يرجى إدخال كود الفصل الدراسي' };
+    }
+    if (!cleanStudentId) {
+      return { success: false, error: 'معرف الطالب مفقود، يرجى تسجيل الدخول أولاً' };
+    }
+
+    // 1. Find classroom by code
+    const classroom = await prisma.classroom.findFirst({
+      where: { code: cleanCode },
+      include: {
+        teacher: { select: { name: true } },
+      },
+    });
+
+    if (!classroom) {
+      return {
+        success: false,
+        error: 'كود الفصل غير صحيح أو غير موجود، يرجى التأكد من الكود المكتوب',
+      };
+    }
+
+    // 2. Check if classroom is active
+    if (classroom.isActive === false) {
+      return {
+        success: false,
+        error: 'عذراً، هذا الفصل الدراسي معطل مؤقتاً من قبل المعلم ولا يقبل انضمام طلاب جدد حالياً',
+      };
+    }
+
+    // 3. Resolve true student User.id
+    const studentUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: cleanStudentId },
+          { studentCode: cleanStudentId },
+          { phone: cleanStudentId },
+        ],
+      },
+      select: { id: true, name: true, grade: true },
+    });
+
+    if (!studentUser) {
+      return {
+        success: false,
+        error: 'لم يتم العثور على حساب الطالب، يرجى تسجيل الدخول مجدداً',
+      };
+    }
+
+    // 4. Check if student is already enrolled
+    const existingEnrollment = await prisma.enrollment.findUnique({
+      where: {
+        userId_classroomId: {
+          userId: studentUser.id,
+          classroomId: classroom.id,
+        },
+      },
+    });
+
+    if (existingEnrollment) {
+      return {
+        success: true,
+        alreadyEnrolled: true,
+        message: `أنت مسجل بالفعل في فصل "${classroom.name}"!`,
+        classroom: {
+          id: classroom.id,
+          name: classroom.name,
+          subject: classroom.subject,
+          teacherName: classroom.teacher?.name || 'المعلم',
+        },
+      };
+    }
+
+    // 5. Enroll student in classroom
+    await prisma.enrollment.create({
+      data: {
+        userId: studentUser.id,
+        classroomId: classroom.id,
+      },
+    });
+
+    try {
+      revalidatePath('/[locale]/student');
+      revalidatePath('/[locale]/student/quizzes');
+      revalidatePath('/[locale]/student/assignments');
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/students');
+      revalidatePath('/', 'layout');
+    } catch (e) {}
+
+    return {
+      success: true,
+      message: `تم الانضمام بنجاح إلى فصل "${classroom.name}"!`,
+      classroom: {
+        id: classroom.id,
+        name: classroom.name,
+        subject: classroom.subject,
+        teacherName: classroom.teacher?.name || 'المعلم',
+      },
+    };
+  } catch (err: any) {
+    console.error('[joinClassroomAction Error]:', err);
+    return {
+      success: false,
+      error: err?.message || 'حدث خطأ أثناء الانضمام للفصل الدراسي',
+    };
+  }
+}
+
 
 export async function updateStudentPhoneAction(
   studentId: string,

@@ -33,6 +33,7 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
           OR: [{ id: cleanId }, { accessCode: cleanId }],
         },
         include: {
+          classroom: true,
           questions: {
             orderBy: { order: 'asc' },
           },
@@ -52,6 +53,10 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
 
     if (quiz.isPublished === false || quiz.isHidden === true) {
       return { success: false, error: 'هذا الاختبار غير متاح حالياً للطلاب' };
+    }
+
+    if (quiz.classroom && quiz.classroom.isActive === false) {
+      return { success: false, error: 'هذا الاختبار غير متاح حالياً لأن الفصل الدراسي معطل مؤقتاً' };
     }
 
     const sanitizedQuestions = (quiz.questions || []).map((q: any) => {
@@ -597,10 +602,17 @@ export async function submitQuizAnswers(
         where: {
           OR: [{ id: quizId }, { accessCode: quizId }],
         },
-        include: { questions: true },
+        include: { questions: true, classroom: true },
       });
     } catch (dbErr) {
       console.warn('[submitQuizAnswers] DB find error:', dbErr);
+    }
+
+    if (quiz?.classroom && quiz.classroom.isActive === false) {
+      return {
+        success: false,
+        error: 'لا يمكن تسليم هذا الاختبار لأن الفصل الدراسي معطل مؤقتاً من قبل المعلم.',
+      };
     }
 
     // Memory store fallback

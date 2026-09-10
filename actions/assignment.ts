@@ -338,14 +338,21 @@ export async function submitAssignment(
   // Enforce IDOR Protection: Student can only submit for themselves
   await requireStudentOwnership(studentId);
 
-  // Check if assignment is closed
+  // Check if assignment is closed or belongs to a deactivated classroom
   const assignment = await prisma.assignment.findUnique({
     where: { id: assignmentId },
-    select: { isClosed: true },
+    select: {
+      isClosed: true,
+      classroom: { select: { isActive: true } },
+    },
   }).catch(() => null);
 
   if (assignment?.isClosed) {
     throw new Error('تم إغلاق باب التسليم لهذا الواجب من قبل المعلم.');
+  }
+
+  if (assignment?.classroom && assignment.classroom.isActive === false) {
+    throw new Error('هذا الواجب غير متاح حالياً للتسليم لأن الفصل الدراسي معطل مؤقتاً.');
   }
 
   // File Upload Sanitization & Security Validation

@@ -74,6 +74,62 @@ export async function POST(req: NextRequest) {
     }
 
     if (!accessCode) {
+      // Check if code is a Classroom Join Code
+      let classroomMatch: any = null;
+      try {
+        classroomMatch = await prisma.classroom.findFirst({
+          where: { code: cleanCode },
+          include: { teacher: { select: { name: true } } },
+        });
+      } catch (e) {}
+
+      if (classroomMatch) {
+        if (classroomMatch.isActive === false) {
+          return NextResponse.json(
+            { error: 'عذراً، هذا الفصل الدراسي معطل مؤقتاً من قبل المعلم ولا يقبل انضمام طلاب جدد حالياً' },
+            { status: 400 }
+          );
+        }
+
+        // Resolve real student User.id
+        let realStudentId = studentId;
+        try {
+          const u = await prisma.user.findFirst({
+            where: { OR: [{ id: studentId }, { studentCode: studentId }, { phone: studentId }] },
+            select: { id: true },
+          });
+          if (u?.id) realStudentId = u.id;
+        } catch (e) {}
+
+        // Check existing enrollment
+        const existing = await prisma.enrollment.findUnique({
+          where: { userId_classroomId: { userId: realStudentId, classroomId: classroomMatch.id } },
+        }).catch(() => null);
+
+        if (!existing) {
+          await prisma.enrollment.create({
+            data: {
+              userId: realStudentId,
+              classroomId: classroomMatch.id,
+            },
+          }).catch(() => null);
+        }
+
+        return NextResponse.json({
+          success: true,
+          type: 'CLASSROOM',
+          message: existing
+            ? `أنت مسجل بالفعل في فصل "${classroomMatch.name}"!`
+            : `تم الانضمام بنجاح إلى فصل "${classroomMatch.name}"!`,
+          classroom: {
+            id: classroomMatch.id,
+            name: classroomMatch.name,
+            subject: classroomMatch.subject,
+            teacherName: classroomMatch.teacher?.name || 'المعلم',
+          },
+        });
+      }
+
       return NextResponse.json({ error: 'الكود غير موجود، يرجى التأكد من كتابة الكود بشكل صحيح' }, { status: 404 });
     }
 
