@@ -11,12 +11,28 @@ import { Globe } from 'lucide-react';
  * - English prefixed routes (e.g. '/en/teacher/reports') -> '/teacher/reports'
  * - Explicit Arabic prefixed routes (e.g. '/ar/teacher/reports') -> '/en/teacher/reports'
  * - Root paths ('/' <-> '/en')
+ * - Query strings and hashes (e.g. '/teacher/students?grade=3#tab') -> '/en/teacher/students?grade=3#tab'
  */
 export function getLocalizedTargetPath(currentPathname: string, targetLocale: 'ar' | 'en'): string {
   const path = currentPathname || '/';
 
+  // Separate path from query string & hash if present
+  const queryIndex = path.indexOf('?');
+  const hashIndex = path.indexOf('#');
+  let splitIndex = -1;
+  if (queryIndex !== -1 && hashIndex !== -1) {
+    splitIndex = Math.min(queryIndex, hashIndex);
+  } else if (queryIndex !== -1) {
+    splitIndex = queryIndex;
+  } else if (hashIndex !== -1) {
+    splitIndex = hashIndex;
+  }
+
+  const pathnameOnly = splitIndex !== -1 ? path.substring(0, splitIndex) : path;
+  const extra = splitIndex !== -1 ? path.substring(splitIndex) : '';
+
   // Strip existing locale prefix if present
-  let cleanPath = path;
+  let cleanPath = pathnameOnly;
   if (cleanPath.startsWith('/en/') || cleanPath === '/en') {
     cleanPath = cleanPath.substring(3) || '/';
   } else if (cleanPath.startsWith('/ar/') || cleanPath === '/ar') {
@@ -25,9 +41,9 @@ export function getLocalizedTargetPath(currentPathname: string, targetLocale: 'a
 
   // With localePrefix: 'as-needed', Arabic (default) has no prefix, English has '/en'
   if (targetLocale === 'en') {
-    return cleanPath === '/' ? '/en' : `/en${cleanPath}`;
+    return (cleanPath === '/' ? '/en' : `/en${cleanPath}`) + extra;
   } else {
-    return cleanPath;
+    return cleanPath + extra;
   }
 }
 
