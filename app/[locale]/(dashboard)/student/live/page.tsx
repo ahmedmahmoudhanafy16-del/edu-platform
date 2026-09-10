@@ -22,6 +22,7 @@ export default async function StudentLivePage({
   const resolvedParams = await params;
   const resolvedSearch = await searchParams;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   const student = await getAuthenticatedStudent();
   const room = resolvedSearch?.room || '';
@@ -31,21 +32,25 @@ export default async function StudentLivePage({
     redirect(`/${locale}/student-login?redirect=${encodeURIComponent(returnPath)}`);
   }
 
-  const displayName = student.name || 'الطالب';
+  const displayName = student.name || (isAr ? 'الطالب' : 'Student');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">البث المباشر والحصة التفاعلية</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+            {isAr ? 'البث المباشر والحصة التفاعلية' : 'Live Stream & Interactive Session'}
+          </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            مرحباً {student?.name} — غرفة الحصة المباشرة التفاعلية مع المعلم — كود الغرفة:{' '}
+            {isAr
+              ? `مرحباً ${student?.name} — غرفة الحصة المباشرة التفاعلية مع المعلم — كود الغرفة: `
+              : `Welcome ${student?.name} — Interactive live class room with teacher — Room Code: `}
             <code className="font-mono font-bold text-blue-600 dark:text-blue-400">{room}</code>
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800 font-semibold">
           <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-          البث نشط ومتصل
+          {isAr ? 'البث نشط ومتصل' : 'Stream Active & Connected'}
         </div>
       </div>
 
@@ -61,9 +66,13 @@ export default async function StudentLivePage({
       <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between text-xs text-slate-500 shadow-sm">
         <span className="flex items-center gap-1.5">
           <ShieldCheck className="h-4 w-4 text-blue-600" />
-          يتم تسجيل الحضور تلقائياً بمجرد دخولك إلى الحصة المباشرة
+          {isAr
+            ? 'يتم تسجيل الحضور تلقائياً بمجرد دخولك إلى الحصة المباشرة'
+            : 'Attendance is recorded automatically upon joining the live session'}
         </span>
-        <span className="text-slate-400">تطبيق البث المباشر المدمج</span>
+        <span className="text-slate-400">
+          {isAr ? 'تطبيق البث المباشر المدمج' : 'Integrated Live Streaming Application'}
+        </span>
       </div>
     </div>
   );

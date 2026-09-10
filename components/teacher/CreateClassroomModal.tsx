@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useLocale } from 'next-intl';
 import { X, BookOpen, Plus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,10 @@ interface CreateClassroomModalProps {
 }
 
 export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: CreateClassroomModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [name, setName] = useState('');
-  const [subject, setSubject] = useState('الرياضيات والجبر');
+  const [subject, setSubject] = useState(isAr ? 'الرياضيات والجبر' : 'Mathematics');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -24,7 +27,7 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !subject.trim()) {
-      toast.error('يرجى كتابة اسم الفصل والمادة');
+      toast.error(isAr ? 'يرجى كتابة اسم الفصل والمادة' : 'Please enter classroom name and subject');
       return;
     }
 
@@ -57,19 +60,23 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
         } catch {}
       }
 
-      toast.success(`تم إنشاء فصل "${cls.name}" بنجاح! كود الانضمام: ${cls.code}`);
+      toast.success(
+        isAr
+          ? `تم إنشاء فصل "${cls.name}" بنجاح! كود الانضمام: ${cls.code}`
+          : `Classroom "${cls.name}" created successfully! Join Code: ${cls.code}`
+      );
       setName('');
       onSuccess(cls);
       onClose();
     } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ أثناء إنشاء الفصل');
+      toast.error(err?.message || (isAr ? 'حدث خطأ أثناء إنشاء الفصل' : 'An error occurred while creating classroom'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-md overflow-hidden shadow-modal">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n-200 dark:border-n-300">
@@ -78,8 +85,12 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
               <BookOpen className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-n-800 dark:text-n-700">إنشاء فصل دراسي جديد</h3>
-              <p className="text-xs text-n-400">سيتم توليد كود انضمام فوري للفصل</p>
+              <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                {isAr ? 'إنشاء فصل دراسي جديد' : 'Create New Classroom'}
+              </h3>
+              <p className="text-xs text-n-400">
+                {isAr ? 'سيتم توليد كود انضمام فوري للفصل' : 'An instant join code will be generated'}
+              </p>
             </div>
           </div>
           <button
@@ -94,42 +105,46 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              اسم الفصل / المجموعة:
+              {isAr ? 'اسم الفصل / المجموعة:' : 'Classroom / Group Name:'}
             </label>
             <Input
               type="text"
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="مثال: الصف الأول الثانوي - مجموعة الأحد"
+              placeholder={isAr ? 'مثال: الصف الأول الثانوي - مجموعة الأحد' : 'e.g. Grade 10 - Sunday Group'}
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              المادة الدراسية:
+              {isAr ? 'المادة الدراسية:' : 'Subject:'}
             </label>
             <Input
               type="text"
               required
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="مثال: الرياضيات / الفيزياء / اللغة العربية"
+              placeholder={isAr ? 'مثال: الرياضيات / الفيزياء / اللغة الإنجليزية' : 'e.g. Mathematics / Physics / English'}
             />
           </div>
 
           <div className="p-3 bg-accent-light/60 rounded-xl border border-accent/20 text-xs text-accent-text flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-accent flex-shrink-0" />
-            <span>يتم توليد كود دخول تلقائي يستطيع الطلاب كتابته للانضمام فوراً.</span>
+            <span>
+              {isAr
+                ? 'يتم توليد كود دخول تلقائي يستطيع الطلاب كتابته للانضمام فوراً.'
+                : 'An automatic access code is generated for students to join instantly.'}
+            </span>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-100 dark:border-n-200">
             <Button type="button" variant="secondary" size="md" onClick={onClose}>
-              إلغاء
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button type="submit" loading={loading} size="md" variant="primary">
               <Plus className="h-4 w-4 me-1" />
-              إنشاء الفصل
+              {isAr ? 'إنشاء الفصل' : 'Create Classroom'}
             </Button>
           </div>
         </form>

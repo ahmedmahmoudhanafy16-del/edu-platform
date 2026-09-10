@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ClipboardList, FileText, CalendarCheck, BarChart3, Trophy } from 'lucide-react';
 import { getStudentAcademicSummary, getLatestStudentSubmission } from '@/lib/analytics';
 import { getSubmissions, getAssignments } from '@/lib/store';
+import { useLocale } from 'next-intl';
 
 export function StudentDashboardOverviewStats({
   initialExamsCount = 0,
@@ -20,6 +21,9 @@ export function StudentDashboardOverviewStats({
   initialLatestDetail?: string | null;
   studentId: string;
 }) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
+
   const [stats, setStats] = useState({
     completedExams: initialExamsCount,
     pendingAssignments: initialPendingCount,
@@ -81,28 +85,28 @@ export function StudentDashboardOverviewStats({
 
   const statItems = [
     {
-      label: 'الامتحانات المنجزة',
+      label: isAr ? 'الامتحانات المنجزة' : 'Completed Exams',
       value: stats.completedExams,
       subtitle: null,
       icon: ClipboardList,
       warn: false,
     },
     {
-      label: 'واجبات مطلوبة',
+      label: isAr ? 'واجبات مطلوبة' : 'Pending Homework',
       value: stats.pendingAssignments,
       subtitle: null,
       icon: FileText,
       warn: stats.pendingAssignments > 0,
     },
     {
-      label: 'نسبة الحضور',
+      label: isAr ? 'نسبة الحضور' : 'Attendance Rate',
       value: `${stats.attendancePct}%`,
       subtitle: null,
       icon: CalendarCheck,
       warn: false,
     },
     {
-      label: 'نتيجة آخر اختبار',
+      label: isAr ? 'نتيجة آخر اختبار' : 'Latest Exam Score',
       value: stats.latestScore !== null && stats.latestScore !== undefined ? `${stats.latestScore}%` : '—',
       subtitle: stats.latestDetail ? `(${stats.latestDetail})` : null,
       icon: Trophy,

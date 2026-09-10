@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Calendar, CheckCircle2, XCircle, ArrowLeft } from 'lucide-react';
+import { Trophy, Award, Calendar, CheckCircle2, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { calculatePercentage, calcStudentAvg } from '@/lib/utils';
 import { getSubmissions, getQuizzes } from '@/lib/store';
 import Link from 'next/link';
@@ -34,6 +34,7 @@ export function StudentGradesClient({
   studentId?: string;
   locale: string;
 }) {
+  const isAr = locale === 'ar';
   const [results, setResults] = useState<GradeResultItem[]>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -125,7 +126,7 @@ export function StudentGradesClient({
               submittedAt: p.submittedAt ? new Date(p.submittedAt) : new Date(),
               quiz: {
                 id: p.quizId,
-                title: p.quizTitle || quizMatch?.title || 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+                title: p.quizTitle || quizMatch?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
                 type: quizMatch?.type || 'WEEKLY',
               },
             };
@@ -160,7 +161,7 @@ export function StudentGradesClient({
       window.removeEventListener('edu_store_updated', syncGrades);
       window.removeEventListener('storage', syncGrades);
     };
-  }, [initialResults, studentId, effectiveStudent.id, studentName]);
+  }, [initialResults, studentId, effectiveStudent.id, studentName, isAr]);
 
   // Robust Direct Metrics Computation
   const totalExams = results.length;
@@ -171,12 +172,16 @@ export function StudentGradesClient({
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">سجل الدرجات والشهادات</h1>
+        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'سجل الدرجات والشهادات' : 'Grades & Certificates Record'}
+        </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          مرحباً {effectiveStudent.name || studentName} — متابعة شاملة لنتائج جميع الاختبارات الأسبوعية والشهرية
+          {isAr
+            ? `مرحباً ${effectiveStudent.name || studentName} — متابعة شاملة لنتائج جميع الاختبارات الأسبوعية والشهرية`
+            : `Welcome ${effectiveStudent.name || studentName} — Comprehensive record of all weekly and monthly test results`}
         </p>
       </div>
 
@@ -184,7 +189,9 @@ export function StudentGradesClient({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className={`${card} p-6 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">متوسط درجاتك العام</p>
+            <p className="text-xs text-n-500 dark:text-n-400">
+              {isAr ? 'متوسط درجاتك العام' : 'Overall Grade Average'}
+            </p>
             <p className={`text-3xl font-bold mt-1 ${avgScore !== null && avgScore >= 50 ? 'text-ok' : 'text-bad'}`}>
               <span dir="ltr">{avgScore !== null ? `${avgScore}%` : '—'}</span>
             </p>
@@ -194,7 +201,9 @@ export function StudentGradesClient({
 
         <div className={`${card} p-6 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">الامتحانات المكتملة</p>
+            <p className="text-xs text-n-500 dark:text-n-400">
+              {isAr ? 'الامتحانات المكتملة' : 'Completed Exams'}
+            </p>
             <p className="text-3xl font-bold text-n-800 dark:text-n-700 mt-1">{totalExams}</p>
           </div>
           <Award className="h-8 w-8 text-n-300 dark:text-n-400" strokeWidth={1.5} />
@@ -202,7 +211,9 @@ export function StudentGradesClient({
 
         <div className={`${card} p-6 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">نسبة النجاح</p>
+            <p className="text-xs text-n-500 dark:text-n-400">
+              {isAr ? 'نسبة النجاح' : 'Pass Rate'}
+            </p>
             <p className="text-3xl font-bold text-ok mt-1">
               <span dir="ltr">{totalExams > 0 ? `${passRate}%` : '—'}</span>
             </p>
@@ -214,17 +225,19 @@ export function StudentGradesClient({
       {/* Results Table */}
       <div className={`${card} overflow-hidden`}>
         <div className="px-6 py-4 border-b border-n-200 dark:border-n-300 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-n-800 dark:text-n-700">تفاصيل الاختبارات والنتائج</h2>
+          <h2 className="text-sm font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'تفاصيل الاختبارات والنتائج' : 'Exams & Results Breakdown'}
+          </h2>
           {totalExams > 0 && (
             <span className="text-xs text-n-400 font-medium">
-              إجمالي النتائج: {totalExams} اختبار
+              {isAr ? `إجمالي النتائج: ${totalExams} اختبار` : `Total Results: ${totalExams} exam(s)`}
             </span>
           )}
         </div>
 
         {results.length === 0 ? (
           <div className="p-12 text-center text-sm text-n-400">
-            لم تسجل نتائج أي اختبارات حتى الآن
+            {isAr ? 'لم تسجل نتائج أي اختبارات حتى الآن' : 'No exam results recorded yet'}
           </div>
         ) : (
           <div className="divide-y divide-n-100 dark:divide-n-200">
@@ -238,13 +251,14 @@ export function StudentGradesClient({
                 <div key={r.id || i} className="p-5 flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <span className="text-[10px] font-bold text-accent-text bg-accent-light px-2 py-0.5 rounded border border-accent/20">
-                      {r.quiz?.type === 'WEEKLY' ? 'اختبار أسبوعي' : 'امتحان شهري'}
+                      {r.quiz?.type === 'WEEKLY' ? (isAr ? 'اختبار أسبوعي' : 'Weekly Quiz') : (isAr ? 'امتحان شهري' : 'Monthly Exam')}
                     </span>
                     <h3 className="text-sm font-bold text-n-800 dark:text-n-700 mt-1.5">
-                      {r.quiz?.title || 'الاختبار الأسبوعي الأول - الجبر والإحصاء'}
+                      {r.quiz?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics')}
                     </h3>
                     <p className="text-xs text-n-400 mt-0.5">
-                      تاريخ التسليم: {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                      {isAr ? 'تاريخ التسليم:' : 'Submitted Date:'}{' '}
+                      {r.submittedAt ? new Date(r.submittedAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                     </p>
                   </div>
 
@@ -254,7 +268,7 @@ export function StudentGradesClient({
                         {score} / {max}
                       </p>
                       <p className="text-xs text-n-400 mt-0.5">
-                        النسبة المئوية: <span dir="ltr" className="font-semibold">{pct}%</span>
+                        {isAr ? 'النسبة المئوية:' : 'Percentage:'} <span dir="ltr" className="font-semibold">{pct}%</span>
                       </p>
                     </div>
 
@@ -262,20 +276,20 @@ export function StudentGradesClient({
                       {r.isPassed || pct >= 50 ? (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-ok-light text-ok border border-ok/20">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          ناجح
+                          {isAr ? 'ناجح' : 'Passed'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-bad-light text-bad border border-bad/20">
                           <XCircle className="h-3.5 w-3.5" />
-                          راسب
+                          {isAr ? 'راسب' : 'Failed'}
                         </span>
                       )}
                     </div>
 
                     <Link href={`/${locale}/student/quizzes/${qId}/review`}>
                       <Button variant="ghost" size="sm" className="text-xs flex items-center gap-1 border border-n-200 dark:border-n-300">
-                        <span>مراجعة الإجابات</span>
-                        <ArrowLeft className="h-3.5 w-3.5" />
+                        <span>{isAr ? 'مراجعة الإجابات' : 'Review Answers'}</span>
+                        {isAr ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
                       </Button>
                     </Link>
                   </div>

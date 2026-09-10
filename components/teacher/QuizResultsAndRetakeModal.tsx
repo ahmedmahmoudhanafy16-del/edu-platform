@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocale } from 'next-intl';
 import {
   X,
   RotateCcw,
@@ -66,12 +67,17 @@ export function QuizResultsAndRetakeModal({
   isOpen,
   onClose,
 }: QuizResultsAndRetakeModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
+
   const [students, setStudents] = useState<any[]>([]);
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [retakeCodes, setRetakeCodes] = useState<QuizRetakeCode[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudentForRetake, setSelectedStudentForRetake] = useState<string>('');
-  const [retakeReason, setRetakeReason] = useState('إعادة استثنائية مصرح بها من المعلم');
+  const [retakeReason, setRetakeReason] = useState(
+    isAr ? 'إعادة استثنائية مصرح بها من المعلم' : 'Authorized retake attempt by teacher'
+  );
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [loadingStudentId, setLoadingStudentId] = useState<string | null>(null);
 
@@ -199,9 +205,13 @@ export function QuizResultsAndRetakeModal({
       ).catch(() => null);
 
       setRetakeCodes(getRetakeCodes(quiz.id));
-      toast.success(`تم إنشاء كود إعادة استثنائي للطالب ${student.studentName}: ${newRetake.code}`);
+      toast.success(
+        isAr
+          ? `تم إنشاء كود إعادة استثنائي للطالب ${student.studentName}: ${newRetake.code}`
+          : `Exceptional retake code created for ${student.studentName}: ${newRetake.code}`
+      );
     } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ أثناء إنشاء كود الإعادة');
+      toast.error(err?.message || (isAr ? 'حدث خطأ أثناء إنشاء كود الإعادة' : 'Error generating retake code'));
     } finally {
       setLoadingStudentId(null);
     }
@@ -219,14 +229,18 @@ export function QuizResultsAndRetakeModal({
       resetStudentQuizAttemptAction(quiz.id, student.studentId, student.studentCode).catch(() => null);
 
       if (res.success) {
-        toast.success(`تم إعادة فتح الاختبار فوراً للطالب "${student.studentName}" بنجاح! يمكنه الدخول وبدء الامتحان الآن.`);
+        toast.success(
+          isAr
+            ? `تم إعادة فتح الاختبار فوراً للطالب "${student.studentName}" بنجاح! يمكنه الدخول وبدء الامتحان الآن.`
+            : `Exam reopened immediately for "${student.studentName}"! They can start now.`
+        );
         setSubmissions(getSubmissions());
         setRetakeCodes(getRetakeCodes(quiz.id));
       } else {
-        toast.error(res.message || 'حدث خطأ أثناء إعادة فتح الاختبار');
+        toast.error(res.message || (isAr ? 'حدث خطأ أثناء إعادة فتح الاختبار' : 'Failed to reopen exam'));
       }
     } catch (err: any) {
-      toast.error(err?.message || 'تعذر إعادة فتح الاختبار');
+      toast.error(err?.message || (isAr ? 'تعذر إعادة فتح الاختبار' : 'Could not reopen exam'));
     } finally {
       setLoadingStudentId(null);
     }
@@ -236,7 +250,7 @@ export function QuizResultsAndRetakeModal({
   function handleCopy(code: string) {
     navigator.clipboard.writeText(code);
     setCopiedCode(code);
-    toast.success(`تم نسخ الكود: ${code}`);
+    toast.success(isAr ? `تم نسخ الكود: ${code}` : `Code copied: ${code}`);
     setTimeout(() => setCopiedCode(null), 2000);
   }
 
@@ -245,7 +259,7 @@ export function QuizResultsAndRetakeModal({
     if (!quiz) return;
     deleteRetakeCode(codeId);
     setRetakeCodes(getRetakeCodes(quiz.id));
-    toast.info('تم إلغاء كود الإعادة');
+    toast.info(isAr ? 'تم إلغاء كود الإعادة' : 'Retake code cancelled');
   }
 
   // Handle WhatsApp Share
@@ -254,7 +268,8 @@ export function QuizResultsAndRetakeModal({
     const cleanPhone = (student.parentPhone || student.phone || '').replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.startsWith('0') ? `2${cleanPhone}` : cleanPhone;
 
-    const message = `السلام عليكم ورحمة الله وبركاته،
+    const message = isAr
+      ? `السلام عليكم ورحمة الله وبركاته،
 ولي أمر الطالب: *${student.studentName}* (${student.studentCode})
 
 بناءً على طلبكم، تم تفعيل *إعادة استثنائية* لاختبار:
@@ -268,7 +283,21 @@ export function QuizResultsAndRetakeModal({
 • سيتم فتح محاولة جديدة بترتيب عشوائي للأسئلة والخيارات.
 • يُرجى عدم مغادرة شاشة الامتحان أو التبديل بين التطبيقات لتجنب الإلغاء التلقائي.
 
-نتمنى له دوام التوفيق والنجاح! 🌟`;
+نتمنى له دوام التوفيق والنجاح! 🌟`
+      : `Dear Parent of *${student.studentName}* (${student.studentCode}),
+
+An exceptional retake has been granted for:
+📝 *${quiz.title}*
+
+🔑 *New Exam Access Passcode:*
+\`${code}\`
+
+⚠️ *Important Notice:*
+• One-time use only.
+• New attempt with randomized question order.
+• Please do not leave or switch away from exam screen.
+
+Best wishes! 🌟`;
 
     const url = cleanPhone
       ? `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`
@@ -283,7 +312,7 @@ export function QuizResultsAndRetakeModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-      dir="rtl"
+      dir={isAr ? 'rtl' : 'ltr'}
     >
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-4xl overflow-hidden shadow-modal flex flex-col max-h-[90vh]">
         {/* Header */}
@@ -296,11 +325,13 @@ export function QuizResultsAndRetakeModal({
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-n-800 dark:text-n-700">{quiz.title}</h3>
                 <span className="text-[10px] font-bold bg-accent-light text-accent px-2 py-0.5 rounded border border-accent/20">
-                  {quiz.classroomName || 'فصل دراسي'}
+                  {quiz.classroomName || (isAr ? 'فصل دراسي' : 'Classroom')}
                 </span>
               </div>
               <p className="text-xs text-n-500 mt-0.5">
-                إدارة نتائج الطلاب ومنح أكواد إعادة الامتحان الاستثنائية للطلاب
+                {isAr
+                  ? 'إدارة نتائج الطلاب ومنح أكواد إعادة الامتحان الاستثنائية للطلاب'
+                  : 'Manage student scores and grant exceptional exam retakes'}
               </p>
             </div>
           </div>
@@ -308,22 +339,22 @@ export function QuizResultsAndRetakeModal({
             onClick={onClose}
             className="text-n-400 hover:text-n-700 dark:hover:text-n-500 p-1.5 rounded-lg hover:bg-n-100 dark:hover:bg-n-200 transition-colors"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
         {/* Stats Strip */}
         <div className="grid grid-cols-3 border-b border-n-100 dark:border-n-200 bg-white dark:bg-n-100 px-6 py-3 text-center text-xs">
           <div>
-            <span className="text-n-400">إجمالي طلاب الفصل:</span>{' '}
+            <span className="text-n-400">{isAr ? 'إجمالي طلاب الفصل:' : 'Total Students:'}</span>{' '}
             <strong className="text-n-800 dark:text-n-700 text-sm font-mono">{students.length}</strong>
           </div>
           <div>
-            <span className="text-n-400">الذين قاموا بالاختبار:</span>{' '}
+            <span className="text-n-400">{isAr ? 'الذين قاموا بالاختبار:' : 'Completed Quiz:'}</span>{' '}
             <strong className="text-ok text-sm font-mono">{completedCount}</strong>
           </div>
           <div>
-            <span className="text-n-400">أكواد الإعادة الفعالة:</span>{' '}
+            <span className="text-n-400">{isAr ? 'أكواد الإعادة الفعالة:' : 'Active Retake Codes:'}</span>{' '}
             <strong className="text-accent text-sm font-mono">{activeRetakeCount}</strong>
           </div>
         </div>
@@ -334,12 +365,14 @@ export function QuizResultsAndRetakeModal({
           <div className="relative flex-1 min-w-[240px]">
             <input
               type="text"
-              placeholder="بحث باسم الطالب أو كود الطالب..."
+              placeholder={isAr ? 'بحث باسم الطالب أو كود الطالب...' : 'Search by student name or code...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 pl-8 focus:outline-none focus:border-accent"
+              className={`w-full text-xs bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 ${
+                isAr ? 'pl-8' : 'pr-8'
+              } focus:outline-none focus:border-accent`}
             />
-            <Search className="h-3.5 w-3.5 text-n-400 absolute left-2.5 top-2.5" />
+            <Search className={`h-3.5 w-3.5 text-n-400 absolute ${isAr ? 'left-2.5' : 'right-2.5'} top-2.5`} />
           </div>
 
           {/* Quick Issue Dropdown */}
@@ -349,10 +382,12 @@ export function QuizResultsAndRetakeModal({
               onChange={(e) => setSelectedStudentForRetake(e.target.value)}
               className="text-xs bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-lg px-3 py-2 text-n-700 dark:text-n-600 focus:outline-none focus:border-accent"
             >
-              <option value="">-- اختر طالباً لمنحه كود إعادة فوري --</option>
+              <option value="">
+                {isAr ? '-- اختر طالباً لمنحه كود إعادة فوري --' : '-- Select student to grant instant retake --'}
+              </option>
               {studentRows.map((s) => (
                 <option key={s.studentId} value={s.studentId}>
-                  {s.studentName} ({s.studentCode}) {s.score !== undefined ? `[${s.score}/${s.maxScore}]` : '[لم يختبر]'}
+                  {s.studentName} ({s.studentCode}) {s.score !== undefined ? `[${s.score}/${s.maxScore}]` : (isAr ? '[لم يختبر]' : '[Not taken]')}
                 </option>
               ))}
             </select>
@@ -370,7 +405,7 @@ export function QuizResultsAndRetakeModal({
               className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             >
               <RotateCcw className="h-3.5 w-3.5 me-1" />
-              إعادة فتح فوري
+              {isAr ? 'إعادة فتح فوري' : 'Instant Reopen'}
             </Button>
             <Button
               size="sm"
@@ -386,7 +421,7 @@ export function QuizResultsAndRetakeModal({
               className="text-xs text-accent border-accent/30 hover:bg-accent-light"
             >
               <KeyRound className="h-3.5 w-3.5 me-1" />
-              توليد كود
+              {isAr ? 'توليد كود' : 'Generate Code'}
             </Button>
           </div>
         </div>
@@ -395,7 +430,7 @@ export function QuizResultsAndRetakeModal({
         <div className="flex-1 overflow-y-auto p-4">
           {filteredRows.length === 0 ? (
             <div className="p-12 text-center text-xs text-n-400">
-              لا يوجد طلاب مطابقين للبحث
+              {isAr ? 'لا يوجد طلاب مطابقين للبحث' : 'No matching students found'}
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -451,12 +486,12 @@ export function QuizResultsAndRetakeModal({
                                   : 'bg-bad-light text-bad border border-bad/20'
                               }`}
                             >
-                              {student.isPassed ? 'ناجح' : 'راسب / ملغي'}
+                              {student.isPassed ? (isAr ? 'ناجح' : 'Passed') : (isAr ? 'راسب / ملغي' : 'Failed / Void')}
                             </span>
                           </div>
                           {student.submittedAt && (
                             <p className="text-[10px] text-n-400 mt-0.5">
-                              {new Date(student.submittedAt).toLocaleString('ar-EG', {
+                              {new Date(student.submittedAt).toLocaleString(isAr ? 'ar-EG' : 'en-US', {
                                 dateStyle: 'short',
                                 timeStyle: 'short',
                               })}
@@ -465,7 +500,7 @@ export function QuizResultsAndRetakeModal({
                         </div>
                       ) : (
                         <span className="text-[11px] text-n-400 bg-n-50 dark:bg-n-200 px-2.5 py-1 rounded border border-n-200 font-medium">
-                          لم يقم بتسليم الامتحان بعد
+                          {isAr ? 'لم يقم بتسليم الامتحان بعد' : 'Exam not submitted yet'}
                         </span>
                       )}
                     </div>
@@ -479,10 +514,10 @@ export function QuizResultsAndRetakeModal({
                           loading={loadingStudentId === student.studentId}
                           onClick={() => handleDirectReset(student)}
                           className="text-xs flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
-                          title="إعادة فتح الامتحان للطالب فوراً ومسح درجته ومخالفاته السابقة"
+                          title={isAr ? 'إعادة فتح الامتحان للطالب فوراً ومسح درجته ومخالفاته السابقة' : 'Reopen exam immediately, clearing previous attempt'}
                         >
                           <RotateCcw className="h-3 w-3" />
-                          <span>إعادة فتح فورية للطالب 🔄</span>
+                          <span>{isAr ? 'إعادة فتح فورية للطالب 🔄' : 'Instant Reopen 🔄'}</span>
                         </Button>
                       )}
 
@@ -490,7 +525,7 @@ export function QuizResultsAndRetakeModal({
                         <div className="flex items-center gap-2 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
                           <div className="text-start">
                             <span className="text-[9px] font-bold text-amber-700 dark:text-amber-400 block">
-                              كود إعادة متاح 🟡
+                              {isAr ? 'كود إعادة متاح 🟡' : 'Active Retake Code 🟡'}
                             </span>
                             <code className="text-xs font-mono font-bold text-amber-900 dark:text-amber-200 tracking-wider">
                               {activeRetake.code}
@@ -502,7 +537,7 @@ export function QuizResultsAndRetakeModal({
                             type="button"
                             onClick={() => handleCopy(activeRetake.code)}
                             className="p-1.5 rounded bg-white dark:bg-n-100 border border-amber-200 text-amber-800 hover:bg-amber-100 transition-colors"
-                            title="نسخ كود الإعادة"
+                            title={isAr ? 'نسخ كود الإعادة' : 'Copy retake code'}
                           >
                             {copiedCode === activeRetake.code ? (
                               <Check className="h-3.5 w-3.5 text-ok" />
@@ -516,10 +551,10 @@ export function QuizResultsAndRetakeModal({
                             type="button"
                             onClick={() => handleWhatsAppShare(student, activeRetake.code)}
                             className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-1 text-[11px] px-2 font-bold shadow-sm"
-                            title="مشاركة الكود على واتساب لولي الأمر"
+                            title={isAr ? 'مشاركة الكود على واتساب لولي الأمر' : 'Share retake code via WhatsApp'}
                           >
                             <Share2 className="h-3 w-3" />
-                            <span>واتساب</span>
+                            <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
                           </button>
 
                           {/* Delete Retake Code */}
@@ -527,7 +562,7 @@ export function QuizResultsAndRetakeModal({
                             type="button"
                             onClick={() => handleDeleteRetake(activeRetake.id)}
                             className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                            title="إلغاء هذا الكود"
+                            title={isAr ? 'إلغاء هذا الكود' : 'Cancel this code'}
                           >
                             ✕
                           </button>
@@ -535,7 +570,7 @@ export function QuizResultsAndRetakeModal({
                       ) : activeRetake && activeRetake.isUsed ? (
                         <div className="flex items-center gap-1.5 text-xs text-ok bg-ok-light border border-ok/20 px-2.5 py-1 rounded font-semibold">
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>تم استخدام كود الإعادة ({activeRetake.code})</span>
+                          <span>{isAr ? `تم استخدام كود الإعادة (${activeRetake.code})` : `Retake code used (${activeRetake.code})`}</span>
                         </div>
                       ) : (
                         <Button
@@ -544,10 +579,10 @@ export function QuizResultsAndRetakeModal({
                           loading={loadingStudentId === student.studentId}
                           onClick={() => handleIssueRetake(student)}
                           className="text-xs flex items-center gap-1 text-accent border-accent/30 hover:bg-accent-light"
-                          title="توليد كود سري للمشاركة على واتساب"
+                          title={isAr ? 'توليد كود سري للمشاركة على واتساب' : 'Generate secret code to share'}
                         >
                           <KeyRound className="h-3 w-3" />
-                          <span>كود سري 🔑</span>
+                          <span>{isAr ? 'كود سري 🔑' : 'Passcode 🔑'}</span>
                         </Button>
                       )}
                     </div>
@@ -561,10 +596,10 @@ export function QuizResultsAndRetakeModal({
         {/* Footer */}
         <div className="px-6 py-3.5 border-t border-n-200 dark:border-n-300 bg-n-50/50 dark:bg-n-200/50 flex items-center justify-between">
           <p className="text-xs text-n-500">
-            💡 <strong>تلميح:</strong> كود الإعادة يلغي التسليم والمخالفات السابقة للطالب ويمنحه محاولة جديدة بترتيب عشوائي.
+            💡 <strong>{isAr ? 'تلميح:' : 'Tip:'}</strong> {isAr ? 'كود الإعادة يلغي التسليم والمخالفات السابقة للطالب ويمنحه محاولة جديدة بترتيب عشوائي.' : 'The retake passcode clears previous submissions & security violations, giving the student a fresh randomized attempt.'}
           </p>
           <Button variant="secondary" size="sm" onClick={onClose}>
-            إغلاق
+            {isAr ? 'إغلاق' : 'Close'}
           </Button>
         </div>
       </div>

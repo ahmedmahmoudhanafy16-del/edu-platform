@@ -100,9 +100,11 @@ export function StudentQuizCard({
     }
   }
 
+  const isAr = locale === 'ar';
+
   return (
     <>
-      <div className={`${card} flex flex-col justify-between overflow-hidden transition-all hover:shadow-md`}>
+      <div className={`${card} flex flex-col justify-between overflow-hidden transition-all hover:shadow-md`} dir={isAr ? 'rtl' : 'ltr'}>
         {/* Card Header */}
         <div className="px-5 pt-5 pb-4 border-b border-n-100 dark:border-n-200">
           <div className="flex items-start justify-between gap-2">
@@ -110,7 +112,9 @@ export function StudentQuizCard({
               {quiz.title}
             </h3>
             <span className={quizTypeBadge[quiz.type] ?? quizTypeBadge.WEEKLY}>
-              {quiz.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
+              {isAr
+                ? (quiz.type === 'WEEKLY' ? 'أسبوعي' : 'شهري')
+                : (quiz.type === 'WEEKLY' ? 'Weekly' : 'Monthly')}
             </span>
           </div>
           {quiz.classroomName && (
@@ -123,16 +127,16 @@ export function StudentQuizCard({
           <div className="flex items-center gap-3 text-xs text-n-500">
             <span className="flex items-center gap-1">
               <Timer className="h-3.5 w-3.5 text-n-400" strokeWidth={1.75} />
-              {quiz.duration} دقيقة
+              {quiz.duration} {isAr ? 'دقيقة' : 'mins'}
             </span>
             <span className="flex items-center gap-1">
               <BarChart3 className="h-3.5 w-3.5 text-n-400" strokeWidth={1.75} />
-              نجاح {quiz.passingScore}%
+              {isAr ? `نجاح ${quiz.passingScore}%` : `Pass ${quiz.passingScore}%`}
             </span>
             {((quiz as any).totalScore || (quiz as any).maxScore) && (
               <span className="flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
                 <Trophy className="h-3.5 w-3.5 text-emerald-500" />
-                {(quiz as any).totalScore || (quiz as any).maxScore} درجات
+                {(quiz as any).totalScore || (quiz as any).maxScore} {isAr ? 'درجات' : 'pts'}
               </span>
             )}
           </div>
@@ -140,7 +144,7 @@ export function StudentQuizCard({
           {isCompleted ? (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-ok bg-ok-light border border-ok/20 px-2.5 py-1 rounded font-semibold flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" /> تم أداء الامتحان ✓
+                <CheckCircle2 className="h-3.5 w-3.5" /> {isAr ? 'تم أداء الامتحان ✓' : 'Completed ✓'}
               </span>
               {typeof result?.score === 'number' && (
                 <span dir="ltr" className="text-xs font-mono font-bold text-n-800 dark:text-n-700 bg-n-100 dark:bg-n-200 px-2 py-0.5 rounded border border-n-200">
@@ -149,12 +153,12 @@ export function StudentQuizCard({
               )}
               <Link href={`/${locale}/student/quizzes/${quiz.id}/review`}>
                 <Button size="sm" variant="primary" className="text-xs h-7 px-2.5 font-semibold">
-                  مراجعة الإجابات
+                  {isAr ? 'مراجعة الإجابات' : 'Review'}
                 </Button>
               </Link>
               <Link href={`/${locale}/student/grades`}>
                 <Button size="sm" variant="secondary" className="text-xs h-7 px-2 font-medium">
-                  الدرجات
+                  {isAr ? 'الدرجات' : 'Grades'}
                 </Button>
               </Link>
               {hasTeacherAuthorizedRetake && (
@@ -163,17 +167,17 @@ export function StudentQuizCard({
                   variant="ghost"
                   onClick={() => setModalOpen(true)}
                   className="text-xs h-7 px-2 font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50 flex items-center gap-1 animate-pulse"
-                  title="صرح المعلم لك بإعادة الامتحان، اضغط لإدخال الكود الممنوح"
+                  title={isAr ? 'صرح المعلم لك بإعادة الامتحان، اضغط لإدخال الكود الممنوح' : 'Teacher authorized an exam retake, click to enter PIN'}
                 >
                   <KeyRound className="h-3 w-3 text-amber-600" />
-                  <span>صرح المعلم بالإعادة (أدخل الكود) 🔑</span>
+                  <span>{isAr ? 'صرح المعلم بالإعادة (أدخل الكود) 🔑' : 'Retake Allowed (Enter PIN) 🔑'}</span>
                 </Button>
               )}
             </div>
           ) : (
             <Button size="sm" variant="primary" onClick={handleStart} className="flex items-center gap-1">
               {quiz.isCodeRequired !== false && <Lock className="h-3 w-3" />}
-              ابدأ الاختبار
+              {isAr ? 'ابدأ الاختبار' : 'Start Exam'}
             </Button>
           )}
         </div>

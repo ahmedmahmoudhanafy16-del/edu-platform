@@ -12,6 +12,7 @@ import { verifyStudentCredentials } from '@/actions/auth';
 function StudentLoginForm() {
   const t = useTranslations('auth.studentLogin');
   const locale = useLocale();
+  const isAr = locale === 'ar';
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get('redirect');
@@ -45,14 +46,14 @@ function StudentLoginForm() {
         router.push(`/${locale}/student`);
       }
     } catch {
-      setError('حدث خطأ في الاتصال');
+      setError(isAr ? 'حدث خطأ في الاتصال' : 'Connection error occurred');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-n-50 dark:bg-n-50" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-n-50 dark:bg-n-50" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 w-full max-w-md shadow-sm">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-accent text-white font-bold text-xl mb-3">
@@ -65,7 +66,7 @@ function StudentLoginForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-n-700 dark:text-n-600 mb-1">
-              اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف
+              {isAr ? 'اسم الطالب الثلاثي، أو كود الطالب، أو رقم الهاتف' : 'Full Student Name, Student Code, or Phone'}
             </label>
             <div className="relative">
               <Input
@@ -74,7 +75,7 @@ function StudentLoginForm() {
                 autoFocus
                 value={studentIdentifier}
                 onChange={(e) => setStudentIdentifier(e.target.value)}
-                placeholder="أدخل الاسم أو STU-001 أو رقم الهاتف..."
+                placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter name, STU-001, or phone number...'}
                 className="pe-8 font-medium text-center"
               />
               <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" strokeWidth={1.75} />
@@ -92,14 +93,14 @@ function StudentLoginForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور (4 أرقام)"
+                placeholder={isAr ? 'أدخل كلمة المرور (4 أرقام)' : 'Enter password (4 digits)'}
                 className="pe-8 ps-8 text-center font-mono"
               />
               <Lock className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" strokeWidth={1.75} />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                title={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
                 className="absolute start-2.5 top-1/2 -translate-y-1/2 text-n-400 hover:text-n-700 dark:hover:text-n-200 transition-colors p-1"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -131,7 +132,7 @@ function StudentLoginForm() {
 
 export default function StudentLoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-slate-400">جاري التحميل...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-xs text-slate-400">...</div>}>
       <StudentLoginForm />
     </Suspense>
   );

@@ -17,6 +17,7 @@ import {
 } from '@/lib/store';
 import { createQuizRetakeCodeAction } from '@/actions/quiz';
 import { toast } from 'sonner';
+import { useLocale } from 'next-intl';
 
 interface LiveSessionItem {
   id: string;
@@ -49,6 +50,8 @@ export function TeacherAccessCodesClient({
   sessions: LiveSessionItem[];
   initialCodes: AccessCodeItem[];
 }) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [activeTab, setActiveTab] = useState<'LIVE_SESSIONS' | 'EXAM_RETAKES'>('LIVE_SESSIONS');
   const [selectedSessionId, setSelectedSessionId] = useState<string>(
     sessions[0]?.id || 'ALL'
@@ -64,7 +67,7 @@ export function TeacherAccessCodesClient({
   const [isRetakeModalOpen, setIsRetakeModalOpen] = useState(false);
   const [retakeQuizId, setRetakeQuizId] = useState('');
   const [retakeStudentId, setRetakeStudentId] = useState('');
-  const [retakeReason, setRetakeReason] = useState('إعادة استثنائية مصرح بها من المعلم');
+  const [retakeReason, setRetakeReason] = useState(isAr ? 'إعادة استثنائية مصرح بها من المعلم' : 'Authorized exceptional retake');
   const [isGeneratingRetake, setIsGeneratingRetake] = useState(false);
 
   // Sync retake data on mount
@@ -134,7 +137,7 @@ export function TeacherAccessCodesClient({
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!modalSessionId) {
-      setModalError('يرجى اختيار الحصة المباشرة');
+      setModalError(isAr ? 'يرجى اختيار الحصة المباشرة' : 'Please select a live session');
       return;
     }
 
@@ -155,7 +158,7 @@ export function TeacherAccessCodesClient({
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'فشل في توليد الأكواد');
+        throw new Error(data.error || (isAr ? 'فشل في توليد الأكواد' : 'Failed to generate codes'));
       }
 
       // Refresh codes list from API
@@ -169,7 +172,7 @@ export function TeacherAccessCodesClient({
       // Auto select the session we generated for
       setSelectedSessionId(modalSessionId);
     } catch (err: any) {
-      setModalError(err.message || 'حدث خطأ غير متوقع');
+      setModalError(err.message || (isAr ? 'حدث خطأ غير متوقع' : 'An unexpected error occurred'));
     } finally {
       setIsGenerating(false);
     }
@@ -182,7 +185,7 @@ export function TeacherAccessCodesClient({
       .map((c) => c.code);
 
     if (available.length === 0) {
-      alert('لا توجد أكواد متاحة للنسخ');
+      alert(isAr ? 'لا توجد أكواد متاحة للنسخ' : 'No available codes to copy');
       return;
     }
 
@@ -201,11 +204,11 @@ export function TeacherAccessCodesClient({
   // Handle Export CSV
   function handleExportCSV() {
     if (filteredCodes.length === 0) {
-      alert('لا توجد بيانات لتصديرها');
+      alert(isAr ? 'لا توجد بيانات لتصديرها' : 'No data to export');
       return;
     }
 
-    const headers = [
+    const headers = isAr ? [
       'الكود',
       'الحصة المباشرة',
       'السعر (ج.م)',
@@ -215,18 +218,34 @@ export function TeacherAccessCodesClient({
       'تاريخ الاستخدام',
       'تاريخ الانتهاء',
       'تاريخ الإنشاء',
+    ] : [
+      'Access Code',
+      'Live Session',
+      'Price (EGP)',
+      'Status',
+      'Student Name',
+      'Student Code',
+      'Used At',
+      'Expires At',
+      'Created At',
     ];
 
     const rows = filteredCodes.map((c) => [
       `"${c.code}"`,
       `"${c.liveSessionTitle}"`,
       c.price,
-      `"${c.status === 'USED' ? 'مستخدم' : c.status === 'AVAILABLE' ? 'متاح' : 'منتهي'}"`,
+      `"${
+        c.status === 'USED'
+          ? (isAr ? 'مستخدم' : 'Used')
+          : c.status === 'AVAILABLE'
+          ? (isAr ? 'متاح' : 'Available')
+          : (isAr ? 'منتهي' : 'Expired')
+      }"`,
       `"${c.studentName || '—'}"`,
       `"${c.studentCode || '—'}"`,
-      `"${c.usedAt ? new Date(c.usedAt).toLocaleString('ar-EG') : '—'}"`,
-      `"${c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('ar-EG') : 'بدون انتهاء'}"`,
-      `"${new Date(c.createdAt).toLocaleDateString('ar-EG')}"`,
+      `"${c.usedAt ? new Date(c.usedAt).toLocaleString(isAr ? 'ar-EG' : 'en-US') : '—'}"`,
+      `"${c.expiresAt ? new Date(c.expiresAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US') : (isAr ? 'بدون انتهاء' : 'No Expiry')}"`,
+      `"${new Date(c.createdAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}"`,
     ]);
 
     const csvContent =
@@ -249,7 +268,7 @@ export function TeacherAccessCodesClient({
   async function handleGenerateRetakeCode(e: React.FormEvent) {
     e.preventDefault();
     if (!retakeQuizId || !retakeStudentId) {
-      toast.error('يرجى اختيار الامتحان والطالب');
+      toast.error(isAr ? 'يرجى اختيار الامتحان والطالب' : 'Please select both exam and student');
       return;
     }
 
@@ -261,26 +280,30 @@ export function TeacherAccessCodesClient({
       const newCode = generateRetakeCode(
         retakeQuizId,
         targetStudent?.id || retakeStudentId,
-        targetStudent?.name || 'طالب',
+        targetStudent?.name || (isAr ? 'طالب' : 'Student'),
         targetStudent?.studentCode || retakeStudentId,
-        targetQuiz?.title || 'الاختبار الأكاديمي',
+        targetQuiz?.title || (isAr ? 'الاختبار الأكاديمي' : 'Academic Exam'),
         retakeReason
       );
 
       createQuizRetakeCodeAction(
         retakeQuizId,
         targetStudent?.id || retakeStudentId,
-        targetStudent?.name || 'طالب',
+        targetStudent?.name || (isAr ? 'طالب' : 'Student'),
         targetStudent?.studentCode || retakeStudentId,
-        targetQuiz?.title || 'الاختبار الأكاديمي',
+        targetQuiz?.title || (isAr ? 'الاختبار الأكاديمي' : 'Academic Exam'),
         retakeReason
       ).catch(() => null);
 
       setRetakeCodes(getRetakeCodes());
       setIsRetakeModalOpen(false);
-      toast.success(`تم إنشاء كود إعادة استثنائي بنجاح: ${newCode.code}`);
+      toast.success(
+        isAr
+          ? `تم إنشاء كود إعادة استثنائي بنجاح: ${newCode.code}`
+          : `Exceptional retake code created successfully: ${newCode.code}`
+      );
     } catch (err: any) {
-      toast.error(err?.message || 'فشل توليد كود الإعادة');
+      toast.error(err?.message || (isAr ? 'فشل توليد كود الإعادة' : 'Failed to generate retake code'));
     } finally {
       setIsGeneratingRetake(false);
     }
@@ -293,7 +316,8 @@ export function TeacherAccessCodesClient({
     const cleanPhone = rawPhone.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.startsWith('0') ? `2${cleanPhone}` : cleanPhone;
 
-    const message = `السلام عليكم ورحمة الله وبركاته،
+    const message = isAr
+      ? `السلام عليكم ورحمة الله وبركاته،
 ولي أمر الطالب: *${retake.studentName}* (${retake.studentCode})
 
 بناءً على طلبكم، تم تفعيل *إعادة استثنائية* لاختبار:
@@ -307,7 +331,21 @@ export function TeacherAccessCodesClient({
 • سيتم فتح محاولة جديدة بترتيب عشوائي للأسئلة والخيارات.
 • يُرجى عدم مغادرة شاشة الامتحان لتجنب الإلغاء التلقائي.
 
-نتمنى له دوام التوفيق والنجاح! 🌟`;
+نتمنى له دوام التوفيق والنجاح! 🌟`
+      : `Dear Parent of Student: *${retake.studentName}* (${retake.studentCode}),
+
+As requested, an *exceptional exam retake* has been authorized for:
+📝 *${retake.quizTitle}*
+
+🔑 *New Exam Access Code:*
+\`${retake.code}\`
+
+⚠️ *Important Instructions:*
+• Code is valid for one-time use only.
+• A fresh attempt with randomized questions and answers will be provided.
+• Please do not leave the exam window to prevent auto-cancellation.
+
+Best wishes for excellence and success! 🌟`;
 
     const url = cleanPhone
       ? `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`
@@ -320,13 +358,13 @@ export function TeacherAccessCodesClient({
   function handleDeleteRetake(codeId: string) {
     deleteRetakeCode(codeId);
     setRetakeCodes(getRetakeCodes());
-    toast.info('تم حذف كود الإعادة');
+    toast.info(isAr ? 'تم حذف كود الإعادة' : 'Retake code removed');
   }
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 shadow-sm';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       {/* ── Main Category Switcher (Live Codes vs Exam Retake Codes) ── */}
       <div className="flex items-center gap-2 p-1.5 bg-n-100 dark:bg-n-200 rounded-2xl border border-n-200 dark:border-n-300 w-fit">
         <button
@@ -338,7 +376,7 @@ export function TeacherAccessCodesClient({
           }`}
         >
           <Ticket className="h-4 w-4" />
-          <span>أكواد الحصص المباشرة والسنتر ({codes.length})</span>
+          <span>{isAr ? `أكواد الحصص المباشرة والسنتر (${codes.length})` : `Live & Center Session Codes (${codes.length})`}</span>
         </button>
 
         <button
@@ -350,7 +388,7 @@ export function TeacherAccessCodesClient({
           }`}
         >
           <RotateCcw className="h-4 w-4" />
-          <span>أكواد إعادة الامتحانات الاستثنائية ({retakeCodes.length})</span>
+          <span>{isAr ? `أكواد إعادة الامتحانات الاستثنائية (${retakeCodes.length})` : `Exceptional Retake Codes (${retakeCodes.length})`}</span>
         </button>
       </div>
 
@@ -360,9 +398,13 @@ export function TeacherAccessCodesClient({
           {/* Top Bar for Retake Codes */}
           <div className={`${card} p-5 flex flex-wrap items-center justify-between gap-4`}>
             <div>
-              <h2 className="text-base font-bold text-n-800 dark:text-n-700">سجل أكواد إعادة الامتحانات (Retake Codes)</h2>
+              <h2 className="text-base font-bold text-n-800 dark:text-n-700">
+                {isAr ? 'سجل أكواد إعادة الامتحانات (Retake Codes)' : 'Exam Retake Codes Log'}
+              </h2>
               <p className="text-xs text-n-500 mt-0.5">
-                الأكواد الممنوحة للطلاب لإعادة الاختبارات الملغية أو لمشاكل الاتصال
+                {isAr
+                  ? 'الأكواد الممنوحة للطلاب لإعادة الاختبارات الملغية أو لمشاكل الاتصال'
+                  : 'Codes granted to students to retake canceled exams or resolve technical interruptions'}
               </p>
             </div>
 
@@ -373,7 +415,7 @@ export function TeacherAccessCodesClient({
               className="flex items-center gap-1.5 text-xs font-bold"
             >
               <Plus className="h-4 w-4" />
-              <span>توليد كود إعادة لطالب</span>
+              <span>{isAr ? 'توليد كود إعادة لطالب' : 'Generate Retake Code'}</span>
             </Button>
           </div>
 
@@ -381,7 +423,7 @@ export function TeacherAccessCodesClient({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className={`${card} p-4 flex items-center justify-between`}>
               <div>
-                <p className="text-xs text-n-500 dark:text-n-400">إجمالي أكواد الإعادة</p>
+                <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'إجمالي أكواد الإعادة' : 'Total Retake Codes'}</p>
                 <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-0.5">{retakeCodes.length}</p>
               </div>
               <RotateCcw className="h-6 w-6 text-accent" />
@@ -389,7 +431,7 @@ export function TeacherAccessCodesClient({
 
             <div className={`${card} p-4 flex items-center justify-between`}>
               <div>
-                <p className="text-xs text-n-500 dark:text-n-400">أكواد متاحة ولم تُستخدم بعد</p>
+                <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'أكواد متاحة ولم تُستخدم بعد' : 'Available Unused Codes'}</p>
                 <p className="text-2xl font-bold text-amber-600 mt-0.5">
                   {retakeCodes.filter((r) => !r.isUsed).length}
                 </p>
@@ -399,7 +441,7 @@ export function TeacherAccessCodesClient({
 
             <div className={`${card} p-4 flex items-center justify-between`}>
               <div>
-                <p className="text-xs text-n-500 dark:text-n-400">أكواد تم استخدامها</p>
+                <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'أكواد تم استخدامها' : 'Used Codes'}</p>
                 <p className="text-2xl font-bold text-ok mt-0.5">
                   {retakeCodes.filter((r) => r.isUsed).length}
                 </p>
@@ -413,22 +455,26 @@ export function TeacherAccessCodesClient({
             {retakeCodes.length === 0 ? (
               <div className="p-12 text-center text-sm text-n-400">
                 <RotateCcw className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-                <p className="font-semibold text-n-700 dark:text-n-600">لا توجد أكواد إعادة منشأة حالياً</p>
-                <p className="text-xs text-n-400 mt-1">اضغط على زر "توليد كود إعادة لطالب" لمنح كود استثنائي</p>
+                <p className="font-semibold text-n-700 dark:text-n-600">
+                  {isAr ? 'لا توجد أكواد إعادة منشأة حالياً' : 'No retake codes generated yet'}
+                </p>
+                <p className="text-xs text-n-400 mt-1">
+                  {isAr ? 'اضغط على زر "توليد كود إعادة لطالب" لمنح كود استثنائي' : 'Click "Generate Retake Code" to issue an exceptional code'}
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-start text-xs border-collapse">
                   <thead>
                     <tr className="bg-n-50 dark:bg-n-200 border-b border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 font-bold">
-                      <th className="p-3 text-start">كود الإعادة (Retake Code)</th>
-                      <th className="p-3 text-start">الامتحان المستهدف</th>
-                      <th className="p-3 text-start">الطالب المصرح له</th>
-                      <th className="p-3 text-start">سبب المنح</th>
-                      <th className="p-3 text-start">الحالة</th>
-                      <th className="p-3 text-start">تاريخ الإنشاء</th>
-                      <th className="p-3 text-start">تاريخ الاستخدام</th>
-                      <th className="p-3 text-center">إجراءات</th>
+                      <th className="p-3 text-start">{isAr ? 'كود الإعادة (Retake Code)' : 'Retake Code'}</th>
+                      <th className="p-3 text-start">{isAr ? 'الامتحان المستهدف' : 'Target Exam'}</th>
+                      <th className="p-3 text-start">{isAr ? 'الطالب المصرح له' : 'Authorized Student'}</th>
+                      <th className="p-3 text-start">{isAr ? 'سبب المنح' : 'Reason'}</th>
+                      <th className="p-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
+                      <th className="p-3 text-start">{isAr ? 'تاريخ الإنشاء' : 'Created At'}</th>
+                      <th className="p-3 text-start">{isAr ? 'تاريخ الاستخدام' : 'Used At'}</th>
+                      <th className="p-3 text-center">{isAr ? 'إجراءات' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-n-100 dark:divide-n-200">
@@ -447,24 +493,24 @@ export function TeacherAccessCodesClient({
                           <p className="text-[10px] text-accent font-mono">{r.studentCode}</p>
                         </td>
                         <td className="p-3 text-n-600 dark:text-n-400 text-[11px] max-w-[160px] truncate">
-                          {r.reason || 'إعادة استثنائية'}
+                          {r.reason || (isAr ? 'إعادة استثنائية' : 'Exceptional retake')}
                         </td>
                         <td className="p-3">
                           {r.isUsed ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok bg-ok-light border border-ok/20 px-2 py-0.5 rounded">
-                              <CheckCircle2 className="h-3 w-3" /> تم الاستخدام
+                              <CheckCircle2 className="h-3 w-3" /> {isAr ? 'تم الاستخدام' : 'Used'}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 px-2 py-0.5 rounded">
-                              <Clock className="h-3 w-3" /> متاح للاستخدام 🟡
+                              <Clock className="h-3 w-3" /> {isAr ? 'متاح للاستخدام 🟡' : 'Available 🟡'}
                             </span>
                           )}
                         </td>
                         <td className="p-3 text-n-500 tabular-nums">
-                          {new Date(r.createdAt).toLocaleDateString('ar-EG')}
+                          {new Date(r.createdAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}
                         </td>
                         <td className="p-3 text-n-500 tabular-nums">
-                          {r.usedAt ? new Date(r.usedAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                          {r.usedAt ? new Date(r.usedAt).toLocaleString(isAr ? 'ar-EG' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                         </td>
                         <td className="p-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -473,34 +519,35 @@ export function TeacherAccessCodesClient({
                               size="sm"
                               onClick={() => handleCopySingle(r.code)}
                               className="h-7 px-2 text-xs"
-                              title="نسخ الكود"
+                              title={isAr ? 'نسخ الكود' : 'Copy Code'}
                             >
                               {copiedCode === r.code ? (
                                 <span className="text-ok font-bold flex items-center gap-1">
-                                  <Check className="h-3 w-3" /> تم
+                                  <Check className="h-3 w-3" /> {isAr ? 'تم' : 'Done'}
                                 </span>
                               ) : (
                                 <span className="flex items-center gap-1">
-                                  <Copy className="h-3 w-3" /> نسخ
+                                  <Copy className="h-3 w-3" /> {isAr ? 'نسخ' : 'Copy'}
                                 </span>
                               )}
                             </Button>
 
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleRetakeWhatsAppShare(r)}
-                              className="p-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 transition-colors flex items-center gap-1 text-[11px] px-2 font-bold shadow-sm"
-                              title="مشاركة على واتساب لولي الأمر"
+                              className="h-7 px-2 text-xs text-ok hover:text-ok hover:bg-ok-light"
+                              title={isAr ? 'إرسال لولي الأمر عبر واتساب' : 'Send to parent via WhatsApp'}
                             >
-                              <Share2 className="h-3 w-3" />
-                              <span className="hidden sm:inline">واتساب</span>
-                            </button>
+                              <Share2 className="h-3 w-3 me-1" />
+                              <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                            </Button>
 
                             <button
                               type="button"
                               onClick={() => handleDeleteRetake(r.id)}
                               className="p-1 text-slate-400 hover:text-red-500 transition-colors"
-                              title="حذف هذا الكود"
+                              title={isAr ? 'حذف هذا الكود' : 'Delete Code'}
                             >
                               ✕
                             </button>
@@ -522,17 +569,19 @@ export function TeacherAccessCodesClient({
             {/* Session Selector */}
             <div className="flex items-center gap-3 min-w-[280px]">
               <label className="text-xs font-bold text-n-600 dark:text-n-400 whitespace-nowrap">
-                اختر الحصة المباشرة:
+                {isAr ? 'اختر الحصة المباشرة:' : 'Select Live Session:'}
               </label>
               <select
                 value={selectedSessionId}
                 onChange={(e) => setSelectedSessionId(e.target.value)}
                 className="w-full text-xs font-semibold bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               >
-                <option value="ALL">جميع الحصص المباشرة ({codes.length} كود)</option>
+                <option value="ALL">
+                  {isAr ? `جميع الحصص المباشرة (${codes.length} كود)` : `All Live Sessions (${codes.length} codes)`}
+                </option>
                 {sessions.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.title} ({s.classroomName}) {s.isActive ? '🟢 مباشر الآن' : ''}
+                    {s.title} ({s.classroomName}) {s.isActive ? (isAr ? '🟢 مباشر الآن' : '🟢 Live Now') : ''}
                   </option>
                 ))}
               </select>
@@ -549,12 +598,12 @@ export function TeacherAccessCodesClient({
                 {copiedAll ? (
                   <>
                     <Check className="h-3.5 w-3.5 text-ok" />
-                    <span className="text-ok font-bold">تم نسخ الأكواد المتاحة!</span>
+                    <span className="text-ok font-bold">{isAr ? 'تم نسخ الأكواد المتاحة!' : 'Copied Available Codes!'}</span>
                   </>
                 ) : (
                   <>
                     <Copy className="h-3.5 w-3.5 text-n-500" />
-                    <span>نسخ الأكواد المتاحة ({stats.available})</span>
+                    <span>{isAr ? `نسخ الأكواد المتاحة (${stats.available})` : `Copy Available (${stats.available})`}</span>
                   </>
                 )}
               </Button>
@@ -566,7 +615,7 @@ export function TeacherAccessCodesClient({
                 className="flex items-center gap-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5 text-n-500" />
-                <span>تصدير CSV</span>
+                <span>{isAr ? 'تصدير CSV' : 'Export CSV'}</span>
               </Button>
 
               <Button
@@ -579,7 +628,7 @@ export function TeacherAccessCodesClient({
                 className="flex items-center gap-1.5 text-xs"
               >
                 <Plus className="h-4 w-4" />
-                <span>توليد أكواد جديدة</span>
+                <span>{isAr ? 'توليد أكواد جديدة' : 'Generate New Codes'}</span>
               </Button>
             </div>
           </div>
@@ -588,7 +637,7 @@ export function TeacherAccessCodesClient({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={`${card} p-4 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">إجمالي الأكواد</p>
+            <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'إجمالي الأكواد' : 'Total Codes'}</p>
             <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-0.5">{stats.total}</p>
           </div>
           <Ticket className="h-6 w-6 text-accent" strokeWidth={1.75} />
@@ -596,7 +645,7 @@ export function TeacherAccessCodesClient({
 
         <div className={`${card} p-4 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">الأكواد المتاحة للبيع</p>
+            <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'الأكواد المتاحة للبيع' : 'Available for Sale'}</p>
             <p className="text-2xl font-bold text-accent mt-0.5">{stats.available}</p>
           </div>
           <Clock className="h-6 w-6 text-accent/60" strokeWidth={1.75} />
@@ -604,7 +653,7 @@ export function TeacherAccessCodesClient({
 
         <div className={`${card} p-4 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">الأكواد المستخدمة</p>
+            <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'الأكواد المستخدمة' : 'Used Codes'}</p>
             <p className="text-2xl font-bold text-ok mt-0.5">{stats.used}</p>
           </div>
           <CheckCircle2 className="h-6 w-6 text-ok" strokeWidth={1.75} />
@@ -612,9 +661,9 @@ export function TeacherAccessCodesClient({
 
         <div className={`${card} p-4 flex items-center justify-between`}>
           <div>
-            <p className="text-xs text-n-500 dark:text-n-400">إجمالي المبيعات المحصلة</p>
+            <p className="text-xs text-n-500 dark:text-n-400">{isAr ? 'إجمالي المبيعات المحصلة' : 'Collected Revenue'}</p>
             <p className="text-2xl font-bold text-n-800 dark:text-n-700 mt-0.5">
-              {stats.revenue} <span className="text-xs font-normal text-n-500">ج.م</span>
+              {stats.revenue} <span className="text-xs font-normal text-n-500">{isAr ? 'ج.م' : 'EGP'}</span>
             </p>
           </div>
           <DollarSign className="h-6 w-6 text-ok" strokeWidth={1.75} />
@@ -626,10 +675,10 @@ export function TeacherAccessCodesClient({
         {/* Status Tabs */}
         <div className="flex items-center gap-1.5 p-1 bg-n-100 dark:bg-n-200 rounded-lg border border-n-200 dark:border-n-300 text-xs font-semibold">
           {[
-            { id: 'ALL', label: 'الكل', count: stats.total },
-            { id: 'AVAILABLE', label: 'متاح للبيع 🟡', count: stats.available },
-            { id: 'USED', label: 'مستخدم ومفعل ✅', count: stats.used },
-            { id: 'EXPIRED', label: 'منتهي الصلاحية 🔴', count: stats.expired },
+            { id: 'ALL', label: isAr ? 'الكل' : 'All', count: stats.total },
+            { id: 'AVAILABLE', label: isAr ? 'متاح للبيع 🟡' : 'Available 🟡', count: stats.available },
+            { id: 'USED', label: isAr ? 'مستخدم ومفعل ✅' : 'Activated ✅', count: stats.used },
+            { id: 'EXPIRED', label: isAr ? 'منتهي الصلاحية 🔴' : 'Expired 🔴', count: stats.expired },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -649,12 +698,12 @@ export function TeacherAccessCodesClient({
         <div className="relative min-w-[220px]">
           <input
             type="text"
-            placeholder="بحث بالكود أو اسم الطالب..."
+            placeholder={isAr ? 'بحث بالكود أو اسم الطالب...' : 'Search by code or student...'}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-xs bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 pl-8 focus:outline-none focus:border-accent"
+            className="w-full text-xs bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2 pe-8 focus:outline-none focus:border-accent"
           />
-          <Filter className="h-3.5 w-3.5 text-n-400 absolute left-2.5 top-2.5" />
+          <Filter className="h-3.5 w-3.5 text-n-400 absolute end-2.5 top-2.5" />
         </div>
       </div>
 
@@ -663,22 +712,26 @@ export function TeacherAccessCodesClient({
         {filteredCodes.length === 0 ? (
           <div className="p-12 text-center text-sm text-n-400">
             <Ticket className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-            <p className="font-semibold text-n-700 dark:text-n-600">لا توجد أكواد مطابقة للمعايير المحددة</p>
-            <p className="text-xs text-n-400 mt-1">اضغط على زر "توليد أكواد جديدة" لإنشاء باقة أكواد للحصة المباشرة</p>
+            <p className="font-semibold text-n-700 dark:text-n-600">
+              {isAr ? 'لا توجد أكواد مطابقة للمعايير المحددة' : 'No codes matching the specified filters'}
+            </p>
+            <p className="text-xs text-n-400 mt-1">
+              {isAr ? 'اضغط على زر "توليد أكواد جديدة" لإنشاء باقة أكواد للحصة المباشرة' : 'Click "Generate New Codes" to generate a batch for this session'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-start text-xs border-collapse">
               <thead>
                 <tr className="bg-n-50 dark:bg-n-200 border-b border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 font-bold">
-                  <th className="p-3 text-start">الكود (Code)</th>
-                  <th className="p-3 text-start">الحصة المباشرة</th>
-                  <th className="p-3 text-start">السعر</th>
-                  <th className="p-3 text-start">الحالة</th>
-                  <th className="p-3 text-start">الطالب المستخدم</th>
-                  <th className="p-3 text-start">تاريخ الاستخدام</th>
-                  <th className="p-3 text-start">تاريخ الانتهاء</th>
-                  <th className="p-3 text-center">إجراءات</th>
+                  <th className="p-3 text-start">{isAr ? 'الكود (Code)' : 'Code'}</th>
+                  <th className="p-3 text-start">{isAr ? 'الحصة المباشرة' : 'Live Session'}</th>
+                  <th className="p-3 text-start">{isAr ? 'السعر' : 'Price'}</th>
+                  <th className="p-3 text-start">{isAr ? 'الحالة' : 'Status'}</th>
+                  <th className="p-3 text-start">{isAr ? 'الطالب المستخدم' : 'Redeemed By'}</th>
+                  <th className="p-3 text-start">{isAr ? 'تاريخ الاستخدام' : 'Used At'}</th>
+                  <th className="p-3 text-start">{isAr ? 'تاريخ الانتهاء' : 'Expires At'}</th>
+                  <th className="p-3 text-center">{isAr ? 'إجراءات' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-n-100 dark:divide-n-200">
@@ -698,24 +751,24 @@ export function TeacherAccessCodesClient({
 
                     {/* Price */}
                     <td className="p-3 font-bold text-n-800 dark:text-n-700 tabular-nums">
-                      {c.price} ج.م
+                      {c.price} {isAr ? 'ج.م' : 'EGP'}
                     </td>
 
                     {/* Status */}
                     <td className="p-3">
                       {c.status === 'USED' && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-ok bg-ok-light border border-ok/20 px-2 py-0.5 rounded">
-                          <CheckCircle2 className="h-3 w-3" /> مستخدم
+                          <CheckCircle2 className="h-3 w-3" /> {isAr ? 'مستخدم' : 'Used'}
                         </span>
                       )}
                       {c.status === 'AVAILABLE' && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-accent-text bg-accent-light border border-accent/20 px-2 py-0.5 rounded">
-                          <Clock className="h-3 w-3" /> متاح للبيع
+                          <Clock className="h-3 w-3" /> {isAr ? 'متاح للبيع' : 'Available'}
                         </span>
                       )}
                       {c.status === 'EXPIRED' && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-bad bg-bad-light border border-bad/20 px-2 py-0.5 rounded">
-                          <XCircle className="h-3 w-3" /> منتهي
+                          <XCircle className="h-3 w-3" /> {isAr ? 'منتهي' : 'Expired'}
                         </span>
                       )}
                     </td>
@@ -734,12 +787,12 @@ export function TeacherAccessCodesClient({
 
                     {/* Used At */}
                     <td className="p-3 text-n-500 tabular-nums">
-                      {c.usedAt ? new Date(c.usedAt).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                      {c.usedAt ? new Date(c.usedAt).toLocaleString(isAr ? 'ar-EG' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
                     </td>
 
                     {/* Expires At */}
                     <td className="p-3 text-n-500 tabular-nums">
-                      {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString('ar-EG') : 'بدون انتهاء'}
+                      {c.expiresAt ? new Date(c.expiresAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US') : (isAr ? 'بدون انتهاء' : 'No Expiry')}
                     </td>
 
                     {/* Actions */}
@@ -752,11 +805,11 @@ export function TeacherAccessCodesClient({
                       >
                         {copiedCode === c.code ? (
                           <span className="text-ok font-bold flex items-center gap-1">
-                            <Check className="h-3 w-3" /> تم
+                            <Check className="h-3 w-3" /> {isAr ? 'تم' : 'Done'}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1">
-                            <Copy className="h-3 w-3" /> نسخ
+                            <Copy className="h-3 w-3" /> {isAr ? 'نسخ' : 'Copy'}
                           </span>
                         )}
                       </Button>
@@ -771,7 +824,7 @@ export function TeacherAccessCodesClient({
 
       {/* ── Generate Codes Modal ──────────────────────────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-n-900/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-n-900/60 backdrop-blur-sm p-4" dir={isAr ? 'rtl' : 'ltr'}>
           <div className="bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             {/* Modal Header */}
             <div className="px-6 py-4 border-b border-n-200 dark:border-n-300 flex items-center justify-between">
@@ -780,12 +833,17 @@ export function TeacherAccessCodesClient({
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">توليد باقة أكواد جديدة</h3>
-                  <p className="text-xs text-n-500 dark:text-n-400">إنشاء أكواد فريدة للحصة المباشرة بنظام الدفع الفردي</p>
+                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                    {isAr ? 'توليد باقة أكواد جديدة' : 'Generate New Codes Batch'}
+                  </h3>
+                  <p className="text-xs text-n-500 dark:text-n-400">
+                    {isAr ? 'إنشاء أكواد فريدة للحصة المباشرة بنظام الدفع الفردي' : 'Generate unique access codes for individual session purchase'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
                 className="text-n-400 hover:text-n-700 p-1 rounded-lg"
               >
                 ✕
@@ -804,7 +862,7 @@ export function TeacherAccessCodesClient({
               {/* Target Live Session */}
               <div>
                 <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                  الحصة المباشرة المستهدفة *
+                  {isAr ? 'الحصة المباشرة المستهدفة *' : 'Target Live Session *'}
                 </label>
                 <select
                   value={modalSessionId}
@@ -812,7 +870,7 @@ export function TeacherAccessCodesClient({
                   className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                   required
                 >
-                  <option value="">-- اختر الحصة المباشرة --</option>
+                  <option value="">{isAr ? '-- اختر الحصة المباشرة --' : '-- Select Live Session --'}</option>
                   {sessions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.title} ({s.classroomName})
@@ -825,7 +883,7 @@ export function TeacherAccessCodesClient({
                 {/* Quantity */}
                 <div>
                   <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                    عدد الأكواد *
+                    {isAr ? 'عدد الأكواد *' : 'Quantity *'}
                   </label>
                   <input
                     type="number"
@@ -836,13 +894,13 @@ export function TeacherAccessCodesClient({
                     className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                     required
                   />
-                  <p className="text-[10px] text-n-400 mt-1">الحد الأقصى 100 كود في المرة</p>
+                  <p className="text-[10px] text-n-400 mt-1">{isAr ? 'الحد الأقصى 100 كود في المرة' : 'Max 100 codes per batch'}</p>
                 </div>
 
                 {/* Price */}
                 <div>
                   <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                    سعر الكود (ج.م) *
+                    {isAr ? 'سعر الكود (ج.م) *' : 'Code Price (EGP) *'}
                   </label>
                   <input
                     type="number"
@@ -859,8 +917,8 @@ export function TeacherAccessCodesClient({
               {/* Expiry Date */}
               <div>
                 <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1 flex items-center justify-between">
-                  <span>تاريخ انتهاء الصلاحية (اختياري)</span>
-                  <span className="text-[10px] text-n-400">اتركه فارغاً لصلاحية مفتوحة</span>
+                  <span>{isAr ? 'تاريخ انتهاء الصلاحية (اختياري)' : 'Expiry Date (Optional)'}</span>
+                  <span className="text-[10px] text-n-400">{isAr ? 'اتركه فارغاً لصلاحية مفتوحة' : 'Leave empty for no expiry'}</span>
                 </label>
                 <input
                   type="date"
@@ -873,10 +931,14 @@ export function TeacherAccessCodesClient({
               {/* Notice Box */}
               <div className="p-3 bg-accent-light/50 border border-accent/20 rounded-lg text-[11px] text-accent-text space-y-1">
                 <p className="font-bold flex items-center gap-1">
-                  <Ticket className="h-3.5 w-3.5" /> تنسيق الكود الناتج:
+                  <Ticket className="h-3.5 w-3.5" /> {isAr ? 'تنسيق الكود الناتج:' : 'Generated Code Format:'}
                 </p>
-                <p className="font-mono text-xs font-bold text-accent">EDU-XXXX-XXXX (مثل: EDU-A8K2-9B7C)</p>
-                <p>كل كود صالح للاستخدام لمرة واحدة فقط ويرتبط فوراً بحساب الطالب عند التفعيل.</p>
+                <p className="font-mono text-xs font-bold text-accent">EDU-XXXX-XXXX (e.g. EDU-A8K2-9B7C)</p>
+                <p>
+                  {isAr
+                    ? 'كل كود صالح للاستخدام لمرة واحدة فقط ويرتبط فوراً بحساب الطالب عند التفعيل.'
+                    : 'Each code is single-use and immediately binds to student account upon activation.'}
+                </p>
               </div>
 
               {/* Actions */}
@@ -887,7 +949,7 @@ export function TeacherAccessCodesClient({
                   size="md"
                   onClick={() => setIsModalOpen(false)}
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </Button>
                 <Button
                   type="submit"
@@ -896,7 +958,7 @@ export function TeacherAccessCodesClient({
                   loading={isGenerating}
                   className="px-6"
                 >
-                  توليد وحفظ الأكواد الآن
+                  {isAr ? 'توليد وحفظ الأكواد الآن' : 'Generate & Save Codes'}
                 </Button>
               </div>
             </form>
@@ -908,20 +970,25 @@ export function TeacherAccessCodesClient({
 
       {/* ── Generate Retake Code Modal ────────────────────────────── */}
       {isRetakeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-n-900/60 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" dir="rtl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-n-900/60 backdrop-blur-sm p-4" dir={isAr ? 'rtl' : 'ltr'}>
+          <div className="bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 w-full max-w-lg overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-n-200 dark:border-n-300 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-accent-light text-accent">
                   <RotateCcw className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">توليد كود إعادة امتحان استثنائي</h3>
-                  <p className="text-xs text-n-500 dark:text-n-400">منح كود فريد لمرة واحدة لطالب لإعادة الاختبار</p>
+                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                    {isAr ? 'توليد كود إعادة امتحان استثنائي' : 'Generate Exceptional Retake Code'}
+                  </h3>
+                  <p className="text-xs text-n-500 dark:text-n-400">
+                    {isAr ? 'منح كود فريد لمرة واحدة لطالب لإعادة الاختبار' : 'Grant a unique one-time code to allow exam retake'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsRetakeModalOpen(false)}
+                aria-label={isAr ? 'إغلاق' : 'Close'}
                 className="text-n-400 hover:text-n-700 p-1 rounded-lg"
               >
                 ✕
@@ -932,7 +999,7 @@ export function TeacherAccessCodesClient({
               {/* Target Quiz */}
               <div>
                 <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                  الاختبار المستهدف *
+                  {isAr ? 'الاختبار المستهدف *' : 'Target Exam *'}
                 </label>
                 <select
                   value={retakeQuizId}
@@ -940,10 +1007,10 @@ export function TeacherAccessCodesClient({
                   className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                   required
                 >
-                  <option value="">-- اختر الامتحان --</option>
+                  <option value="">{isAr ? '-- اختر الامتحان --' : '-- Select Exam --'}</option>
                   {allQuizzes.map((q) => (
                     <option key={q.id} value={q.id}>
-                      {q.title} ({q.classroomName || 'فصل عام'})
+                      {q.title} ({q.classroomName || (isAr ? 'فصل عام' : 'General Classroom')})
                     </option>
                   ))}
                 </select>
@@ -952,7 +1019,7 @@ export function TeacherAccessCodesClient({
               {/* Target Student */}
               <div>
                 <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                  الطالب المصرح له *
+                  {isAr ? 'الطالب المصرح له *' : 'Authorized Student *'}
                 </label>
                 <select
                   value={retakeStudentId}
@@ -960,7 +1027,7 @@ export function TeacherAccessCodesClient({
                   className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                   required
                 >
-                  <option value="">-- اختر الطالب --</option>
+                  <option value="">{isAr ? '-- اختر الطالب --' : '-- Select Student --'}</option>
                   {allStudents.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} ({s.studentCode || s.code || s.id}) - {s.grade || s.gradeLevel || ''}
@@ -972,22 +1039,32 @@ export function TeacherAccessCodesClient({
               {/* Reason */}
               <div>
                 <label className="block text-xs font-bold text-n-700 dark:text-n-600 mb-1">
-                  سبب منح الإعادة
+                  {isAr ? 'سبب منح الإعادة' : 'Reason for Retake Authorization'}
                 </label>
                 <input
                   type="text"
                   value={retakeReason}
                   onChange={(e) => setRetakeReason(e.target.value)}
-                  placeholder="مثال: انقطاع الكهرباء / عطل بالجهاز / إعادة تقييم"
+                  placeholder={isAr ? 'مثال: انقطاع الكهرباء / عطل بالجهاز / إعادة تقييم' : 'e.g. Power outage / technical issue / re-evaluation'}
                   className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                 />
               </div>
 
               {/* Notice */}
               <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-lg text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
-                <p className="font-bold">⚠️ ما الذي يحدث عند استخدام كود الإعادة؟</p>
-                <p>• يتم مسح تسليم الطالب السابق والمخالفات المسجلة ضده بشكل كامل.</p>
-                <p>• يتم فتح الامتحان بترتيب عشوائي جديد تماماً للأسئلة والخيارات.</p>
+                <p className="font-bold">
+                  {isAr ? '⚠️ ما الذي يحدث عند استخدام كود الإعادة؟' : '⚠️ What happens when the retake code is used?'}
+                </p>
+                <p>
+                  {isAr
+                    ? '• يتم مسح تسليم الطالب السابق والمخالفات المسجلة ضده بشكل كامل.'
+                    : '• The student’s previous submission and recorded violations are cleared.'}
+                </p>
+                <p>
+                  {isAr
+                    ? '• يتم فتح الامتحان بترتيب عشوائي جديد تماماً للأسئلة والخيارات.'
+                    : '• The exam is unlocked with randomized question and option order.'}
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -997,7 +1074,7 @@ export function TeacherAccessCodesClient({
                   size="md"
                   onClick={() => setIsRetakeModalOpen(false)}
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </Button>
                 <Button
                   type="submit"
@@ -1006,7 +1083,7 @@ export function TeacherAccessCodesClient({
                   loading={isGeneratingRetake}
                   className="px-6 font-bold"
                 >
-                  توليد كود الإعادة الآن
+                  {isAr ? 'توليد كود الإعادة الآن' : 'Generate Retake Code'}
                 </Button>
               </div>
             </form>

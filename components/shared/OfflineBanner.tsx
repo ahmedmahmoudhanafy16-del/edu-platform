@@ -1,29 +1,34 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { WifiOff } from 'lucide-react'
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useLocale } from 'next-intl';
+import { WifiOff } from 'lucide-react';
 
 export function OfflineBanner() {
-  const [offline, setOffline] = useState(false)
-  const [visible, setVisible] = useState(false)
+  const locale = useLocale();
+  const isAr = locale === 'ar';
+
+  const [offline, setOffline] = useState(false);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    setOffline(!navigator.onLine)
+    setOffline(!navigator.onLine);
 
-    const handleOffline = () => { setOffline(true); setVisible(true) }
+    const handleOffline = () => { setOffline(true); setVisible(true); };
     const handleOnline = () => {
-      setTimeout(() => setVisible(false), 3000)
-      setOffline(false)
-    }
+      setTimeout(() => setVisible(false), 3000);
+      setOffline(false);
+    };
 
-    window.addEventListener('offline', handleOffline)
-    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline);
     return () => {
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('online', handleOnline)
-    }
-  }, [])
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, []);
 
-  if (!offline && !visible) return null
+  if (!offline && !visible) return null;
 
   return (
     <div
@@ -39,15 +44,18 @@ export function OfflineBanner() {
           : 'bg-ok text-white',
         'transition-colors duration-[140ms]',
       ].join(' ')}
+      dir={isAr ? 'rtl' : 'ltr'}
     >
       {offline ? (
         <>
           <WifiOff className="h-3.5 w-3.5 flex-shrink-0" strokeWidth={2} aria-hidden="true" />
-          أنت غير متصل بالإنترنت حالياً. إجاباتك محفوظة محلياً.
+          {isAr
+            ? 'أنت غير متصل بالإنترنت حالياً. إجاباتك محفوظة محلياً.'
+            : 'You are currently offline. Your answers are saved locally.'}
         </>
       ) : (
-        'عاد الاتصال بالإنترنت'
+        isAr ? 'عاد الاتصال بالإنترنت' : 'Internet connection restored'
       )}
     </div>
-  )
+  );
 }

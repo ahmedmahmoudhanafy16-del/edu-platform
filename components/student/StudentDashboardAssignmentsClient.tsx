@@ -16,6 +16,7 @@ export function StudentDashboardAssignmentsClient({
   studentId: string;
   locale: string;
 }) {
+  const isAr = locale === 'ar';
   const [assignments, setAssignments] = useState<AssignmentData[]>(() => {
     if (typeof window !== 'undefined') {
       const stored = getAssignments();
@@ -43,10 +44,14 @@ export function StudentDashboardAssignmentsClient({
 
   if (assignments.length === 0) {
     return (
-      <div className="col-span-full p-8 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100 shadow-sm">
+      <div className="col-span-full p-8 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100 shadow-sm" dir={isAr ? 'rtl' : 'ltr'}>
         <FileText className="h-8 w-8 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-        <p className="text-xs font-semibold text-n-800 dark:text-n-700">لا توجد واجبات مطلوبة حالياً</p>
-        <p className="text-[11px] text-n-400 mt-0.5">ستظهر هنا التكليفات والواجبات فور إضافتها من قِبل المعلم</p>
+        <p className="text-xs font-semibold text-n-800 dark:text-n-700">
+          {isAr ? 'لا توجد واجبات مطلوبة حالياً' : 'No assignments due currently'}
+        </p>
+        <p className="text-[11px] text-n-400 mt-0.5">
+          {isAr ? 'ستظهر هنا التكليفات والواجبات فور إضافتها من قِبل المعلم' : 'Assignments and homework will appear here once added by the teacher'}
+        </p>
       </div>
     );
   }
@@ -54,7 +59,7 @@ export function StudentDashboardAssignmentsClient({
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" dir={isAr ? 'rtl' : 'ltr'}>
       {assignments.map((a) => {
         let currentTargetId = studentId;
         if (!currentTargetId && typeof window !== 'undefined') {
@@ -74,6 +79,14 @@ export function StudentDashboardAssignmentsClient({
         const submitted = Boolean(studentSub);
         const due = relativeTimeAr(a.dueDate ? new Date(a.dueDate) : new Date());
 
+        const dueText = isAr
+          ? due.label
+          : due.late
+          ? 'Late'
+          : due.label === 'اليوم'
+          ? 'Today'
+          : due.label;
+
         return (
           <div key={a.id} className={`${card} flex flex-col`}>
             <div className="px-5 pt-5 pb-4 border-b border-n-100 dark:border-n-200 flex-1">
@@ -83,7 +96,7 @@ export function StudentDashboardAssignmentsClient({
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className="flex items-center gap-1 text-xs text-n-400">
                   <Clock className="h-3 w-3" strokeWidth={1.75} />
-                  {new Date(a.dueDate || Date.now()).toLocaleDateString('ar-EG', {
+                  {new Date(a.dueDate || Date.now()).toLocaleDateString(isAr ? 'ar-EG' : 'en-US', {
                     month: 'short',
                     day: 'numeric',
                   })}
@@ -97,20 +110,22 @@ export function StudentDashboardAssignmentsClient({
                       : 'text-n-500 bg-n-100 dark:bg-n-300'
                   }`}
                 >
-                  {due.label}
+                  {dueText}
                 </span>
               </div>
             </div>
             <div className="px-5 py-3 flex items-center justify-between gap-3">
-              <span className="text-xs text-n-500">الدرجة القصوى: {a.maxScore ?? 10}</span>
+              <span className="text-xs text-n-500">
+                {isAr ? 'الدرجة القصوى:' : 'Max Score:'} {a.maxScore ?? 10}
+              </span>
               {submitted ? (
                 <span className="text-xs text-ok bg-ok-light px-2.5 py-1 rounded font-medium flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> تم التسليم
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {isAr ? 'تم التسليم' : 'Submitted'}
                 </span>
               ) : (
                 <Link href={`/${locale}/student/assignments`}>
                   <Button size="sm" variant="secondary">
-                    تسليم الواجب
+                    {isAr ? 'تسليم الواجب' : 'Submit Assignment'}
                   </Button>
                 </Link>
               )}

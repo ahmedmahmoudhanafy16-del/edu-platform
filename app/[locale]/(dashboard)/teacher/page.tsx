@@ -56,20 +56,26 @@ export default async function TeacherDashboardPage({
     classroomName: a.classroom?.name || 'فصل الرياضيات',
   }));
 
+  const isAr = locale === 'ar';
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">لوحة تحكم المعلم</h1>
+          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'لوحة تحكم المعلم' : 'Teacher Dashboard'}
+          </h1>
           <p className="text-sm text-n-500 dark:text-n-400 mt-1">
-            مرحباً أ/ {teacher?.name ?? 'سارة أحمد'} — إليك ملخص نشاط فصولك اليوم
+            {isAr
+              ? `مرحباً أ/ ${teacher?.name ?? 'سارة أحمد'} — إليك ملخص نشاط فصولك اليوم`
+              : `Welcome back, ${teacher?.name ?? 'Ms. Sarah Ahmed'} — Here is your classrooms overview today`}
           </p>
         </div>
         <Link href={`/${locale}/teacher/access-codes`}>
           <Button variant="primary" size="sm" className="text-xs flex items-center gap-1.5 shadow-sm">
             <Ticket className="h-4 w-4" />
-            توليد أكواد الحصص المباشرة
+            {isAr ? 'توليد أكواد الحصص المباشرة' : 'Generate Live Session Codes'}
           </Button>
         </Link>
       </div>
@@ -81,10 +87,12 @@ export default async function TeacherDashboardPage({
             <span className="mt-1.5 w-2.5 h-2.5 rounded-full bg-accent animate-pulse flex-shrink-0" />
             <div>
               <p className="font-bold text-accent-text text-base">
-                حصة مباشرة نشطة: {activeLive[0].title}
+                {isAr
+                  ? `حصة مباشرة نشطة: ${activeLive[0].title}`
+                  : `Active Live Session: ${activeLive[0].title}`}
               </p>
               <p className="text-sm text-accent-text/70 mt-1">
-                كود الطلاب:{' '}
+                {isAr ? 'كود الطلاب:' : 'Student Code:'}{' '}
                 <code className="font-mono font-bold text-accent-text bg-white dark:bg-n-100 px-2 py-0.5 rounded border border-accent/20">
                   {activeLive[0].roomCode}
                 </code>
@@ -94,7 +102,7 @@ export default async function TeacherDashboardPage({
           <Link href={`/${locale}/teacher/live`}>
             <Button size="md" variant="primary">
               <Wifi className="h-4 w-4" strokeWidth={2} />
-              دخول الغرفة
+              {isAr ? 'دخول الغرفة' : 'Enter Room'}
             </Button>
           </Link>
         </div>

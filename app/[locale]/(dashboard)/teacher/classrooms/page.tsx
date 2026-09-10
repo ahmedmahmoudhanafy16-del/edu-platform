@@ -71,8 +71,10 @@ export default async function TeacherClassroomsPage({
     };
   });
 
+  const isAr = locale === 'ar';
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <TeacherClassroomsClient initialClassrooms={formatted} teacherId={teacherId} />
     </div>
   );

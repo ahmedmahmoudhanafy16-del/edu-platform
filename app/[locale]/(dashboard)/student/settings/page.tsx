@@ -14,17 +14,20 @@ export default async function StudentSettingsPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
   const student = await getAuthenticatedStudent();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Settings className="h-6 w-6 text-blue-600" />
-          إعدادات حساب الطالب
+          {isAr ? 'إعدادات حساب الطالب' : 'Student Account Settings'}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          تعديل رقم الهاتف، تحديث بيانات ولي الأمر، وتغيير كلمة المرور
+          {isAr
+            ? 'تعديل رقم الهاتف، تحديث بيانات ولي الأمر، وتغيير كلمة المرور'
+            : 'Update phone number, parent contact details, and change password'}
         </p>
       </div>
 
@@ -33,14 +36,14 @@ export default async function StudentSettingsPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                اسم الطالب:
+                {isAr ? 'اسم الطالب:' : 'Student Name:'}
               </label>
               <Input disabled defaultValue={student?.name} className="h-10 bg-slate-50 dark:bg-slate-800 cursor-not-allowed" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                كود الطالب (غير قابل للتعديل):
+                {isAr ? 'كود الطالب (غير قابل للتعديل):' : 'Student Code (Read-Only):'}
               </label>
               <Input disabled defaultValue={student?.studentCode || '—'} className="h-10 font-mono font-bold bg-slate-50 dark:bg-slate-800 cursor-not-allowed text-blue-600" />
             </div>
@@ -49,14 +52,14 @@ export default async function StudentSettingsPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                رقم هاتف الطالب:
+                {isAr ? 'رقم هاتف الطالب:' : 'Student Phone Number:'}
               </label>
               <Input defaultValue={student?.phone || ''} type="tel" className="h-10 font-mono" />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                واتساب ولي الأمر:
+                {isAr ? 'واتساب ولي الأمر:' : 'Parent WhatsApp:'}
               </label>
               <Input defaultValue={student?.parentPhone || student?.phone || ''} type="tel" className="h-10 font-mono" />
             </div>
@@ -64,15 +67,19 @@ export default async function StudentSettingsPage({
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              تغيير كلمة المرور:
+              {isAr ? 'تغيير كلمة المرور:' : 'Change Password:'}
             </label>
-            <Input placeholder="اتركه فارغاً للإبقاء على كلمة المرور الحالية" type="password" className="h-10" />
+            <Input
+              placeholder={isAr ? 'اتركه فارغاً للإبقاء على كلمة المرور الحالية' : 'Leave empty to keep current password'}
+              type="password"
+              className="h-10"
+            />
           </div>
 
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
             <Button type="button" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
-              <Save className="h-4 w-4 ml-1.5" />
-              حفظ التعديلات
+              <Save className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'}`} />
+              {isAr ? 'حفظ التعديلات' : 'Save Changes'}
             </Button>
           </div>
         </form>

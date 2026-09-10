@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import {
   ChevronUp, ChevronDown, Download, ShieldAlert,
   ShieldCheck, Trash2, AlertTriangle, UserX, CheckCircle2,
@@ -160,6 +161,8 @@ function PasswordCell({
 }
 
 export function CompactStudentsTable({ students: initialStudents, classroomName, classrooms = [], onRefresh }: Props) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [students, setStudents] = useState<Student[]>(() => computeDynamicAverages(initialStudents));
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -498,7 +501,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
     const plainPassword = newPasswordInput.trim();
     if (!plainPassword) {
-      toast.error('يرجى إدخال كلمة المرور الجديدة');
+      toast.error(isAr ? 'يرجى إدخال كلمة المرور الجديدة' : 'Please enter the new password');
       return;
     }
 
@@ -510,7 +513,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         ((s.defaultPassword && s.defaultPassword === plainPassword) || (s.password && s.password === plainPassword))
     );
     if (duplicate) {
-      toast.error(`كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى إدخال كلمة مرور فريدة.`);
+      toast.error(
+        isAr
+          ? `كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى إدخال كلمة مرور فريدة.`
+          : `Password (${plainPassword}) is already used by "${duplicate.name}". Please enter a unique PIN.`
+      );
       return;
     }
 
@@ -532,7 +539,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         return nextList;
       });
 
-      toast.success(`تم تغيير كلمة المرور للطالب (${targetStudent.name}) إلى "${plainPassword}" بنجاح`);
+      toast.success(
+        isAr
+          ? `تم تغيير كلمة المرور للطالب (${targetStudent.name}) إلى "${plainPassword}" بنجاح`
+          : `Password for (${targetStudent.name}) updated to "${plainPassword}"`
+      );
       setStudentToResetPassword(null);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -547,7 +558,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         persistStudents(nextList);
         return nextList;
       });
-      toast.success(`تم تعيين كلمة المرور إلى "${plainPassword}"`);
+      toast.success(
+        isAr
+          ? `تم تعيين كلمة المرور إلى "${plainPassword}"`
+          : `Password set to "${plainPassword}"`
+      );
       setStudentToResetPassword(null);
     } finally {
       setIsResettingPassword(false);
@@ -556,33 +571,49 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
   function handleExport() {
     exportToCsv(
-      `طلاب_${classroomName}_${new Date().toLocaleDateString('ar-EG')}`,
+      isAr
+        ? `طلاب_${classroomName}_${new Date().toLocaleDateString('ar-EG')}`
+        : `students_${classroomName}_${new Date().toLocaleDateString('en-US')}`,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
         password: String(s.defaultPassword || s.password || '1234').trim(),
         phone: s.phone || '',
-        grade: s.grade || s.gradeLevel || 'الصف الثالث الإعدادي',
-        classroom: s.classroomName || 'عام',
-        status: s.isActive === false ? 'معلّق / محظور' : 'نشط',
-        avgScore: s.avgScore != null ? `${s.avgScore}%` : 'لا توجد نتائج',
+        grade: s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Prep'),
+        classroom: s.classroomName || (isAr ? 'عام' : 'General'),
+        status: s.isActive === false ? (isAr ? 'معلّق / محظور' : 'Suspended') : (isAr ? 'نشط' : 'Active'),
+        avgScore: s.avgScore != null ? `${s.avgScore}%` : (isAr ? 'لا توجد نتائج' : 'No results'),
         submissionsCount: s.submissionsCount,
         attendanceCount: s.attendanceCount,
         lastActive: s.lastActive ? formatDateShort(s.lastActive) : '',
       })),
-      {
-        name: 'اسم الطالب',
-        studentCode: 'كود الطالب',
-        password: 'كلمة المرور',
-        phone: 'رقم الهاتف',
-        grade: 'السنة الدراسية',
-        classroom: 'الفصل الدراسي',
-        status: 'حالة الحساب',
-        avgScore: 'آخر امتحان',
-        submissionsCount: 'الواجبات المُسلَّمة',
-        attendanceCount: 'الحصص المحضورة',
-        lastActive: 'آخر نشاط',
-      }
+      isAr
+        ? {
+            name: 'اسم الطالب',
+            studentCode: 'كود الطالب',
+            password: 'كلمة المرور',
+            phone: 'رقم الهاتف',
+            grade: 'السنة الدراسية',
+            classroom: 'الفصل الدراسي',
+            status: 'حالة الحساب',
+            avgScore: 'آخر امتحان',
+            submissionsCount: 'الواجبات المُسلَّمة',
+            attendanceCount: 'الحصص المحضورة',
+            lastActive: 'آخر نشاط',
+          }
+        : {
+            name: 'Student Name',
+            studentCode: 'Student Code',
+            password: 'Password',
+            phone: 'Phone Number',
+            grade: 'Grade Level',
+            classroom: 'Classroom',
+            status: 'Account Status',
+            avgScore: 'Latest Exam',
+            submissionsCount: 'Assignments Submitted',
+            attendanceCount: 'Sessions Attended',
+            lastActive: 'Last Active',
+          }
     );
   }
 
@@ -598,20 +629,22 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="بحث بالاسم، الكود، الهاتف، السنة أو الفصل..."
+            placeholder={isAr ? 'بحث بالاسم، الكود، الهاتف، السنة أو الفصل...' : 'Search by name, code, phone, grade or class...'}
             className="w-full h-8 px-3 rounded-lg border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent"
           />
         </div>
 
         {/* Filter by Grade */}
         <div className="flex items-center gap-2">
-          <label className="text-[11px] font-semibold text-slate-500 hidden sm:inline">السنة:</label>
+          <label className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+            {isAr ? 'السنة:' : 'Grade:'}
+          </label>
           <select
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
             className="h-8 px-2.5 rounded-lg border border-n-200 dark:border-n-300 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
           >
-            <option value="ALL">جميع السنوات الدراسية</option>
+            <option value="ALL">{isAr ? 'جميع السنوات الدراسية' : 'All Academic Grades'}</option>
             {ACADEMIC_GRADES.map((g) => (
               <option key={g} value={g}>
                 {g}
@@ -622,13 +655,15 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
         {/* Filter by Classroom */}
         <div className="flex items-center gap-2">
-          <label className="text-[11px] font-semibold text-slate-500 hidden sm:inline">الفصل:</label>
+          <label className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+            {isAr ? 'الفصل:' : 'Classroom:'}
+          </label>
           <select
             value={filterClassroom}
             onChange={(e) => setFilterClassroom(e.target.value)}
             className="h-8 px-2.5 rounded-lg border border-n-200 dark:border-n-300 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
           >
-            <option value="ALL">جميع الفصول الدراسية</option>
+            <option value="ALL">{isAr ? 'جميع الفصول الدراسية' : 'All Classrooms'}</option>
             {availableClassrooms.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -638,13 +673,15 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 font-semibold tabular-nums">{sorted.length} طالب</span>
+          <span className="text-xs text-slate-500 font-semibold tabular-nums">
+            {sorted.length} {isAr ? 'طالب' : 'students'}
+          </span>
           <button
             onClick={handleExport}
             className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-n-200 dark:border-n-300 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
-            تصدير CSV
+            {isAr ? 'تصدير CSV' : 'Export CSV'}
           </button>
         </div>
       </div>
@@ -654,37 +691,37 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <thead className="bg-n-50 dark:bg-n-200">
             <tr>
               <th className={thClass}>#</th>
-              <th className={thClass} onClick={() => toggleSort('name')}>الاسم</th>
-              <th className={thClass} onClick={() => toggleSort('studentCode')}>الكود</th>
-              <th className={thClass + ' text-center'}>كلمة المرور</th>
-              <th className={thClass}>هاتف الطالب</th>
-              <th className={thClass}>هاتف ولي الأمر</th>
-              <th className={thClass}>السنة الدراسية</th>
-              <th className={thClass}>الفصل الدراسي</th>
-              <th className={thClass}>الحالة</th>
-              <th className={thClass} onClick={() => toggleSort('avgScore')}>آخر امتحان</th>
-              <th className={thClass}>الواجبات</th>
-              <th className={thClass}>الحضور</th>
-              <th className={thClass}>واتساب</th>
-              <th className={thClass + ' text-center'}>إدارة وتعيين الطالب</th>
+              <th className={thClass} onClick={() => toggleSort('name')}>{isAr ? 'الاسم' : 'Name'}</th>
+              <th className={thClass} onClick={() => toggleSort('studentCode')}>{isAr ? 'الكود' : 'Code'}</th>
+              <th className={thClass + ' text-center'}>{isAr ? 'كلمة المرور' : 'Password'}</th>
+              <th className={thClass}>{isAr ? 'هاتف الطالب' : 'Student Phone'}</th>
+              <th className={thClass}>{isAr ? 'هاتف ولي الأمر' : 'Parent Phone'}</th>
+              <th className={thClass}>{isAr ? 'السنة الدراسية' : 'Grade Level'}</th>
+              <th className={thClass}>{isAr ? 'الفصل الدراسي' : 'Classroom'}</th>
+              <th className={thClass}>{isAr ? 'الحالة' : 'Status'}</th>
+              <th className={thClass} onClick={() => toggleSort('avgScore')}>{isAr ? 'آخر امتحان' : 'Latest Exam'}</th>
+              <th className={thClass}>{isAr ? 'الواجبات' : 'Assignments'}</th>
+              <th className={thClass}>{isAr ? 'الحضور' : 'Attendance'}</th>
+              <th className={thClass}>{isAr ? 'واتساب' : 'WhatsApp'}</th>
+              <th className={thClass + ' text-center'}>{isAr ? 'إدارة وتعيين الطالب' : 'Actions'}</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
               <tr>
                 <td colSpan={14} className="px-4 py-8 text-center text-xs text-n-400">
-                  لا توجد نتائج مطابقة للبحث أو الفلتر
+                  {isAr ? 'لا توجد نتائج مطابقة للبحث أو الفلتر' : 'No matching students found'}
                 </td>
               </tr>
             ) : (
               sorted.map((s, i) => {
                 const isSuspended = s.isActive === false;
                 const plainPin = String(s.defaultPassword || s.password || '1234').trim();
-                const studentGrade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+                const studentGrade = s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Prep');
                 const classroomDisplayName =
                   s.classroomName ||
                   availableClassrooms.find((c) => c.id === s.classroomId || c.id === s.classroom)?.name ||
-                  (s.classroomId ? 'فصل مسجل' : 'عام / بدون فصل');
+                  (s.classroomId ? (isAr ? 'فصل مسجل' : 'Registered Class') : (isAr ? 'عام / بدون فصل' : 'General / No Class'));
 
                 return (
                   <tr
@@ -706,9 +743,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(s.studentCode);
-                            toast.success(`تم نسخ كود الطالب (${s.studentCode})`);
+                            toast.success(isAr ? `تم نسخ كود الطالب (${s.studentCode})` : `Copied student code (${s.studentCode})`);
                           }}
-                          title="نسخ كود الطالب"
+                          title={isAr ? 'نسخ كود الطالب' : 'Copy code'}
                           className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-accent transition-colors"
                         >
                           <Copy className="h-3 w-3" />
@@ -736,9 +773,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                             type="button"
                             onClick={() => {
                               navigator.clipboard.writeText(s.phone!);
-                              toast.success(`تم نسخ هاتف الطالب (${s.phone})`);
+                              toast.success(isAr ? `تم نسخ هاتف الطالب (${s.phone})` : `Copied phone (${s.phone})`);
                             }}
-                            title="نسخ رقم الطالب"
+                            title={isAr ? 'نسخ رقم الطالب' : 'Copy student phone'}
                             className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-600 transition-colors"
                           >
                             <Copy className="h-3 w-3" />
@@ -759,9 +796,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                               type="button"
                               onClick={() => {
                                 navigator.clipboard.writeText(s.parentPhone!);
-                                toast.success(`تم نسخ رقم ولي الأمر (${s.parentPhone})`);
+                                toast.success(isAr ? `تم نسخ رقم ولي الأمر (${s.parentPhone})` : `Copied parent phone (${s.parentPhone})`);
                               }}
-                              title="نسخ رقم ولي الأمر"
+                              title={isAr ? 'نسخ رقم ولي الأمر' : 'Copy parent phone'}
                               className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
                             >
                               <Copy className="h-3 w-3" />
@@ -769,7 +806,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                             <button
                               type="button"
                               onClick={() => openEditPhonesModal(s)}
-                              title="تعديل رقم هاتف ولي الأمر"
+                              title={isAr ? 'تعديل رقم هاتف ولي الأمر' : 'Edit parent phone'}
                               className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-emerald-600 transition-colors"
                             >
                               <Phone className="h-3 w-3" />
@@ -780,10 +817,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                             type="button"
                             onClick={() => openEditPhonesModal(s)}
                             className="inline-flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-2 py-0.5 rounded hover:bg-amber-100 transition-colors font-sans font-semibold"
-                            title="انقر لإضافة رقم واتساب ولي الأمر"
+                            title={isAr ? 'انقر لإضافة رقم واتساب ولي الأمر' : 'Add parent WhatsApp number'}
                           >
                             <Phone className="h-3 w-3" />
-                            + إضافة رقم
+                            {isAr ? '+ إضافة رقم' : '+ Add Number'}
                           </button>
                         )}
                       </div>
@@ -791,7 +828,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     <td className={tdClass}>
                       <button
                         onClick={() => openAssignModal(s)}
-                        title="انقر لتغيير أو نقل السنة الدراسية"
+                        title={isAr ? 'انقر لتغيير أو نقل السنة الدراسية' : 'Click to change grade level'}
                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 px-2.5 py-0.5 rounded-full transition-colors"
                       >
                         <GraduationCap className="h-3 w-3 text-indigo-500" />
@@ -803,7 +840,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     <td className={tdClass}>
                       <button
                         onClick={() => openAssignModal(s)}
-                        title="انقر لتغيير أو نقل الفصل الدراسي"
+                        title={isAr ? 'انقر لتغيير أو نقل الفصل الدراسي' : 'Click to change classroom'}
                         className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 px-2.5 py-0.5 rounded-full transition-colors"
                       >
                         <BookOpen className="h-3 w-3 text-emerald-500" />
@@ -814,11 +851,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     <td className={tdClass}>
                       {isSuspended ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">
-                          <UserX className="h-3 w-3" /> معلّق / محظور
+                          <UserX className="h-3 w-3" /> {isAr ? 'معلّق / محظور' : 'Suspended'}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="h-3 w-3" /> نشط
+                          <CheckCircle2 className="h-3 w-3" /> {isAr ? 'نشط' : 'Active'}
                         </span>
                       )}
                     </td>
@@ -861,11 +898,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         {/* Assign to Grade & Class Action Button */}
                         <button
                           onClick={() => openAssignModal(s)}
-                          title="تعيين السنة الدراسية والفصل"
+                          title={isAr ? 'تعيين السنة الدراسية والفصل' : 'Assign Grade & Classroom'}
                           className="p-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 transition-colors flex items-center gap-1 text-xs font-semibold"
                         >
                           <GraduationCap className="h-3.5 w-3.5" />
-                          <span className="text-[10px] hidden sm:inline">تعيين الفصل</span>
+                          <span className="text-[10px] hidden sm:inline">{isAr ? 'تعيين الفصل' : 'Assign'}</span>
                         </button>
 
                         {/* Reset Password Button */}
@@ -875,17 +912,21 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                             const existingPins = students.filter((st) => st.id !== s.id).map((st) => st.defaultPassword || st.password);
                             setNewPasswordInput(generateRandomPin(existingPins));
                           }}
-                          title="إعادة تعيين كلمة المرور"
+                          title={isAr ? 'إعادة تعيين كلمة المرور' : 'Reset Password'}
                           className="p-1.5 rounded-lg border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 transition-colors flex items-center gap-1 text-xs font-semibold"
                         >
                           <KeyRound className="h-3.5 w-3.5" />
-                          <span className="text-[10px] hidden sm:inline">تغيير السر</span>
+                          <span className="text-[10px] hidden sm:inline">{isAr ? 'تغيير السر' : 'Reset PIN'}</span>
                         </button>
 
                         {/* Toggle Active / Block */}
                         <button
                           onClick={() => handleToggleStatus(s)}
-                          title={isSuspended ? 'إلغاء الحظر وتفعيل الوصول' : 'تعطيل الوصول وحظر الطالب'}
+                          title={
+                            isSuspended
+                              ? (isAr ? 'إلغاء الحظر وتفعيل الوصول' : 'Unsuspend and activate student')
+                              : (isAr ? 'تعطيل الوصول وحظر الطالب' : 'Suspend student access')
+                          }
                           className={`p-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-colors ${
                             isSuspended
                               ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
@@ -895,12 +936,12 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                           {isSuspended ? (
                             <>
                               <ShieldCheck className="h-3.5 w-3.5" />
-                              <span className="text-[10px]">تفعيل</span>
+                              <span className="text-[10px]">{isAr ? 'تفعيل' : 'Activate'}</span>
                             </>
                           ) : (
                             <>
                               <ShieldAlert className="h-3.5 w-3.5" />
-                              <span className="text-[10px]">حظر</span>
+                              <span className="text-[10px]">{isAr ? 'حظر' : 'Block'}</span>
                             </>
                           )}
                         </button>
@@ -908,7 +949,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                         {/* Delete Student */}
                         <button
                           onClick={() => setStudentToDelete(s)}
-                          title="حذف الطالب وسجلاته"
+                          title={isAr ? 'حذف الطالب وسجلاته' : 'Delete student'}
                           className="p-1.5 rounded-lg border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -925,7 +966,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
       {/* Academic Grade & Classroom Assignment Modal */}
       {studentToAssignAcademic && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          dir={isAr ? 'rtl' : 'ltr'}
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-indigo-200 dark:border-indigo-900/40 p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -933,10 +977,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                  تعيين الطالب للسنة الدراسية والفصل
+                  {isAr ? 'تعيين الطالب للسنة الدراسية والفصل' : 'Assign Grade & Classroom'}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  الطالب: <strong className="text-slate-800 dark:text-slate-200">{studentToAssignAcademic.name}</strong> ({studentToAssignAcademic.studentCode})
+                  {isAr ? 'الطالب:' : 'Student:'}{' '}
+                  <strong className="text-slate-800 dark:text-slate-200">{studentToAssignAcademic.name}</strong> ({studentToAssignAcademic.studentCode})
                 </p>
               </div>
             </div>
@@ -944,7 +989,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             <form onSubmit={handleConfirmAssignAcademic} className="space-y-4 pt-2">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  السنة الدراسية / المرحلة:
+                  {isAr ? 'السنة الدراسية / المرحلة:' : 'Academic Grade Level:'}
                 </label>
                 <select
                   value={selectedGrade}
@@ -961,14 +1006,14 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  الفصل الدراسي / المجموعة:
+                  {isAr ? 'الفصل الدراسي / المجموعة:' : 'Classroom / Group:'}
                 </label>
                 <select
                   value={selectedClassroomId}
                   onChange={(e) => setSelectedClassroomId(e.target.value)}
                   className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20"
                 >
-                  <option value="">(عام - بدون فصل محدد)</option>
+                  <option value="">{isAr ? '(عام - بدون فصل محدد)' : '(General - Unassigned)'}</option>
                   {availableClassrooms.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -976,7 +1021,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   ))}
                 </select>
                 <p className="text-[11px] text-slate-500">
-                  يمكنك ربط الطالب بفصل محدد ليظهر في كشف هذا الفصل وعدادات الطلاب الخاصة به.
+                  {isAr
+                    ? 'يمكنك ربط الطالب بفصل محدد ليظهر في كشف هذا الفصل وعدادات الطلاب الخاصة به.'
+                    : 'Link student to a specific classroom to show in its rosters and count.'}
                 </p>
               </div>
 
@@ -986,7 +1033,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   disabled={isAssigningAcademic}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
                 >
-                  {isAssigningAcademic ? 'جاري الحفظ...' : 'حفظ وتعيين الطالب'}
+                  {isAssigningAcademic
+                    ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                    : (isAr ? 'حفظ وتعيين الطالب' : 'Save Assignment')}
                 </button>
                 <button
                   type="button"
@@ -994,7 +1043,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   onClick={() => setStudentToAssignAcademic(null)}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
               </div>
             </form>
@@ -1004,7 +1053,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
       {/* Password Reset Modal / Dialog */}
       {studentToResetPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          dir={isAr ? 'rtl' : 'ltr'}
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-blue-200 dark:border-blue-900/40 p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto">
               <KeyRound className="h-6 w-6" />
@@ -1012,10 +1064,11 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
             <div className="text-center space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                إعادة تعيين كلمة مرور الطالب
+                {isAr ? 'إعادة تعيين كلمة مرور الطالب' : 'Reset Student Password'}
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                الطالب: <strong className="text-slate-800 dark:text-slate-200">{studentToResetPassword.name}</strong> ({studentToResetPassword.studentCode})
+                {isAr ? 'الطالب:' : 'Student:'}{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{studentToResetPassword.name}</strong> ({studentToResetPassword.studentCode})
               </p>
             </div>
 
@@ -1023,7 +1076,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               <div className="space-y-1">
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                    كلمة المرور الجديدة (فريدة وغير مكررة):
+                    {isAr ? 'كلمة المرور الجديدة:' : 'New Password (Unique PIN):'}
                   </label>
                   <button
                     type="button"
@@ -1035,7 +1088,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     }}
                     className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1 transition-colors"
                   >
-                    توليد رمز جديد
+                    {isAr ? 'توليد رمز جديد' : 'Generate PIN'}
                   </button>
                 </div>
                 <input
@@ -1044,7 +1097,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   autoFocus
                   value={newPasswordInput}
                   onChange={(e) => setNewPasswordInput(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                  placeholder="مثال: 8492"
+                  placeholder="8492"
                   className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-center font-mono font-bold text-sm tracking-widest outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
@@ -1055,7 +1108,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   disabled={isResettingPassword}
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
                 >
-                  {isResettingPassword ? 'جاري الحفظ...' : 'تأكيد وحفظ'}
+                  {isResettingPassword
+                    ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                    : (isAr ? 'تأكيد وحفظ' : 'Confirm & Save')}
                 </button>
                 <button
                   type="button"
@@ -1063,7 +1118,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   onClick={() => setStudentToResetPassword(null)}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
               </div>
             </form>
@@ -1073,7 +1128,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
       {/* Delete Confirmation Modal */}
       {studentToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          dir={isAr ? 'rtl' : 'ltr'}
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-red-200 dark:border-red-900/40 p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center mx-auto">
               <AlertTriangle className="h-6 w-6" />
@@ -1081,10 +1139,12 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
             <div className="text-center space-y-1.5">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                تأكيد حذف الطالب
+                {isAr ? 'تأكيد حذف الطالب' : 'Confirm Delete Student'}
               </h3>
               <p className="text-xs text-slate-500 leading-relaxed">
-                هل أنت متأكد من رغبتك في حذف الطالب <strong className="text-slate-800 dark:text-slate-200">({studentToDelete.name})</strong>؟ سيتم إزالة حسابه وجميع درجاته وسجلات الحضور نهائياً.
+                {isAr
+                  ? `هل أنت متأكد من رغبتك في حذف الطالب (${studentToDelete.name})؟ سيتم إزالة حسابه وجميع درجاته وسجلات الحضور نهائياً.`
+                  : `Are you sure you want to permanently delete student (${studentToDelete.name})? All scores, submissions, and records will be deleted.`}
               </p>
             </div>
 
@@ -1094,14 +1154,14 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                 onClick={handleConfirmDelete}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
               >
-                {isDeleting ? 'جاري الحذف...' : 'نعم، احذف الطالب'}
+                {isDeleting ? (isAr ? 'جاري الحذف...' : 'Deleting...') : (isAr ? 'نعم، احذف الطالب' : 'Yes, Delete')}
               </button>
               <button
                 disabled={isDeleting}
                 onClick={() => setStudentToDelete(null)}
                 className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
               >
-                إلغاء
+                {isAr ? 'إلغاء' : 'Cancel'}
               </button>
             </div>
           </div>
@@ -1110,7 +1170,10 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
       {/* Edit Phones & Parent WhatsApp Modal */}
       {studentToEditPhones && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" dir="rtl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          dir={isAr ? 'rtl' : 'ltr'}
+        >
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-emerald-200 dark:border-emerald-900/40 p-6 max-w-sm w-full space-y-4 shadow-2xl">
             <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
               <Phone className="h-6 w-6" />
@@ -1118,17 +1181,18 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
             <div className="text-center space-y-1">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                تعديل أرقام هاتف الطالب وولي الأمر
+                {isAr ? 'تعديل أرقام هاتف الطالب وولي الأمر' : 'Edit Student & Parent Phone'}
               </h3>
               <p className="text-xs text-slate-500">
-                الطالب: <strong className="text-slate-800 dark:text-slate-200">{studentToEditPhones.name}</strong> ({studentToEditPhones.studentCode})
+                {isAr ? 'الطالب:' : 'Student:'}{' '}
+                <strong className="text-slate-800 dark:text-slate-200">{studentToEditPhones.name}</strong> ({studentToEditPhones.studentCode})
               </p>
             </div>
 
             <form onSubmit={handleConfirmUpdatePhones} className="space-y-3.5">
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  رقم هاتف الطالب:
+                  {isAr ? 'رقم هاتف الطالب:' : 'Student Phone:'}
                 </label>
                 <input
                   type="tel"
@@ -1142,7 +1206,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
-                  رقم واتساب ولي الأمر (لإرسال التقارير):
+                  {isAr ? 'رقم واتساب ولي الأمر (لإرسال التقارير):' : 'Parent WhatsApp (For Reports):'}
                 </label>
                 <input
                   type="tel"
@@ -1153,7 +1217,9 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   className="w-full h-10 px-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 font-mono text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20"
                 />
                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
-                  * تقارير الواتساب والنتائج ستُرسل مباشرة إلى هذا الرقم.
+                  {isAr
+                    ? '* تقارير الواتساب والنتائج ستُرسل مباشرة إلى هذا الرقم.'
+                    : '* WhatsApp reports & grades will be dispatched to this number.'}
                 </p>
               </div>
 
@@ -1163,7 +1229,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   disabled={isUpdatingPhones}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50"
                 >
-                  {isUpdatingPhones ? 'جاري الحفظ...' : 'حفظ الأرقام'}
+                  {isUpdatingPhones ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ الأرقام' : 'Save Numbers')}
                 </button>
                 <button
                   type="button"
@@ -1171,7 +1237,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                   onClick={() => setStudentToEditPhones(null)}
                   className="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-2.5 rounded-xl transition-colors"
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
               </div>
             </form>

@@ -9,6 +9,7 @@ import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useLocale } from 'next-intl';
 
 const LiveClassroom = dynamic(() => import('@/components/LiveClassroom'), {
   ssr: false,
@@ -16,7 +17,7 @@ const LiveClassroom = dynamic(() => import('@/components/LiveClassroom'), {
     <div className="w-full h-[85vh] rounded-2xl bg-slate-900 flex items-center justify-center">
       <div className="text-center text-white">
         <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-sm font-medium">جاري تشغيل وتأمين غرفة البث المباشر...</p>
+        <p className="text-sm font-medium">جاري تشغيل وتأمين غرفة البث المباشر... / Launching secure live room...</p>
       </div>
     </div>
   ),
@@ -34,6 +35,18 @@ const ACADEMIC_GRADES = [
   'الصف الرابع الابتدائي',
 ];
 
+const GRADE_NAMES_EN: Record<string, string> = {
+  'الصف الثالث الإعدادي': 'Grade 9 (Prep 3)',
+  'الصف الثاني الإعدادي': 'Grade 8 (Prep 2)',
+  'الصف الأول الإعدادي': 'Grade 7 (Prep 1)',
+  'الصف الثالث الثانوي': 'Grade 12 (Sec 3)',
+  'الصف الثاني الثانوي': 'Grade 11 (Sec 2)',
+  'الصف الأول الثانوي': 'Grade 10 (Sec 1)',
+  'الصف السادس الابتدائي': 'Grade 6 (Primary 6)',
+  'الصف الخامس الابتدائي': 'Grade 5 (Primary 5)',
+  'الصف الرابع الابتدائي': 'Grade 4 (Primary 4)',
+};
+
 export function TeacherLiveClient({
   teacherName = 'المعلمة',
   classrooms = [],
@@ -46,6 +59,8 @@ export function TeacherLiveClient({
   pastSessions?: any[];
   initialSession?: any;
 }) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const initialClass = classrooms[0];
   const initialGradeMatch = initialClass?.name
@@ -141,11 +156,11 @@ export function TeacherLiveClient({
 
   async function handleStart() {
     if (!title.trim()) {
-      toast.error('يرجى كتابة عنوان الحصة');
+      toast.error(isAr ? 'يرجى كتابة عنوان الحصة' : 'Please enter session title');
       return;
     }
     if (!classroomId) {
-      toast.error('يرجى اختيار الفصل الدراسي');
+      toast.error(isAr ? 'يرجى اختيار الفصل الدراسي' : 'Please select a classroom');
       return;
     }
     setLoading(true);
@@ -155,12 +170,20 @@ export function TeacherLiveClient({
       setSessionId(s.id);
 
       if (s.broadcastStats && s.broadcastStats.totalTargeted > 0) {
-        toast.success(`تم بدء البث وإرسال إشعار WhatsApp لـ ${s.broadcastStats.sentCount} من أولياء أمور (${targetGrade})! 📲`);
+        toast.success(
+          isAr
+            ? `تم بدء البث وإرسال إشعار WhatsApp لـ ${s.broadcastStats.sentCount} من أولياء أمور (${targetGrade})! 📲`
+            : `Live broadcast launched and WhatsApp alerts sent to ${s.broadcastStats.sentCount} parents of (${GRADE_NAMES_EN[targetGrade] || targetGrade})! 📲`
+        );
       } else {
-        toast.success(`تم إنشاء الحصة بنجاح! كود الدخول: ${s.roomCode}`);
+        toast.success(
+          isAr
+            ? `تم إنشاء الحصة بنجاح! كود الدخول: ${s.roomCode}`
+            : `Session created successfully! Room code: ${s.roomCode}`
+        );
       }
     } catch (e: any) {
-      toast.error(e.message || 'حدث خطأ أثناء بدء الحصة');
+      toast.error(e.message || (isAr ? 'حدث خطأ أثناء بدء الحصة' : 'Error starting live session'));
     } finally {
       setLoading(false);
     }
@@ -172,69 +195,81 @@ export function TeacherLiveClient({
       await endLiveSession(sessionId);
       setActiveRoom(null);
       setSessionId(null);
-      toast.info('تم إنهاء الحصة المباشرة');
+      toast.info(isAr ? 'تم إنهاء الحصة المباشرة' : 'Live session ended');
     } catch (e: any) {
       toast.error(e.message);
     }
   }
 
   if (activeRoom) {
+    const liveLink = typeof window !== 'undefined'
+      ? `${window.location.origin}/${locale}/student/live?room=${activeRoom}`
+      : `https://edu-platform-phi-pearl.vercel.app/${locale}/student/live?room=${activeRoom}`;
+
+    const waText = isAr
+      ? `🔴 تنبيه بث مباشر الآن (${targetGrade})!\n\nرابط الدخول المباشر للحصة التفاعلية:\n${liveLink}\n\nكود الغرفة: ${activeRoom}\nيرجى دخول الطلاب فوراً.`
+      : `🔴 Live Stream Alert Now (${GRADE_NAMES_EN[targetGrade] || targetGrade})!\n\nDirect link to interactive session:\n${liveLink}\n\nRoom Code: ${activeRoom}\nStudents please join immediately.`;
+
     return (
-      <div className="h-[calc(100vh-6rem)] flex flex-col gap-4">
+      <div className="h-[calc(100vh-6rem)] flex flex-col gap-4" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 px-5 py-3 shadow-sm">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="w-3 h-3 bg-red-600 rounded-full animate-pulse" />
-            <span className="font-bold text-slate-900 dark:text-white text-sm">بث مباشر نشط الآن</span>
+            <span className="font-bold text-slate-900 dark:text-white text-sm">
+              {isAr ? 'بث مباشر نشط الآن' : 'Live Stream Active Now'}
+            </span>
             <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 font-bold">
-              {targetGrade}
+              {isAr ? targetGrade : GRADE_NAMES_EN[targetGrade] || targetGrade}
             </Badge>
 
             <span className="text-slate-400 text-xs">|</span>
 
-            {/* Direct Student Live URL Input & Copy Button exactly where circled */}
+            {/* Direct Student Live URL Input & Copy Button */}
             <div className="flex items-center gap-1.5 bg-blue-50/80 dark:bg-slate-800 px-2.5 py-1 rounded-lg border border-blue-200 dark:border-slate-700">
-              <span className="text-blue-900 dark:text-blue-200 text-xs font-bold shrink-0">رابط الحصة:</span>
+              <span className="text-blue-900 dark:text-blue-200 text-xs font-bold shrink-0">
+                {isAr ? 'رابط الحصة:' : 'Session Link:'}
+              </span>
               <input
                 type="text"
                 readOnly
-                value={typeof window !== 'undefined' ? `${window.location.origin}/ar/student/live?room=${activeRoom}` : `https://edu-platform-phi-pearl.vercel.app/ar/student/live?room=${activeRoom}`}
+                value={liveLink}
                 onClick={(e) => (e.target as HTMLInputElement).select()}
                 className="bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-300 font-mono text-xs px-2 py-0.5 rounded border border-blue-200 dark:border-slate-700 outline-none w-56 sm:w-72 select-all truncate font-semibold"
-                title="اضغط لتحديد الرابط كاملاً"
+                title={isAr ? 'اضغط لتحديد الرابط كاملاً' : 'Click to select full link'}
               />
               <button
                 type="button"
                 onClick={() => {
-                  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app';
-                  const link = `${origin}/ar/student/live?room=${activeRoom}`;
-                  navigator.clipboard.writeText(link);
-                  toast.success('تم نسخ رابط الحصة المباشرة بنجاح! 📋 جاهز للإرسال للطلاب وأولياء الأمور');
+                  navigator.clipboard.writeText(liveLink);
+                  toast.success(
+                    isAr
+                      ? 'تم نسخ رابط الحصة المباشرة بنجاح! 📋 جاهز للإرسال للطلاب وأولياء الأمور'
+                      : 'Live session link copied successfully! 📋 Ready to share with students & parents'
+                  );
                 }}
-                title="نسخ الرابط المباشر للطلاب"
+                title={isAr ? 'نسخ الرابط المباشر للطلاب' : 'Copy direct link'}
                 className="inline-flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-1 rounded transition-colors shrink-0 shadow-sm"
               >
                 <Copy className="h-3.5 w-3.5" />
-                <span>نسخ الرابط</span>
+                <span>{isAr ? 'نسخ الرابط' : 'Copy Link'}</span>
               </button>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <a
-              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
-                `🔴 تنبيه بث مباشر الآن (${targetGrade})!\n\nرابط الدخول المباشر للحصة التفاعلية:\n${typeof window !== 'undefined' ? window.location.origin : 'https://edu-platform-phi-pearl.vercel.app'}/ar/student/live?room=${activeRoom}\n\nكود الغرفة: ${activeRoom}\nيرجى دخول الطلاب فوراً.`
-              )}`}
+              href={`https://api.whatsapp.com/send?text=${encodeURIComponent(waText)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-colors shadow-sm"
             >
               <MessageSquare className="h-3.5 w-3.5" />
-              مشاركة على WhatsApp
+              {isAr ? 'مشاركة على WhatsApp' : 'Share to WhatsApp'}
             </a>
 
             <Button variant="danger" size="sm" onClick={handleEnd} className="bg-red-600 hover:bg-red-700 text-white font-semibold">
-              <StopCircle className="h-4 w-4 ml-1.5" />
-              إنهاء الحصة
+              <StopCircle className="h-4 w-4 me-1.5" />
+              {isAr ? 'إنهاء الحصة' : 'End Session'}
             </Button>
           </div>
         </div>
@@ -252,30 +287,32 @@ export function TeacherLiveClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Video className="h-6 w-6 text-blue-600" />
-          غرفة البث المباشر الموجهة (Targeted Live Stream)
+          {isAr ? 'غرفة البث المباشر الموجهة (Targeted Live Stream)' : 'Targeted Live Stream Classroom'}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          حدد الصف الدراسي المستهدف لبدء الحصة وإرسال إشعارات WhatsApp فورية لأولياء الأمور
+          {isAr
+            ? 'حدد الصف الدراسي المستهدف لبدء الحصة وإرسال إشعارات WhatsApp فورية لأولياء الأمور'
+            : 'Select the target academic grade to launch live session and dispatch instant WhatsApp alerts to parents'}
         </p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 space-y-4 shadow-sm">
         <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <Plus className="h-4 w-4 text-blue-600" />
-          إطلاق بث مباشر جديد موجه
+          {isAr ? 'إطلاق بث مباشر جديد موجه' : 'Launch New Targeted Live Stream'}
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-3">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              عنوان الحصة التفاعلية:
+              {isAr ? 'عنوان الحصة التفاعلية:' : 'Interactive Session Title:'}
             </label>
             <Input
-              placeholder="مثال: مراجعة ليلة الامتحان وحل بنك الأسئلة"
+              placeholder={isAr ? 'مثال: مراجعة ليلة الامتحان وحل بنك الأسئلة' : 'e.g. Final exam review & question bank solving'}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="h-10"
@@ -284,7 +321,7 @@ export function TeacherLiveClient({
 
           <div>
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              الصف الدراسي المستهدف (Target Grade):
+              {isAr ? 'الصف الدراسي المستهدف (Target Grade):' : 'Target Academic Grade:'}
             </label>
             <select
               value={targetGrade}
@@ -293,7 +330,7 @@ export function TeacherLiveClient({
             >
               {ACADEMIC_GRADES.map((g) => (
                 <option key={g} value={g}>
-                  {g}
+                  {isAr ? g : GRADE_NAMES_EN[g] || g}
                 </option>
               ))}
             </select>
@@ -301,7 +338,7 @@ export function TeacherLiveClient({
 
           <div className="md:col-span-2">
             <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-              الفصل الدراسي:
+              {isAr ? 'الفصل الدراسي:' : 'Classroom:'}
             </label>
             <select
               value={classroomId}
@@ -320,7 +357,15 @@ export function TeacherLiveClient({
         <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-xl p-3.5 flex items-center gap-3 text-xs text-blue-900 dark:text-blue-200">
           <MessageSquare className="h-5 w-5 text-blue-600 flex-shrink-0" />
           <p>
-            سيتم إرسال إشعار <strong>WhatsApp</strong> فوري لأولياء أمور طلاب <strong>({targetGrade})</strong> فور بدء البث يحتوي على رابط الحصة وكود الدخول المباشر.
+            {isAr ? (
+              <>
+                سيتم إرسال إشعار <strong>WhatsApp</strong> فوري لأولياء أمور طلاب <strong>({targetGrade})</strong> فور بدء البث يحتوي على رابط الحصة وكود الدخول المباشر.
+              </>
+            ) : (
+              <>
+                An instant <strong>WhatsApp</strong> alert will be dispatched to parents of <strong>({GRADE_NAMES_EN[targetGrade] || targetGrade})</strong> students containing the direct session link and room code.
+              </>
+            )}
           </p>
         </div>
 
@@ -329,8 +374,8 @@ export function TeacherLiveClient({
           loading={loading}
           className="mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 h-11 shadow-sm"
         >
-          <Video className="h-4 w-4 ml-1.5" />
-          بدء البث المباشر وإرسال التنبيهات
+          <Video className="h-4 w-4 me-1.5" />
+          {isAr ? 'بدء البث المباشر وإرسال التنبيهات' : 'Start Live Stream & Send Alerts'}
         </Button>
       </div>
 
@@ -338,7 +383,7 @@ export function TeacherLiveClient({
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
           <h2 className="text-sm font-bold text-slate-900 dark:text-white mb-3 flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-            الحصص النشطة حالياً ({activeSessions.length})
+            {isAr ? `الحصص النشطة حالياً (${activeSessions.length})` : `Currently Active Sessions (${activeSessions.length})`}
           </h2>
           <div className="space-y-2">
             {activeSessions.map((s) => (
@@ -348,18 +393,18 @@ export function TeacherLiveClient({
                     <p className="text-sm font-bold text-slate-900 dark:text-white">{s.title}</p>
                     {s.targetGrade && (
                       <Badge variant="outline" className="text-[11px] font-bold text-blue-600 border-blue-300">
-                        {s.targetGrade}
+                        {isAr ? s.targetGrade : GRADE_NAMES_EN[s.targetGrade] || s.targetGrade}
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">{s.classroom.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{s.classroom?.name || ''}</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <code className="bg-white dark:bg-slate-900 text-blue-600 font-bold font-mono px-2.5 py-1 rounded text-xs border border-slate-200 dark:border-slate-700">
                     {s.roomCode}
                   </code>
                   <Button size="sm" onClick={() => { setActiveRoom(s.roomCode); setSessionId(s.id); }} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold">
-                    دخول الغرفة
+                    {isAr ? 'دخول الغرفة' : 'Enter Room'}
                   </Button>
                 </div>
               </div>

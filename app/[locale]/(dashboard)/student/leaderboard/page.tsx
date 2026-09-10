@@ -2,7 +2,15 @@ import { prisma } from '@/lib/prisma';
 import { Trophy, Medal, Award, Flame } from 'lucide-react';
 import { calcStudentAvg } from '@/lib/utils';
 
-export default async function StudentLeaderboardPage({ params: { locale } }: { params: { locale: string } }) {
+export default async function StudentLeaderboardPage({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}) {
+  const resolvedParams = await params;
+  const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
+
   const students = await prisma.user.findMany({
     where: { role: 'STUDENT' },
     include: {
@@ -29,15 +37,19 @@ export default async function StudentLeaderboardPage({ params: { locale } }: { p
     .sort((a, b) => b.totalScore - a.totalScore);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center justify-center p-3 bg-accent-light rounded-2xl mb-1">
           <Trophy className="h-8 w-8 text-accent" />
         </div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">لوحة الشرف وتصنيف الطلاب</h1>
+        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'لوحة الشرف وتصنيف الطلاب' : 'Honor Board & Student Leaderboard'}
+        </h1>
         <p className="text-xs text-n-500 dark:text-n-400">
-          ترتيب الطلاب بناء على مجموع الدرجات والامتحانات المنجزة في الفصل الدراسي
+          {isAr
+            ? 'ترتيب الطلاب بناء على مجموع الدرجات والامتحانات المنجزة في الفصل الدراسي'
+            : 'Ranking of students based on total scores and completed exams in the semester'}
         </p>
       </div>
 
@@ -47,28 +59,34 @@ export default async function StudentLeaderboardPage({ params: { locale } }: { p
           {/* 2nd place */}
           <div className="p-5 rounded-2xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 text-center space-y-2">
             <span className="inline-block p-2 bg-n-100 dark:bg-n-200 rounded-full text-n-600 font-bold text-xs">
-              🥈 المركز الثاني
+              {isAr ? '🥈 المركز الثاني' : '🥈 2nd Place'}
             </span>
             <p className="font-bold text-sm text-n-800 dark:text-n-700 truncate">{ranked[1].name}</p>
-            <p className="text-xs font-mono font-bold text-accent">{ranked[1].totalScore} نقطة</p>
+            <p className="text-xs font-mono font-bold text-accent">
+              {ranked[1].totalScore} {isAr ? 'نقطة' : 'pts'}
+            </p>
           </div>
 
           {/* 1st place */}
           <div className="p-6 rounded-2xl border-2 border-accent bg-accent-light text-center space-y-2 relative -top-4 shadow-sm">
             <span className="inline-block p-2 bg-accent text-white rounded-full font-bold text-xs">
-              🥇 الأول على الفصل
+              {isAr ? '🥇 الأول على الفصل' : '🥇 1st Place'}
             </span>
             <p className="font-bold text-base text-accent-text truncate">{ranked[0].name}</p>
-            <p className="text-sm font-mono font-bold text-accent">{ranked[0].totalScore} نقطة</p>
+            <p className="text-sm font-mono font-bold text-accent">
+              {ranked[0].totalScore} {isAr ? 'نقطة' : 'pts'}
+            </p>
           </div>
 
           {/* 3rd place */}
           <div className="p-5 rounded-2xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 text-center space-y-2">
             <span className="inline-block p-2 bg-warn-light text-warn rounded-full font-bold text-xs">
-              🥉 المركز الثالث
+              {isAr ? '🥉 المركز الثالث' : '🥉 3rd Place'}
             </span>
             <p className="font-bold text-sm text-n-800 dark:text-n-700 truncate">{ranked[2].name}</p>
-            <p className="text-xs font-mono font-bold text-accent">{ranked[2].totalScore} نقطة</p>
+            <p className="text-xs font-mono font-bold text-accent">
+              {ranked[2].totalScore} {isAr ? 'نقطة' : 'pts'}
+            </p>
           </div>
         </div>
       )}
@@ -76,8 +94,12 @@ export default async function StudentLeaderboardPage({ params: { locale } }: { p
       {/* Full Ranking Table */}
       <div className="rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 overflow-hidden">
         <div className="px-6 py-4 border-b border-n-200 dark:border-n-300 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-n-800 dark:text-n-700">ترتيب جميع الطلاب</h2>
-          <span className="text-xs text-n-400 font-mono">{ranked.length} طالب</span>
+          <h2 className="text-sm font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'ترتيب جميع الطلاب' : 'All Students Ranking'}
+          </h2>
+          <span className="text-xs text-n-400 font-mono">
+            {ranked.length} {isAr ? 'طالب' : 'student(s)'}
+          </span>
         </div>
 
         <div className="divide-y divide-n-100 dark:divide-n-200">
@@ -93,12 +115,14 @@ export default async function StudentLeaderboardPage({ params: { locale } }: { p
 
               <div className="flex items-center gap-6">
                 <div className="text-end">
-                  <p className="text-xs text-n-400">الواجبات</p>
+                  <p className="text-xs text-n-400">{isAr ? 'الواجبات' : 'Assignments'}</p>
                   <p className="text-xs font-bold text-n-700">{s.submissionsCount}</p>
                 </div>
                 <div className="text-end min-w-[80px]">
-                  <p className="text-xs text-n-400">إجمالي النقاط</p>
-                  <p className="text-sm font-bold text-accent font-mono">{s.totalScore} نقطة</p>
+                  <p className="text-xs text-n-400">{isAr ? 'إجمالي النقاط' : 'Total Points'}</p>
+                  <p className="text-sm font-bold text-accent font-mono">
+                    {s.totalScore} {isAr ? 'نقطة' : 'pts'}
+                  </p>
                 </div>
               </div>
             </div>

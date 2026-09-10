@@ -8,6 +8,7 @@ import { createStudentAction } from '@/actions/classroom';
 import { saveStudentToStore, getStudentsFromStore } from '@/lib/store';
 import { generateRandomPin } from '@/lib/utils';
 import { toast } from 'sonner';
+import { useLocale } from 'next-intl';
 
 interface AddStudentModalProps {
   classrooms: { id: string; name: string }[];
@@ -29,6 +30,18 @@ const ACADEMIC_GRADES = [
   'الصف الرابع الابتدائي',
 ];
 
+const GRADE_NAMES_EN: Record<string, string> = {
+  'الصف الثالث الإعدادي': 'Grade 9 (Prep 3)',
+  'الصف الثاني الإعدادي': 'Grade 8 (Prep 2)',
+  'الصف الأول الإعدادي': 'Grade 7 (Prep 1)',
+  'الصف الثالث الثانوي': 'Grade 12 (Sec 3)',
+  'الصف الثاني الثانوي': 'Grade 11 (Sec 2)',
+  'الصف الأول الثانوي': 'Grade 10 (Sec 1)',
+  'الصف السادس الابتدائي': 'Grade 6 (Primary 6)',
+  'الصف الخامس الابتدائي': 'Grade 5 (Primary 5)',
+  'الصف الرابع الابتدائي': 'Grade 4 (Primary 4)',
+};
+
 export function AddStudentModal({
   classrooms = [],
   defaultClassroomId,
@@ -36,6 +49,8 @@ export function AddStudentModal({
   onClose,
   onSuccess,
 }: AddStudentModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [parentWhatsapp, setParentWhatsapp] = useState('');
@@ -75,12 +90,12 @@ export function AddStudentModal({
       '';
 
     if (!cleanName || !cleanPhone) {
-      toast.error('يرجى كتابة اسم الطالب ورقم الهاتف');
+      toast.error(isAr ? 'يرجى كتابة اسم الطالب ورقم الهاتف' : 'Please enter student name and phone number');
       return;
     }
 
     if (classrooms && classrooms.length > 0 && !effectiveClassroomId) {
-      toast.error('يرجى اختيار الفصل الدراسي');
+      toast.error(isAr ? 'يرجى اختيار الفصل الدراسي' : 'Please select a classroom');
       return;
     }
 
@@ -93,7 +108,11 @@ export function AddStudentModal({
       (s: any) => (s.defaultPassword && s.defaultPassword === plainPassword) || (s.password && s.password === plainPassword)
     );
     if (duplicate) {
-      toast.error(`كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى اختيار كلمة مرور فريدة.`);
+      toast.error(
+        isAr
+          ? `كلمة المرور (${plainPassword}) مستخدمة بالفعل للطالب "${duplicate.name}". يرجى اختيار كلمة مرور فريدة.`
+          : `Password (${plainPassword}) is already in use by "${duplicate.name}". Please pick a unique PIN.`
+      );
       return;
     }
 
@@ -112,7 +131,7 @@ export function AddStudentModal({
       });
 
       if (!result.success || !result.student) {
-        toast.error(result.error || 'تعذر إضافة الطالب. يرجى المحاولة مرة أخرى.');
+        toast.error(result.error || (isAr ? 'تعذر إضافة الطالب. يرجى المحاولة مرة أخرى.' : 'Failed to add student. Please try again.'));
         return;
       }
 
@@ -131,7 +150,9 @@ export function AddStudentModal({
       }
 
       toast.success(
-        `تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} — كلمة المرور: ${plainPassword} 🎓`
+        isAr
+          ? `تم تسجيل الطالب ${student.name} بنجاح! كود الطالب: ${student.studentCode || student.id} — كلمة المرور: ${plainPassword} 🎓`
+          : `Student ${student.name} enrolled successfully! Student Code: ${student.studentCode || student.id} — Password: ${plainPassword} 🎓`
       );
       setName('');
       setPhone('');
@@ -141,14 +162,14 @@ export function AddStudentModal({
       onClose();
     } catch (err: any) {
       console.error('Error adding student:', err);
-      toast.error(err?.message || 'تعذر إضافة الطالب. تأكد من الصلاحيات والاتصال.');
+      toast.error(err?.message || (isAr ? 'تعذر إضافة الطالب. تأكد من الصلاحيات والاتصال.' : 'Failed to add student. Check connection.'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-md overflow-hidden shadow-modal">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n-200 dark:border-n-300">
@@ -157,12 +178,17 @@ export function AddStudentModal({
               <UserPlus className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-n-800 dark:text-n-700">إضافة طالب جديد</h3>
-              <p className="text-xs text-n-400">سيتم توليد كود دخول تلقائي وربطه بولي الأمر</p>
+              <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                {isAr ? 'إضافة طالب جديد' : 'Add New Student'}
+              </h3>
+              <p className="text-xs text-n-400">
+                {isAr ? 'سيتم توليد كود دخول تلقائي وربطه بولي الأمر' : 'A login PIN will be generated and linked with parent contact'}
+              </p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label={isAr ? 'إغلاق' : 'Close'}
             className="text-n-400 hover:text-n-700 dark:hover:text-n-500 p-1.5 rounded-lg hover:bg-n-100 dark:hover:bg-n-200 transition-colors"
           >
             <X className="h-4 w-4" />
@@ -173,7 +199,7 @@ export function AddStudentModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              اسم الطالب الثلاثي:
+              {isAr ? 'اسم الطالب الثلاثي:' : 'Full Student Name:'}
             </label>
             <div className="relative">
               <Input
@@ -181,7 +207,7 @@ export function AddStudentModal({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="مثال: يوسف محمود حسن"
+                placeholder={isAr ? 'مثال: يوسف محمود حسن' : 'e.g. Youssef Mahmoud Hassan'}
                 className="pe-8"
               />
               <User className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -191,7 +217,7 @@ export function AddStudentModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                رقم هاتف الطالب:
+                {isAr ? 'رقم هاتف الطالب:' : 'Student Phone:'}
               </label>
               <div className="relative">
                 <Input
@@ -208,7 +234,7 @@ export function AddStudentModal({
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                واتساب ولي الأمر:
+                {isAr ? 'واتساب ولي الأمر:' : 'Parent WhatsApp:'}
               </label>
               <div className="relative">
                 <Input
@@ -226,7 +252,7 @@ export function AddStudentModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                الصف الدراسي:
+                {isAr ? 'الصف الدراسي:' : 'Academic Grade:'}
               </label>
               <select
                 value={gradeLevel}
@@ -235,7 +261,7 @@ export function AddStudentModal({
               >
                 {ACADEMIC_GRADES.map((g) => (
                   <option key={g} value={g}>
-                    {g}
+                    {isAr ? g : GRADE_NAMES_EN[g] || g}
                   </option>
                 ))}
               </select>
@@ -243,7 +269,7 @@ export function AddStudentModal({
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                الفصل الدراسي:
+                {isAr ? 'الفصل الدراسي:' : 'Classroom:'}
               </label>
               <select
                 value={classroomId || (classrooms && classrooms[0]?.id) || ''}
@@ -257,7 +283,7 @@ export function AddStudentModal({
                     </option>
                   ))
                 ) : (
-                  <option value="">(فصل افتراضي - عام)</option>
+                  <option value="">{isAr ? '(فصل افتراضي - عام)' : '(Default - General Classroom)'}</option>
                 )}
               </select>
             </div>
@@ -266,7 +292,7 @@ export function AddStudentModal({
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600">
-                كلمة المرور (4 أرقام):
+                {isAr ? 'كلمة المرور (4 أرقام):' : 'Password (PIN):'}
               </label>
               <button
                 type="button"
@@ -278,7 +304,7 @@ export function AddStudentModal({
                 className="text-[11px] text-accent hover:text-accent-hover font-semibold flex items-center gap-1 transition-colors"
               >
                 <RefreshCw className="h-3 w-3" />
-                توليد كود جديد
+                {isAr ? 'توليد كود جديد' : 'Generate New PIN'}
               </button>
             </div>
             <div className="relative">
@@ -294,17 +320,19 @@ export function AddStudentModal({
               <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
             </div>
             <p className="text-[11px] text-n-400 mt-1">
-              كلمة مرور الطالب — سيتمكن الطالب من تسجيل الدخول بها فوراً مع كوده الخاص.
+              {isAr
+                ? 'كلمة مرور الطالب — سيتمكن الطالب من تسجيل الدخول بها فوراً مع كوده الخاص.'
+                : 'Student password — the student will log in with this code and their unique student ID.'}
             </p>
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-100 dark:border-n-200">
             <Button type="button" variant="secondary" size="md" onClick={onClose}>
-              إلغاء
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button type="submit" loading={loading} size="md" variant="primary">
               <UserPlus className="h-4 w-4 me-1" />
-              حفظ وتسجيل الطالب
+              {isAr ? 'حفظ وتسجيل الطالب' : 'Save & Register Student'}
             </Button>
           </div>
         </form>

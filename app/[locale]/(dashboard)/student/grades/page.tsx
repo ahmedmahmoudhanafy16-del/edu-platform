@@ -12,6 +12,7 @@ export default async function StudentGradesPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let student: any = null;
   try {
@@ -19,7 +20,7 @@ export default async function StudentGradesPage({
   } catch (e) {}
 
   const studentId = student?.id || '';
-  const studentName = student?.name || 'طالب';
+  const studentName = student?.name || (isAr ? 'طالب' : 'Student');
 
   let dbResults: any[] = [];
   try {
@@ -47,7 +48,7 @@ export default async function StudentGradesPage({
       submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
       quiz: {
         id: m.quizId,
-        title: m.quizTitle || 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        title: m.quizTitle || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
         type: 'WEEKLY',
       },
     }));
@@ -70,14 +71,14 @@ export default async function StudentGradesPage({
       submittedAt: r.submittedAt ? new Date(r.submittedAt) : new Date(),
       quiz: {
         id: r.quiz?.id || r.quizId,
-        title: r.quiz?.title || 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        title: r.quiz?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
         type: r.quiz?.type || 'WEEKLY',
       },
     };
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8" dir={isAr ? 'rtl' : 'ltr'}>
       <StudentGradesClient
         initialResults={formattedResults}
         studentName={studentName}

@@ -80,25 +80,29 @@ export default async function TeacherAccessCodesPage({
     console.warn('[Teacher Access Codes] DB query failed for codes:', err);
   }
 
+  const isAr = locale === 'ar';
+
   // Serialized Sessions for Client
   const serializedSessions = liveSessions.map((s) => ({
     id: s.id,
     title: s.title,
     roomCode: s.roomCode,
     isActive: s.isActive,
-    classroomName: s.classroom?.name || 'الفصل التعليمي',
+    classroomName: s.classroom?.name || (isAr ? 'الفصل التعليمي' : 'Classroom'),
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
           <Ticket className="h-6 w-6 text-accent" />
-          إدارة وتوليد أكواد الحصص المباشرة
+          {isAr ? 'إدارة وتوليد أكواد الحصص المباشرة' : 'Manage & Generate Live Session Access Codes'}
         </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          مرحباً أ/ {teacher?.name || 'سارة أحمد'} — توليد أكواد الشراء الفردية للحصص المباشرة ومتابعة مبيعات الطلاب والتفعيل الفوري
+          {isAr
+            ? `مرحباً أ/ ${teacher?.name || 'المعلم'} — توليد أكواد الشراء الفردية للحصص المباشرة ومتابعة مبيعات الطلاب والتفعيل الفوري`
+            : `Welcome ${teacher?.name || 'Teacher'} — Generate single-use purchase codes for live sessions and track student redemptions`}
         </p>
       </div>
 

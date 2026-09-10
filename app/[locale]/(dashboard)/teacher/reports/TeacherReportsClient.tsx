@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import { Download, MessageSquare, Search, FileSpreadsheet, CheckCircle2, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,8 @@ interface StudentReportItem {
 const RESULTS_KEY = 'edu_quiz_results';
 
 export function TeacherReportsClient({ initialReports }: { initialReports: StudentReportItem[] }) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [search, setSearch] = useState('');
   const [reports, setReports] = useState<StudentReportItem[]>(initialReports);
 
@@ -140,16 +143,23 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `كشف_الدرجات_${new Date().toISOString().slice(0, 10)}.csv`);
+    const downloadName = isAr
+      ? `كشف_الدرجات_${new Date().toISOString().slice(0, 10)}.csv`
+      : `Grade_Report_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.setAttribute('download', downloadName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
-    toast.success('تم تصدير ملف CSV بنجاح! 📊');
+    toast.success(isAr ? 'تم تصدير ملف CSV بنجاح! 📊' : 'CSV exported successfully! 📊');
   }
 
   function handleSendBulkWhatsApp() {
-    toast.success(`جاري تجهيز وإرسال تقارير واتساب لـ ${filtered.length} ولي أمر! 📲`);
+    toast.success(
+      isAr
+        ? `جاري تجهيز وإرسال تقارير واتساب لـ ${filtered.length} ولي أمر! 📲`
+        : `Preparing WhatsApp reports for ${filtered.length} parents! 📲`
+    );
   }
 
   const validScoreReports = reports.filter((r) => r.hasSubmissions !== false && r.avgScore > 0);
@@ -163,7 +173,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">إجمالي الطلاب المسجلين</p>
+            <p className="text-xs text-slate-500">{isAr ? 'إجمالي الطلاب المسجلين' : 'Total Enrolled Students'}</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{reports.length}</p>
           </div>
           <Users className="h-7 w-7 text-blue-600" />
@@ -171,7 +181,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
 
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">متوسط نتائج آخر الاختبارات</p>
+            <p className="text-xs text-slate-500">{isAr ? 'متوسط نتائج آخر الاختبارات' : 'Latest Exams Average'}</p>
             <p className="text-2xl font-bold text-emerald-600 mt-1">
               {avgPerformance}%
             </p>
@@ -181,7 +191,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
 
         <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500">نسبة الطلاب المتفوقين</p>
+            <p className="text-xs text-slate-500">{isAr ? 'نسبة الطلاب المتفوقين' : 'Top Performers Rate'}</p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
               {validScoreReports.length > 0 ? Math.round((validScoreReports.filter((r) => r.avgScore >= 65).length / validScoreReports.length) * 100) : 0}%
             </p>
@@ -194,7 +204,7 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="relative w-full sm:w-72">
           <Input
-            placeholder="بحث بالاسم أو الكود أو الصف..."
+            placeholder={isAr ? 'بحث بالاسم أو الكود أو الصف...' : 'Search by name, code, or grade...'}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pe-8 h-10 text-xs"
@@ -205,11 +215,11 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
         <div className="flex items-center gap-2.5 w-full sm:w-auto">
           <Button onClick={exportToCSV} variant="secondary" className="text-xs font-semibold gap-1.5 h-10 flex-1 sm:flex-initial">
             <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-            تصدير إلى Excel / CSV
+            {isAr ? 'تصدير إلى Excel / CSV' : 'Export to Excel / CSV'}
           </Button>
           <Button onClick={handleSendBulkWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 h-10 flex-1 sm:flex-initial">
             <MessageSquare className="h-4 w-4" />
-            إرسال تقارير واتساب للأولياء
+            {isAr ? 'إرسال تقارير واتساب للأولياء' : 'Send WhatsApp Reports to Parents'}
           </Button>
         </div>
       </div>
@@ -220,15 +230,15 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
           <table className="w-full text-xs text-start">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold">
               <tr>
-                <th className="py-3.5 px-4 text-start">الطالب</th>
-                <th className="py-3.5 px-4 text-start">الكود</th>
-                <th className="py-3.5 px-4 text-start">الصف الدراسي</th>
-                <th className="py-3.5 px-4 text-start">واتساب ولي الأمر</th>
-                <th className="py-3.5 px-4 text-center">آخر امتحان</th>
-                <th className="py-3.5 px-4 text-center">الامتحانات</th>
-                <th className="py-3.5 px-4 text-center">الواجبات</th>
-                <th className="py-3.5 px-4 text-center">الحضور</th>
-                <th className="py-3.5 px-4 text-center">التقييم</th>
+                <th className="py-3.5 px-4 text-start">{isAr ? 'الطالب' : 'Student'}</th>
+                <th className="py-3.5 px-4 text-start">{isAr ? 'الكود' : 'Code'}</th>
+                <th className="py-3.5 px-4 text-start">{isAr ? 'الصف الدراسي' : 'Grade'}</th>
+                <th className="py-3.5 px-4 text-start">{isAr ? 'واتساب ولي الأمر' : 'Parent WhatsApp'}</th>
+                <th className="py-3.5 px-4 text-center">{isAr ? 'آخر امتحان' : 'Latest Quiz'}</th>
+                <th className="py-3.5 px-4 text-center">{isAr ? 'الامتحانات' : 'Quizzes'}</th>
+                <th className="py-3.5 px-4 text-center">{isAr ? 'الواجبات' : 'Homework'}</th>
+                <th className="py-3.5 px-4 text-center">{isAr ? 'الحضور' : 'Attendance'}</th>
+                <th className="py-3.5 px-4 text-center">{isAr ? 'التقييم' : 'Status'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -256,8 +266,11 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                   <td className="py-3.5 px-4 text-center">{s.homeworkCompleted}</td>
                   <td className="py-3.5 px-4 text-center">{s.attendanceCount}</td>
                   <td className="py-3.5 px-4 text-center">
-                    <Badge variant={s.avgScore >= 65 ? 'secondary' : 'outline'} className={s.avgScore >= 65 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'text-amber-600 border-amber-300'}>
-                      {s.status}
+                    <Badge
+                      variant={s.avgScore >= 65 ? 'secondary' : 'outline'}
+                      className={s.avgScore >= 65 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'text-amber-600 border-amber-300'}
+                    >
+                      {s.avgScore >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up')}
                     </Badge>
                   </td>
                 </tr>

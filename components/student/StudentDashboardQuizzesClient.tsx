@@ -80,12 +80,18 @@ export function StudentDashboardQuizzesClient({
     };
   }, [studentId]);
 
+  const isAr = locale === 'ar';
+
   if (quizzes.length === 0) {
     return (
       <div className="col-span-full p-8 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100 shadow-sm">
         <ClipboardList className="h-8 w-8 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-        <p className="text-xs font-semibold text-n-800 dark:text-n-700">لا توجد اختبارات منشورة متاحة حالياً</p>
-        <p className="text-[11px] text-n-400 mt-0.5">ستظهر الاختبارات فور قيام المعلم بإتاحتها</p>
+        <p className="text-xs font-semibold text-n-800 dark:text-n-700">
+          {isAr ? 'لا توجد اختبارات منشورة متاحة حالياً' : 'No published exams available at the moment'}
+        </p>
+        <p className="text-[11px] text-n-400 mt-0.5">
+          {isAr ? 'ستظهر الاختبارات فور قيام المعلم بإتاحتها' : 'Exams will appear as soon as the teacher publishes them'}
+        </p>
       </div>
     );
   }

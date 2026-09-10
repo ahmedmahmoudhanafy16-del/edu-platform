@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Ticket, CheckCircle2, AlertCircle, ArrowLeft, Wifi, Sparkles, ShieldCheck, BookOpen, ClipboardList } from 'lucide-react';
+import { Ticket, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Wifi, Sparkles, ShieldCheck, BookOpen, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function StudentRedeemClient({ locale, studentName }: { locale: string; studentName: string }) {
+  const isAr = locale === 'ar';
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +57,7 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
     const clean = code.trim().toUpperCase();
 
     if (!clean || clean.length < 3) {
-      setError('يرجى إدخال كود صحيح للحصة أو الفصل الدراسي');
+      setError(isAr ? 'يرجى إدخال كود صحيح للحصة أو الفصل الدراسي' : 'Please enter a valid session or classroom code');
       return;
     }
 
@@ -80,19 +81,19 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || 'فشل في تفعيل الكود');
+        throw new Error(data.error || (isAr ? 'فشل في تفعيل الكود' : 'Failed to redeem code'));
       }
 
       setSuccessData(data);
     } catch (err: any) {
-      setError(err.message || 'حدث خطأ أثناء تفعيل الكود، يرجى المحاولة مرة أخرى');
+      setError(err.message || (isAr ? 'حدث خطأ أثناء تفعيل الكود، يرجى المحاولة مرة أخرى' : 'An error occurred while redeeming the code, please try again'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="w-full max-w-md mx-auto" dir="rtl">
+    <div className="w-full max-w-md mx-auto" dir={isAr ? 'rtl' : 'ltr'}>
       {/* ── Success View ────────────────────────────────────────────── */}
       {successData ? (
         <div className="rounded-2xl border border-ok/30 bg-white dark:bg-n-100 p-8 shadow-lg text-center space-y-6 animate-in fade-in zoom-in-95 duration-200">
@@ -104,26 +105,28 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
             <>
               <div className="space-y-1.5">
                 <span className="text-[11px] font-bold text-ok bg-ok-light px-3 py-1 rounded-full border border-ok/20">
-                  تم الانضمام للفصل الدراسي بنجاح 🎓
+                  {isAr ? 'تم الانضمام للفصل الدراسي بنجاح 🎓' : 'Successfully joined classroom 🎓'}
                 </span>
                 <h2 className="text-xl font-bold text-n-800 dark:text-n-700 mt-2">
                   {successData.classroom.name}
                 </h2>
                 <p className="text-xs text-n-500 dark:text-n-400">
-                  المادة: <strong className="text-accent">{successData.classroom.subject}</strong> · كود الفصل:{' '}
+                  {isAr ? 'المادة:' : 'Subject:'} <strong className="text-accent">{successData.classroom.subject}</strong> · {isAr ? 'كود الفصل:' : 'Class Code:'}{' '}
                   <span className="font-mono font-bold text-accent">{successData.code}</span>
                 </p>
               </div>
 
               <div className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-start space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-n-500">معلم المادة:</span>
-                  <span className="font-bold text-n-700 dark:text-n-600">{successData.classroom.teacherName || 'أ/ المعلم الأكاديمي'}</span>
+                  <span className="text-n-500">{isAr ? 'معلم المادة:' : 'Teacher:'}</span>
+                  <span className="font-bold text-n-700 dark:text-n-600">
+                    {successData.classroom.teacherName || (isAr ? 'أ/ المعلم الأكاديمي' : 'Academic Teacher')}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-n-500">حالة الفصل:</span>
+                  <span className="text-n-500">{isAr ? 'حالة الفصل:' : 'Classroom Status:'}</span>
                   <span className="font-bold text-ok flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-ok" /> نشط ومعتمد
+                    <span className="w-2 h-2 rounded-full bg-ok" /> {isAr ? 'نشط ومعتمد' : 'Active & Verified'}
                   </span>
                 </div>
               </div>
@@ -132,19 +135,19 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
                 <Link href={`/${locale}/student/quizzes`} className="block">
                   <Button variant="primary" size="lg" className="w-full text-base font-bold shadow-md">
                     <ClipboardList className="h-5 w-5 me-1" />
-                    عرض اختبارات هذا الفصل
+                    {isAr ? 'عرض اختبارات هذا الفصل' : 'View Classroom Quizzes'}
                   </Button>
                 </Link>
 
                 <Link href={`/${locale}/student/assignments`} className="block">
                   <Button variant="secondary" size="md" className="w-full text-xs">
-                    عرض واجبات الفصل
+                    {isAr ? 'عرض واجبات الفصل' : 'View Classroom Assignments'}
                   </Button>
                 </Link>
 
                 <Link href={`/${locale}/student`} className="block">
                   <Button variant="ghost" size="sm" className="w-full text-xs text-n-500">
-                    العودة للوحة تحكم الطالب
+                    {isAr ? 'العودة للوحة تحكم الطالب' : 'Return to Student Dashboard'}
                   </Button>
                 </Link>
               </div>
@@ -153,13 +156,13 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
             <>
               <div className="space-y-1.5">
                 <span className="text-[11px] font-bold text-ok bg-ok-light px-3 py-1 rounded-full border border-ok/20">
-                  تم التفعيل والاشتراك بنجاح 🎉
+                  {isAr ? 'تم التفعيل والاشتراك بنجاح 🎉' : 'Activated and subscribed successfully 🎉'}
                 </span>
                 <h2 className="text-xl font-bold text-n-800 dark:text-n-700 mt-2">
                   {successData.liveSession.title}
                 </h2>
                 <p className="text-xs text-n-500 dark:text-n-400">
-                  {successData.liveSession.classroomName || 'الفصل الدراسي'} · الكود المفعل:{' '}
+                  {successData.liveSession.classroomName || (isAr ? 'الفصل الدراسي' : 'Classroom')} · {isAr ? 'الكود المفعل:' : 'Redeemed Code:'}{' '}
                   <span className="font-mono font-bold text-accent">{successData.code}</span>
                 </p>
               </div>
@@ -167,17 +170,17 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
               {/* Session details card */}
               <div className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-start space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-n-500">حالة الحصة الآن:</span>
+                  <span className="text-n-500">{isAr ? 'حالة الحصة الآن:' : 'Live Status:'}</span>
                   {successData.liveSession.isActive ? (
                     <span className="font-bold text-ok flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> مباشر الآن
+                      <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> {isAr ? 'مباشر الآن' : 'Live Now'}
                     </span>
                   ) : (
-                    <span className="font-medium text-n-500">مجدولة / لم تبدأ بعد</span>
+                    <span className="font-medium text-n-500">{isAr ? 'مجدولة / لم تبدأ بعد' : 'Scheduled / Not started yet'}</span>
                   )}
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-n-500">كود الغرفة:</span>
+                  <span className="text-n-500">{isAr ? 'كود الغرفة:' : 'Room Code:'}</span>
                   <code className="font-mono font-bold text-accent bg-white dark:bg-n-100 px-2 py-0.5 rounded border border-accent/20">
                     {successData.liveSession.roomCode}
                   </code>
@@ -187,18 +190,18 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
               {/* Action buttons */}
               <div className="space-y-2.5 pt-2">
                 <Link
-                  href={`/${locale}/student/live?room=${successData.liveSession.roomCode}&name=${encodeURIComponent(studentName || 'الطالب')}`}
+                  href={`/${locale}/student/live?room=${successData.liveSession.roomCode}&name=${encodeURIComponent(studentName || (isAr ? 'الطالب' : 'Student'))}`}
                   className="block"
                 >
                   <Button variant="primary" size="lg" className="w-full text-base font-bold shadow-md">
                     <Wifi className="h-5 w-5 me-1" />
-                    دخول الحصة المباشرة الآن
+                    {isAr ? 'دخول الحصة المباشرة الآن' : 'Join Live Session Now'}
                   </Button>
                 </Link>
 
                 <Link href={`/${locale}/student`} className="block">
                   <Button variant="secondary" size="md" className="w-full text-xs">
-                    العودة للوحة تحكم الطالب
+                    {isAr ? 'العودة للوحة تحكم الطالب' : 'Return to Student Dashboard'}
                   </Button>
                 </Link>
               </div>
@@ -215,9 +218,13 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
 
           {/* Title & Subtitle */}
           <div className="space-y-1.5">
-            <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">استخدام كود الجلسة</h1>
+            <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+              {isAr ? 'استخدام كود الجلسة' : 'Redeem Session Code'}
+            </h1>
             <p className="text-xs text-n-500 dark:text-n-400 max-w-xs mx-auto leading-relaxed">
-              أدخل الكود الذي حصلت عليه (من السنتر أو فودافون كاش) للوصول إلى الحصة المباشرة فوراً
+              {isAr
+                ? 'أدخل الكود الذي حصلت عليه (من السنتر أو فودافون كاش) للوصول إلى الحصة المباشرة فوراً'
+                : 'Enter the code you received (from center or Vodafone Cash) to access the live session immediately'}
             </p>
           </div>
 
@@ -233,7 +240,7 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-n-600 dark:text-n-400 mb-2 text-start">
-                كود التفعيل (Access Code):
+                {isAr ? 'كود التفعيل (Access Code):' : 'Access Code:'}
               </label>
               <div className="relative">
                 <input
@@ -250,7 +257,7 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
               </div>
               <p className="text-[10px] text-n-400 mt-1.5 text-start flex items-center gap-1">
                 <ShieldCheck className="h-3 w-3 text-ok" />
-                الكود يُستخدم لمرة واحدة فقط ويرتبط بحسابك تلقائياً
+                {isAr ? 'الكود يُستخدم لمرة واحدة فقط ويرتبط بحسابك تلقائياً' : 'Code is for one-time use only and links to your account automatically'}
               </p>
             </div>
 
@@ -261,7 +268,7 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
               loading={loading}
               className="w-full text-base font-bold shadow-md h-12"
             >
-              تفعيل الكود والاشتراك
+              {isAr ? 'تفعيل الكود والاشتراك' : 'Redeem Code & Activate'}
             </Button>
           </form>
 
@@ -271,8 +278,8 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
               href={`/${locale}/student`}
               className="text-xs text-n-500 hover:text-accent font-semibold inline-flex items-center gap-1 transition-colors"
             >
-              <ArrowLeft className="h-3.5 w-3.5" />
-              العودة إلى لوحة تحكم الطالب
+              {isAr ? <ArrowLeft className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+              {isAr ? 'العودة إلى لوحة تحكم الطالب' : 'Return to Student Dashboard'}
             </Link>
           </div>
         </div>

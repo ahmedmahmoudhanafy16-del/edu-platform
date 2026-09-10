@@ -20,9 +20,10 @@ interface TopNavProps {
   brandName?: string;
 }
 
-export function TopNav({ role, userName = 'أحمد', brandName = 'منصة التعليم' }: TopNavProps) {
+export function TopNav({ role, userName, brandName }: TopNavProps) {
   const t = useTranslations('nav');
   const locale = useLocale();
+  const isAr = locale === 'ar';
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -38,20 +39,20 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
   const links: NavLink[] =
     effectiveRole === 'STUDENT'
       ? [
-          { label: 'الرئيسية',       href: base },
-          { label: 'الاختبارات',     href: `${base}/quizzes` },
-          { label: 'الواجبات',       href: `${base}/assignments` },
-          { label: 'البث المباشر',   href: `${base}/live` },
-          { label: 'الدرجات',        href: `${base}/grades` },
+          { label: isAr ? 'الرئيسية' : 'Dashboard',       href: base },
+          { label: isAr ? 'الاختبارات' : 'Quizzes',       href: `${base}/quizzes` },
+          { label: isAr ? 'الواجبات' : 'Assignments',     href: `${base}/assignments` },
+          { label: isAr ? 'البث المباشر' : 'Live Class',   href: `${base}/live` },
+          { label: isAr ? 'الدرجات' : 'Grades',          href: `${base}/grades` },
         ]
       : [
-          { label: 'الرئيسية',         href: base },
-          { label: 'الفصول',           href: `${base}/classrooms` },
-          { label: 'الواجبات',         href: `${base}/assignments` },
-          { label: 'الامتحانات',       href: `${base}/quizzes` },
-          { label: 'البث المباشر',     href: `${base}/live` },
-          { label: 'الطلاب',          href: `${base}/students` },
-          { label: 'التقارير',         href: `${base}/reports` },
+          { label: isAr ? 'الرئيسية' : 'Dashboard',         href: base },
+          { label: isAr ? 'الفصول' : 'Classrooms',           href: `${base}/classrooms` },
+          { label: isAr ? 'الواجبات' : 'Assignments',         href: `${base}/assignments` },
+          { label: isAr ? 'الامتحانات' : 'Quizzes',       href: `${base}/quizzes` },
+          { label: isAr ? 'البث المباشر' : 'Live Class',     href: `${base}/live` },
+          { label: isAr ? 'الطلاب' : 'Students',          href: `${base}/students` },
+          { label: isAr ? 'التقارير' : 'Reports',         href: `${base}/reports` },
         ];
 
   const isActive = (href: string) => {
@@ -67,8 +68,8 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
 
   const displayUserName =
     effectiveRole === 'STUDENT'
-      ? (userName && !userName.includes('سارة') ? userName : 'الطالب')
-      : (userName || 'أ/ سارة أحمد');
+      ? (userName && !userName.includes('سارة') ? userName : (isAr ? 'الطالب' : 'Student'))
+      : (userName || (isAr ? 'أ/ سارة أحمد' : 'Ms. Sarah Ahmed'));
 
   const initials = displayUserName
     .trim()
@@ -76,6 +77,8 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
     .slice(0, 2)
     .map((w) => w[0])
     .join('');
+
+  const resolvedBrandName = brandName || (isAr ? 'منصة التعليم' : 'EduPlatform');
 
   return (
     <>
@@ -89,7 +92,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
               <GraduationCap className="h-4 w-4 text-white" strokeWidth={2} />
             </div>
             <span className="hidden sm:block text-sm font-bold text-n-800 dark:text-n-700 leading-none">
-              {brandName}
+              {resolvedBrandName}
             </span>
           </Link>
 
@@ -127,7 +130,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
               <Link
                 href={prefix ? `${prefix}/logout` : '/logout'}
                 className="p-1.5 rounded-md text-n-400 hover:text-bad hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]"
-                title="تسجيل الخروج"
+                title={isAr ? 'تسجيل الخروج' : 'Sign out'}
               >
                 <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
               </Link>
@@ -138,7 +141,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
               onClick={() => setMenuOpen((o) => !o)}
               type="button"
               className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:bg-n-100 dark:hover:bg-n-200 transition-colors duration-[140ms]"
-              aria-label={menuOpen ? 'إغلاق القائمة' : 'فتح القائمة'}
+              aria-label={menuOpen ? (isAr ? 'إغلاق القائمة' : 'Close menu') : (isAr ? 'فتح القائمة' : 'Open menu')}
             >
               {menuOpen ? <X className="h-4 w-4" strokeWidth={2} /> : <Menu className="h-4 w-4" strokeWidth={1.75} />}
             </button>
@@ -178,7 +181,7 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
                 className="text-xs text-bad flex items-center gap-1 font-semibold"
               >
                 <LogOut className="h-3.5 w-3.5" strokeWidth={1.75} />
-                خروج
+                {isAr ? 'خروج' : 'Sign out'}
               </Link>
             </div>
           </div>

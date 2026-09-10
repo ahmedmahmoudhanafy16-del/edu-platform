@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import {
   Plus,
   ClipboardList,
@@ -64,6 +65,8 @@ export function TeacherQuizzesClient({
   classrooms: { id: string; name: string }[];
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [quizzes, setQuizzes] = useState<QuizItem[]>(initialQuizzes);
   const [classList, setClassList] = useState<{ id: string; name: string; isActive?: boolean }[]>(classrooms);
   const [modalOpen, setModalOpen] = useState(false);
@@ -264,7 +267,7 @@ export function TeacherQuizzesClient({
     if (!quiz.accessCode) return;
     navigator.clipboard.writeText(quiz.accessCode);
     setCopiedId(quiz.id);
-    toast.success(`تم نسخ كود الامتحان: ${quiz.accessCode}`);
+    toast.success(isAr ? `تم نسخ كود الامتحان: ${quiz.accessCode}` : `Quiz access code copied: ${quiz.accessCode}`);
     setTimeout(() => setCopiedId(null), 2000);
   }
 
@@ -282,7 +285,11 @@ export function TeacherQuizzesClient({
       return nextList;
     });
 
-    toast.success(nextState ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب');
+    toast.success(
+      nextState
+        ? (isAr ? 'تم إتاحة الامتحان للطلاب' : 'Quiz published for students')
+        : (isAr ? 'تم إخفاء الامتحان عن الطلاب' : 'Quiz hidden from students')
+    );
 
     // 3. Silent server action backup (fail-safe)
     toggleQuizPublishAction(quiz.id, nextState).catch(() => null);
@@ -305,7 +312,7 @@ export function TeacherQuizzesClient({
 
     setQuizToDelete(null);
     setDeleteLoading(false);
-    toast.success('تم حذف الامتحان بنجاح');
+    toast.success(isAr ? 'تم حذف الامتحان بنجاح' : 'Quiz deleted successfully');
 
     // 3. Silent server action backup (fail-safe)
     deleteQuizAction(targetId).catch(() => null);
@@ -321,28 +328,38 @@ export function TeacherQuizzesClient({
   return (
     <>
       {/* Page Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 no-print" dir="rtl">
+      <div className="flex flex-wrap items-center justify-between gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">بنك الامتحانات والتقييمات</h1>
+          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'بنك الامتحانات والتقييمات' : 'Quiz & Exam Bank'}
+          </h1>
           <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-            إدارة وتعديل الاختبارات، التحكم برمز المرور، وحذف ونشر الامتحانات للطلاب
+            {isAr
+              ? 'إدارة وتعديل الاختبارات، التحكم برمز المرور، وحذف ونشر الامتحانات للطلاب'
+              : 'Manage and edit quizzes, configure passcodes, and publish exams'}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button size="md" variant="primary" onClick={handleCreateNew}>
             <Plus className="h-4 w-4 me-1.5" />
-            إنشاء امتحان جديد
+            {isAr ? 'إنشاء امتحان جديد' : 'Create New Quiz'}
           </Button>
         </div>
       </div>
 
       {/* Quizzes List Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir="rtl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
         {quizzes.length === 0 ? (
           <div className="col-span-full p-12 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100">
             <ClipboardList className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-n-800 dark:text-n-700">لا توجد اختبارات مضافة بعد</p>
-            <p className="text-xs text-n-400 mt-1">اضغط على زر "إنشاء امتحان جديد" أعلاه لنشر أول اختبار للطلاب</p>
+            <p className="text-sm font-semibold text-n-800 dark:text-n-700">
+              {isAr ? 'لا توجد اختبارات مضافة بعد' : 'No quizzes added yet'}
+            </p>
+            <p className="text-xs text-n-400 mt-1">
+              {isAr
+                ? 'اضغط على زر "إنشاء امتحان جديد" أعلاه لنشر أول اختبار للطلاب'
+                : 'Click "Create New Quiz" above to publish your first quiz'}
+            </p>
           </div>
         ) : (
           quizzes.map((q) => (
@@ -362,11 +379,11 @@ export function TeacherQuizzesClient({
                       {q.classroomName}
                     </span>
                     <span className="text-[11px] font-medium text-n-400">
-                      {q.type === 'WEEKLY' ? 'أسبوعي' : 'شهري'}
+                      {q.type === 'WEEKLY' ? (isAr ? 'أسبوعي' : 'Weekly') : (isAr ? 'شهري' : 'Monthly')}
                     </span>
                     {!q.isPublished && (
                       <span className="text-[10px] font-bold text-warn bg-warn-light px-2 py-0.5 rounded border border-warn/30">
-                        مخفي عن الطلاب
+                        {isAr ? 'مخفي عن الطلاب' : 'Hidden from Students'}
                       </span>
                     )}
                   </div>
@@ -383,7 +400,11 @@ export function TeacherQuizzesClient({
                         ? 'text-ok bg-ok-light border-ok/30 hover:bg-ok/20'
                         : 'text-warn bg-warn-light border-warn/30 hover:bg-warn/20'
                     }`}
-                    title={q.isPublished ? 'إخفاء الامتحان عن الطلاب' : 'إتاحة الامتحان للطلاب'}
+                    title={
+                      q.isPublished
+                        ? (isAr ? 'إخفاء الامتحان عن الطلاب' : 'Hide from students')
+                        : (isAr ? 'إتاحة الامتحان للطلاب' : 'Publish for students')
+                    }
                   >
                     {q.isPublished ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                   </button>
@@ -392,7 +413,7 @@ export function TeacherQuizzesClient({
                     type="button"
                     onClick={() => handleEdit(q)}
                     className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
-                    title="تعديل بيانات الامتحان والأسئلة"
+                    title={isAr ? 'تعديل بيانات الامتحان والأسئلة' : 'Edit quiz details and questions'}
                   >
                     <Edit className="h-4 w-4" />
                   </button>
@@ -401,7 +422,7 @@ export function TeacherQuizzesClient({
                     type="button"
                     onClick={() => setQuizToDelete(q)}
                     className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
-                    title="حذف هذا الامتحان نهائياً"
+                    title={isAr ? 'حذف هذا الامتحان نهائياً' : 'Delete this quiz permanently'}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -413,7 +434,7 @@ export function TeacherQuizzesClient({
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent-light/50 border border-accent/20 text-xs">
                   <div className="flex items-center gap-2">
                     <KeyRound className="h-4 w-4 text-accent" />
-                    <span className="text-n-600 font-medium">كود دخول الامتحان:</span>
+                    <span className="text-n-600 font-medium">{isAr ? 'كود دخول الامتحان:' : 'Quiz Access Code:'}</span>
                     <code className="font-mono font-bold text-accent text-sm tracking-wider">
                       {q.accessCode}
                     </code>
@@ -423,17 +444,17 @@ export function TeacherQuizzesClient({
                     variant="secondary"
                     onClick={() => handleCopyCode(q)}
                     className="h-7 px-2 text-xs flex items-center gap-1"
-                    title="نسخ كود الامتحان"
+                    title={isAr ? 'نسخ كود الامتحان' : 'Copy access code'}
                   >
                     {copiedId === q.id ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-ok" />
-                        <span className="text-ok">تم النسخ</span>
+                        <span className="text-ok">{isAr ? 'تم النسخ' : 'Copied'}</span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5" />
-                        <span>نسخ الكود</span>
+                        <span>{isAr ? 'نسخ الكود' : 'Copy Code'}</span>
                       </>
                     )}
                   </Button>
@@ -450,20 +471,26 @@ export function TeacherQuizzesClient({
                 return (
                   <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
                     <div>
-                      <p className="text-n-400">الأسئلة</p>
+                      <p className="text-n-400">{isAr ? 'الأسئلة' : 'Questions'}</p>
                       <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
                     </div>
                     <div>
-                      <p className="text-n-400">الدرجة الكلية</p>
-                      <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{totalScore} درجات</p>
+                      <p className="text-n-400">{isAr ? 'الدرجة الكلية' : 'Total Score'}</p>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {totalScore} {isAr ? 'درجات' : 'pts'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-n-400">المدة</p>
-                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.duration} دقيقة</p>
+                      <p className="text-n-400">{isAr ? 'المدة' : 'Duration'}</p>
+                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">
+                        {q.duration} {isAr ? 'دقيقة' : 'mins'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-n-400">الممتحنون</p>
-                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.resultsCount} طالب</p>
+                      <p className="text-n-400">{isAr ? 'الممتحنون' : 'Examinees'}</p>
+                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">
+                        {q.resultsCount} {isAr ? 'طالب' : 'students'}
+                      </p>
                     </div>
                   </div>
                 );
@@ -478,13 +505,17 @@ export function TeacherQuizzesClient({
                   onClick={() => setQuizForResults(q)}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  <span>نتائج الطلاب وأكواد الإعادة 🔄 ({q.resultsCount} طالب)</span>
+                  <span>
+                    {isAr
+                      ? `نتائج الطلاب وأكواد الإعادة 🔄 (${q.resultsCount} طالب)`
+                      : `Student Results & Retake Codes 🔄 (${q.resultsCount} students)`}
+                  </span>
                 </Button>
 
                 <div className="flex items-center justify-between gap-2">
                   <Button variant="secondary" size="sm" className="flex-1 text-xs" onClick={() => handlePrint(q)}>
                     <Printer className="h-3.5 w-3.5 me-1" />
-                    طباعة ورقة A4
+                    {isAr ? 'طباعة ورقة A4' : 'Print A4 Sheet'}
                   </Button>
                   <Button
                     variant="secondary"
@@ -493,7 +524,7 @@ export function TeacherQuizzesClient({
                     onClick={() => handleEdit(q)}
                   >
                     <Edit className="h-3.5 w-3.5 me-1 text-accent" />
-                    تعديل الأسئلة
+                    {isAr ? 'تعديل الأسئلة' : 'Edit Questions'}
                   </Button>
                 </div>
               </div>
@@ -506,7 +537,7 @@ export function TeacherQuizzesClient({
       {quizToDelete && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm animate-in fade-in duration-200"
-          dir="rtl"
+          dir={isAr ? 'rtl' : 'ltr'}
         >
           <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-md overflow-hidden shadow-modal space-y-0">
             <div className="p-6 space-y-4">
@@ -515,17 +546,23 @@ export function TeacherQuizzesClient({
                   <AlertTriangle className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">تأكيد حذف الامتحان</h3>
-                  <p className="text-xs text-n-500">إجراء لا يمكن التراجع عنه</p>
+                  <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+                    {isAr ? 'تأكيد حذف الامتحان' : 'Confirm Quiz Deletion'}
+                  </h3>
+                  <p className="text-xs text-n-500">
+                    {isAr ? 'إجراء لا يمكن التراجع عنه' : 'This action cannot be undone'}
+                  </p>
                 </div>
               </div>
 
               <div className="p-3 bg-n-50 dark:bg-n-200 rounded-xl text-xs text-n-600 space-y-1">
                 <p>
-                  أنت على وشك حذف: <strong className="text-bad">{quizToDelete.title}</strong>
+                  {isAr ? 'أنت على وشك حذف: ' : 'You are about to delete: '}<strong className="text-bad">{quizToDelete.title}</strong>
                 </p>
                 <p className="text-n-400">
-                  هل أنت متأكد من حذف هذا الامتحان؟ لن يتمكن الطلاب من الوصول إليه أو تقديم إجاباتهم بعد الحذف.
+                  {isAr
+                    ? 'هل أنت متأكد من حذف هذا الامتحان؟ لن يتمكن الطلاب من الوصول إليه أو تقديم إجاباتهم بعد الحذف.'
+                    : 'Are you sure you want to delete this quiz? Students will no longer be able to access it or submit responses.'}
                 </p>
               </div>
 
@@ -537,7 +574,7 @@ export function TeacherQuizzesClient({
                   onClick={() => setQuizToDelete(null)}
                   disabled={deleteLoading}
                 >
-                  إلغاء
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </Button>
                 <Button
                   type="button"
@@ -547,7 +584,7 @@ export function TeacherQuizzesClient({
                   onClick={handleConfirmDelete}
                   className="bg-bad text-white hover:bg-bad/90 font-semibold"
                 >
-                  تأكيد الحذف
+                  {deleteLoading ? (isAr ? 'جاري الحذف...' : 'Deleting...') : (isAr ? 'تأكيد الحذف' : 'Confirm Delete')}
                 </Button>
               </div>
             </div>
@@ -557,14 +594,18 @@ export function TeacherQuizzesClient({
 
       {/* Printable Paper Exam View (Visible only during window.print()) */}
       {printableQuiz && (
-        <div className="hidden print:block p-8 bg-white text-black max-w-3xl mx-auto space-y-6" dir="rtl">
+        <div className="hidden print:block p-8 bg-white text-black max-w-3xl mx-auto space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
           <div className="border-b-2 border-black pb-4 text-center space-y-1">
             <h1 className="text-xl font-bold">{printableQuiz.title}</h1>
-            <p className="text-sm">المادة: {printableQuiz.classroomName} | الزمن: {printableQuiz.duration} دقيقة</p>
+            <p className="text-sm">
+              {isAr
+                ? `المادة: ${printableQuiz.classroomName} | الزمن: ${printableQuiz.duration} دقيقة`
+                : `Subject: ${printableQuiz.classroomName} | Duration: ${printableQuiz.duration} min`}
+            </p>
             <div className="flex justify-between text-xs pt-2 font-semibold">
-              <span>اسم الطالب: ............................................................</span>
-              <span>رقم الجلوس: ....................</span>
-              <span>الدرجة: ........ / 20</span>
+              <span>{isAr ? 'اسم الطالب: ............................................................' : 'Student Name: ............................................................'}</span>
+              <span>{isAr ? 'رقم الجلوس: ....................' : 'Seat Number: ....................'}</span>
+              <span>{isAr ? `الدرجة: ........ / ${printableQuiz.totalScore || 20}` : `Score: ........ / ${printableQuiz.totalScore || 20}`}</span>
             </div>
           </div>
 
@@ -598,7 +639,7 @@ export function TeacherQuizzesClient({
           </div>
 
           <div className="border-t border-black pt-4 text-center text-xs font-semibold">
-            مع تمنياتنا بالتوفيق والنجاح
+            {isAr ? 'مع تمنياتنا بالتوفيق والنجاح' : 'Best wishes for success!'}
           </div>
         </div>
       )}

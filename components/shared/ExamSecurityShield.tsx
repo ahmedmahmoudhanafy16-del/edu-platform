@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useId } from 'react';
+import { useLocale } from 'next-intl';
 import { ShieldAlert, Lock, EyeOff, Maximize2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -23,6 +24,8 @@ export function ExamSecurityShield({
   onMaxViolationsExceeded,
   isActive = true,
 }: ExamSecurityShieldProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [isBlurred, setIsBlurred] = useState(false);
   const [violations, setViolations] = useState(0);
   const [watermarkDate, setWatermarkDate] = useState('');
@@ -32,7 +35,7 @@ export function ExamSecurityShield({
 
   useEffect(() => {
     setWatermarkDate(
-      new Date().toLocaleDateString('ar-EG', {
+      new Date().toLocaleDateString(isAr ? 'ar-EG' : 'en-US', {
         year: 'numeric',
         month: 'numeric',
         day: 'numeric',
@@ -71,21 +74,27 @@ export function ExamSecurityShield({
         if (onViolation) onViolation(next);
 
         if (next >= maxViolations) {
-          toast.error(`🚨 ضبط مخالفة نهائية (${next}/${maxViolations}) - جاري إنهاء وتسليم الامتحان فوراً!`, {
-            duration: 6000,
-          });
+          toast.error(
+            isAr
+              ? `🚨 ضبط مخالفة نهائية (${next}/${maxViolations}) - جاري إنهاء وتسليم الامتحان فوراً!`
+              : `🚨 Final violation recorded (${next}/${maxViolations}) - Submitting exam immediately!`,
+            { duration: 6000 }
+          );
           if (onMaxViolationsExceeded) {
             setTimeout(() => onMaxViolationsExceeded(), 500);
           }
         } else {
-          toast.error(`⚠️ تحذير أمني صارم: ${reason} (مخالفة ${next} من ${maxViolations}) - الخروج القادم ينهي الامتحان نهائياً!`, {
-            duration: 5000,
-          });
+          toast.error(
+            isAr
+              ? `⚠️ تحذير أمني صارم: ${reason} (مخالفة ${next} من ${maxViolations}) - الخروج القادم ينهي الامتحان نهائياً!`
+              : `⚠️ Security Alert: ${reason} (Violation ${next} of ${maxViolations}) - Next exit terminates exam!`,
+            { duration: 5000 }
+          );
         }
         return next;
       });
     },
-    [isActive, maxViolations, onViolation, onMaxViolationsExceeded, violationStorageKey]
+    [isActive, isAr, maxViolations, onViolation, onMaxViolationsExceeded, violationStorageKey]
   );
 
   // Lock countdown timer when shield is displayed
@@ -110,12 +119,12 @@ export function ExamSecurityShield({
       try {
         window.history.pushState(null, '', window.location.href);
       } catch {}
-      handleSecurityViolation('محاولة استخدام زر الرجوع للخلف محظورة أثناء الاختبار');
+      handleSecurityViolation(isAr ? 'محاولة استخدام زر الرجوع للخلف محظورة أثناء الاختبار' : 'Browser back navigation is restricted during exam');
     };
 
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = 'مغادرة الامتحان ستؤدي لتسليمه فوراً!';
+      e.returnValue = isAr ? 'مغادرة الامتحان ستؤدي لتسليمه فوراً!' : 'Leaving the exam will cause immediate auto-submission!';
       return e.returnValue;
     };
 
@@ -129,12 +138,12 @@ export function ExamSecurityShield({
       try {
         if (e.clipboardData) e.clipboardData.setData('text/plain', '');
       } catch {}
-      toast.error('🚫 محتوى الامتحان محمي: النسخ والنقل غير مسموح به نهائياً');
+      toast.error(isAr ? '🚫 محتوى الامتحان محمي: النسخ والنقل غير مسموح به نهائياً' : '🚫 Protected content: Copying text is strictly prohibited');
     };
 
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
-      toast.error('🚫 النقر بزر الفأرة الأيمن معطل لحماية سرية الامتحان');
+      toast.error(isAr ? '🚫 النقر بزر الفأرة الأيمن معطل لحماية سرية الامتحان' : '🚫 Right-click is disabled to protect exam confidentiality');
     };
 
     // Mobile Multi-Touch & 3-Finger Screenshot Gesture Detection
@@ -142,7 +151,7 @@ export function ExamSecurityShield({
       if (e.touches && e.touches.length >= 2) {
         e.preventDefault();
         e.stopPropagation();
-        handleSecurityViolation('تم رصد إيماءة شاشة متعددة الأصابع (محاولة سكرين شوت أو تصوير)');
+        handleSecurityViolation(isAr ? 'تم رصد إيماءة شاشة متعددة الأصابع (محاولة سكرين شوت أو تصوير)' : 'Multi-touch gesture detected (potential screenshot attempt)');
       }
     };
 
@@ -311,7 +320,9 @@ export function ExamSecurityShield({
           >
             <div className="font-extrabold text-[13px]">{studentName} • {studentCode}</div>
             {studentPhone && <div className="text-[11px] font-bold text-red-900 dark:text-red-300">{studentPhone}</div>}
-            <div className="text-[10px] opacity-90 font-bold">🔒 وثيقة سرية رقمية • {watermarkDate}</div>
+            <div className="text-[10px] opacity-90 font-bold">
+              {isAr ? `🔒 وثيقة سرية رقمية • ${watermarkDate}` : `🔒 Confidential • ${watermarkDate}`}
+            </div>
             <div className="text-[9px] opacity-75">TR-{sessionTraceId}</div>
           </div>
         ))}
@@ -319,10 +330,10 @@ export function ExamSecurityShield({
 
       {/* 2. Floating Persistent Security Watermark Pill Header */}
       <div className="fixed bottom-3 start-1/2 -translate-x-1/2 z-40 pointer-events-none select-none opacity-85">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/80 border border-amber-500/40 text-amber-300 font-mono text-[10px] sm:text-xs font-bold shadow-lg backdrop-blur-md" dir="rtl">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/80 border border-amber-500/40 text-amber-300 font-mono text-[10px] sm:text-xs font-bold shadow-lg backdrop-blur-md" dir={isAr ? 'rtl' : 'ltr'}>
           <ShieldCheck className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-          <span>جلسة امتحان موثقة للطالب: <strong className="text-white">{studentName} ({studentCode})</strong></span>
-          <span className="hidden sm:inline opacity-75">• هاتف: {studentPhone || '—'}</span>
+          <span>{isAr ? 'جلسة امتحان موثقة للطالب: ' : 'Verified Exam Session: '}<strong className="text-white">{studentName} ({studentCode})</strong></span>
+          <span className="hidden sm:inline opacity-75">• {isAr ? 'هاتف: ' : 'Phone: '}{studentPhone || '—'}</span>
         </div>
       </div>
 
@@ -330,7 +341,7 @@ export function ExamSecurityShield({
       {isBlurred && isActive && (
         <div
           className="fixed inset-0 z-50 bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center p-4 text-white text-center select-none animate-in fade-in duration-150"
-          dir="rtl"
+          dir={isAr ? 'rtl' : 'ltr'}
         >
           <div className="max-w-md w-full bg-slate-900 border border-red-500/50 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-4">
             <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center justify-center mx-auto animate-pulse">
@@ -340,29 +351,35 @@ export function ExamSecurityShield({
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-red-400 flex items-center justify-center gap-2">
                 <ShieldAlert className="h-5 w-5" />
-                {violations >= maxViolations ? 'تم إنهاء الامتحان وضبط مخالفة!' : 'تم حجب شاشة الامتحان أمنياً!'}
+                {violations >= maxViolations
+                  ? (isAr ? 'تم إنهاء الامتحان وضبط مخالفة!' : 'Exam Terminated: Violation Recorded!')
+                  : (isAr ? 'تم حجب شاشة الامتحان أمنياً!' : 'Exam Screen Locked for Security!')}
               </h3>
               <p className="text-xs text-slate-300 leading-relaxed">
                 {violations >= maxViolations
-                  ? 'تم تجاوز الحد المسموح به لمغادرة النافذة أو محاولة تصوير الشاشة. تم تسليم الامتحان وإنهاء الجلسة فوراً.'
-                  : 'تم رصد مغادرة نافذة الامتحان أو محاولة أخذ لقطة شاشة. تم حجب الأسئلة فوراً لحماية السرية ومنع التسريب.'}
+                  ? (isAr
+                      ? 'تم تجاوز الحد المسموح به لمغادرة النافذة أو محاولة تصوير الشاشة. تم تسليم الامتحان وإنهاء الجلسة فوراً.'
+                      : 'Allowed limit for window departure or screenshot attempt exceeded. The exam has been submitted immediately.')
+                  : (isAr
+                      ? 'تم رصد مغادرة نافذة الامتحان أو محاولة أخذ لقطة شاشة. تم حجب الأسئلة فوراً لحماية السرية ومنع التسريب.'
+                      : 'Tab switching or screenshot detected. Questions locked to protect test integrity.')}
               </p>
             </div>
 
-            <div className="bg-slate-800/90 rounded-xl p-3 border border-slate-700 text-xs text-slate-300 space-y-1.5 text-right font-mono">
+            <div className={`bg-slate-800/90 rounded-xl p-3 border border-slate-700 text-xs text-slate-300 space-y-1.5 font-mono ${isAr ? 'text-right' : 'text-left'}`}>
               <div className="flex justify-between font-semibold">
-                <span className="text-slate-400">الطالب:</span>
+                <span className="text-slate-400">{isAr ? 'الطالب:' : 'Student:'}</span>
                 <span className="text-white">{studentName} ({studentCode})</span>
               </div>
               {studentPhone && (
                 <div className="flex justify-between font-semibold">
-                  <span className="text-slate-400">رقم الهاتف:</span>
+                  <span className="text-slate-400">{isAr ? 'رقم الهاتف:' : 'Phone:'}</span>
                   <span className="text-white">{studentPhone}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-amber-400">
-                <span>المخالفات المسجلة:</span>
-                <span>{violations} من {maxViolations}</span>
+                <span>{isAr ? 'المخالفات المسجلة:' : 'Recorded Violations:'}</span>
+                <span>{violations} {isAr ? 'من' : 'of'} {maxViolations}</span>
               </div>
             </div>
 
@@ -374,16 +391,20 @@ export function ExamSecurityShield({
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg transition-all transform active:scale-95 flex items-center justify-center gap-2"
               >
                 <EyeOff className="h-4 w-4" />
-                {lockCountdown > 0 ? `انتظر (${lockCountdown} ثوانٍ) لفك الحظر...` : 'العودة فوراً لمتابعة الامتحان'}
+                {lockCountdown > 0
+                  ? (isAr ? `انتظر (${lockCountdown} ثوانٍ) لفك الحظر...` : `Wait (${lockCountdown}s) to unlock...`)
+                  : (isAr ? 'العودة فوراً لمتابعة الامتحان' : 'Return to Exam')}
               </button>
             ) : (
               <div className="p-3 rounded-xl bg-red-950/80 border border-red-800 text-red-300 text-xs font-bold">
-                🔒 تم تسليم الامتحان رسمياً وقفل الجلسة
+                {isAr ? '🔒 تم تسليم الامتحان رسمياً وقفل الجلسة' : '🔒 Exam submitted and session locked'}
               </div>
             )}
 
             <p className="text-[11px] text-slate-500">
-              ⚠️ تنبيه: نظام المراقبة يسجل أي خروج أو تبديل للتطبيقات ويسلمه تلقائياً.
+              {isAr
+                ? '⚠️ تنبيه: نظام المراقبة يسجل أي خروج أو تبديل للتطبيقات ويسلمه تلقائياً.'
+                : '⚠️ Notice: Security proctoring logs app-switching and auto-submits.'}
             </p>
           </div>
         </div>

@@ -18,6 +18,18 @@ import { getLatestStudentSubmission } from '@/lib/analytics';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const GRADE_NAMES_EN: Record<string, string> = {
+  'الصف الثالث الإعدادي': 'Grade 9 (Prep 3)',
+  'الصف الثاني الإعدادي': 'Grade 8 (Prep 2)',
+  'الصف الأول الإعدادي': 'Grade 7 (Prep 1)',
+  'الصف الثالث الثانوي': 'Grade 12 (Sec 3)',
+  'الصف الثاني الثانوي': 'Grade 11 (Sec 2)',
+  'الصف الأول الثانوي': 'Grade 10 (Sec 1)',
+  'الصف السادس الابتدائي': 'Grade 6 (Primary 6)',
+  'الصف الخامس الابتدائي': 'Grade 5 (Primary 5)',
+  'الصف الرابع الابتدائي': 'Grade 4 (Primary 4)',
+};
+
 export default async function StudentDashboardPage({
   params,
 }: {
@@ -25,6 +37,7 @@ export default async function StudentDashboardPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let student: any = null;
   try {
@@ -34,7 +47,7 @@ export default async function StudentDashboardPage({
   }
 
   const studentId = student?.id ?? '';
-  const studentName = student?.name ?? 'طالب';
+  const studentName = student?.name ?? (isAr ? 'طالب' : 'Student');
 
   let activeLive: any[] = [];
   let assignments: any[] = [];
@@ -150,26 +163,30 @@ export default async function StudentDashboardPage({
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-10" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-10" dir={isAr ? 'rtl' : 'ltr'}>
 
       {/* ── Welcome Bar ─────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">لوحة تحكم الطالب</h1>
+          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'لوحة تحكم الطالب' : 'Student Dashboard'}
+          </h1>
           <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-            مرحباً {studentName} — الصف الدراسي:{' '}
-            <span className="font-semibold text-accent">{student?.grade || 'الصف الثالث الإعدادي'}</span>
+            {isAr ? `مرحباً ${studentName} — الصف الدراسي: ` : `Welcome back, ${studentName} — Grade: `}
+            <span className="font-semibold text-accent">
+              {isAr ? (student?.grade || 'الصف الثالث الإعدادي') : (GRADE_NAMES_EN[student?.grade] || student?.grade || 'Grade 9 (Prep 3)')}
+            </span>
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Link href={`/${locale}/student/redeem`}>
             <Button size="sm" variant="primary" className="text-xs flex items-center gap-1.5 shadow-sm">
               <Ticket className="h-3.5 w-3.5" />
-              تفعيل كود حصة جديدة
+              {isAr ? 'تفعيل كود حصة جديدة' : 'Redeem Session Code'}
             </Button>
           </Link>
           <code className="text-xs font-mono font-bold text-accent bg-accent-light px-3 py-1.5 rounded-lg border border-accent/20">
-            كود الطالب: {student?.studentCode || student?.id || '—'}
+            {isAr ? 'كود الطالب:' : 'Student Code:'} {student?.studentCode || student?.id || '—'}
           </code>
         </div>
       </div>
@@ -195,12 +212,14 @@ export default async function StudentDashboardPage({
             <div>
               <p className="font-bold text-accent-text flex items-center gap-1.5 text-base">
                 <Wifi className="h-4 w-4" strokeWidth={2} />
-                بث مباشر تفاعلي نشط: {activeLive[0].title || 'حصة الرياضيات'}
+                {isAr ? 'بث مباشر تفاعلي نشط: ' : 'Active Interactive Live Stream: '}
+                {activeLive[0].title || (isAr ? 'حصة الرياضيات' : 'Live Class')}
               </p>
               <p className="text-sm text-accent-text/70 mt-1">
-                الفصل: <strong>{activeLive[0].classroom?.name || 'الفصل التعليمي'}</strong>
+                {isAr ? 'الفصل: ' : 'Classroom: '}
+                <strong>{activeLive[0].classroom?.name || (isAr ? 'الفصل التعليمي' : 'Academic Class')}</strong>
                 {' · '}
-                كود الغرفة:{' '}
+                {isAr ? 'كود الغرفة: ' : 'Room Code: '}
                 <code className="font-mono font-bold text-accent-text bg-white dark:bg-n-100 px-2 py-0.5 rounded border border-accent/20">
                   {activeLive[0].roomCode || 'LIVE-ROOM'}
                 </code>
@@ -212,7 +231,7 @@ export default async function StudentDashboardPage({
           >
             <Button size="md" variant="primary">
               <Wifi className="h-4 w-4" strokeWidth={2} />
-              انضمام الآن
+              {isAr ? 'انضمام الآن' : 'Join Now'}
             </Button>
           </Link>
         </div>
@@ -225,9 +244,11 @@ export default async function StudentDashboardPage({
         <div className={sectionTitle}>
           <h2 className={h2}>
             <ClipboardList className="h-5 w-5 text-accent" strokeWidth={1.75} />
-            الاختبارات المتاحة
+            {isAr ? 'الاختبارات المتاحة' : 'Available Exams'}
           </h2>
-          <Link href={`/${locale}/student/quizzes`} className={seeAll}>عرض الكل</Link>
+          <Link href={`/${locale}/student/quizzes`} className={seeAll}>
+            {isAr ? 'عرض الكل' : 'View All'}
+          </Link>
         </div>
 
         <StudentDashboardQuizzesClient
@@ -253,9 +274,11 @@ export default async function StudentDashboardPage({
         <div className={sectionTitle}>
           <h2 className={h2}>
             <FileText className="h-5 w-5 text-accent" strokeWidth={1.75} />
-            الواجبات والتسليمات
+            {isAr ? 'الواجبات والتسليمات' : 'Assignments & Submissions'}
           </h2>
-          <Link href={`/${locale}/student/assignments`} className={seeAll}>عرض الكل</Link>
+          <Link href={`/${locale}/student/assignments`} className={seeAll}>
+            {isAr ? 'عرض الكل' : 'View All'}
+          </Link>
         </div>
 
         <StudentDashboardAssignmentsClient
@@ -265,7 +288,7 @@ export default async function StudentDashboardPage({
             description: a.description || '',
             dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
             maxScore: a.maxScore ?? 10,
-            classroomName: a.classroom?.name || 'فصل الرياضيات',
+            classroomName: a.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Classroom'),
             submissions: a.submissions || [],
           }))}
           studentId={studentId}
@@ -280,10 +303,10 @@ export default async function StudentDashboardPage({
         <div className={sectionTitle}>
           <h2 className={h2}>
             <Layers className="h-5 w-5 text-accent" strokeWidth={1.75} />
-            المذكرات والملخصات
+            {isAr ? 'المذكرات والملخصات' : 'Notes & Summaries'}
           </h2>
           <span className="text-[11px] text-n-400 bg-n-100 dark:bg-n-200 border border-n-200 dark:border-n-300 px-2 py-0.5 rounded-full">
-            PDF مع علامة مائية
+            {isAr ? 'PDF مع علامة مائية' : 'Watermarked PDF'}
           </span>
         </div>
 
@@ -298,17 +321,21 @@ export default async function StudentDashboardPage({
                     ? 'text-warn border-warn/30 bg-warn-light'
                     : 'text-accent border-accent/30 bg-accent-light'
                 }`}>
-                  {r.type === 'SUMMARY' ? 'ملخص' : r.type === 'HOMEWORK_SOLUTION' ? 'حل' : 'PDF'}
+                  {r.type === 'SUMMARY'
+                    ? (isAr ? 'ملخص' : 'Summary')
+                    : r.type === 'HOMEWORK_SOLUTION'
+                    ? (isAr ? 'حل' : 'Solution')
+                    : 'PDF'}
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-n-800 dark:text-n-700 truncate">{r.title}</p>
-                  <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || 'فصل الرياضيات'}</p>
+                  <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Classroom')}</p>
                 </div>
               </div>
               <a href={r.fileUrl || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">
                 <Button size="sm" variant="secondary">
                   <Download className="h-3.5 w-3.5" />
-                  تحميل
+                  {isAr ? 'تحميل' : 'Download'}
                 </Button>
               </a>
             </div>

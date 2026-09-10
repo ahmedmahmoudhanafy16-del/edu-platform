@@ -59,6 +59,8 @@ export default async function TeacherReportsPage({
     ];
   }
 
+  const isAr = locale === 'ar';
+
   const studentReports = (students || []).map((s) => {
     // Merge database results with in-memory store
     const dbQuizIds = new Set((s.quizResults || []).map((r: any) => r.quizId || r.id));
@@ -75,10 +77,10 @@ export default async function TeacherReportsPage({
     return {
       id: s.id,
       name: s.name,
-      studentCode: s.studentCode || '—',
+      studentCode: s.studentCode,
       phone: s.phone || '—',
       parentPhone: s.parentPhone || s.phone || '—',
-      grade: s.grade || 'الصف الثالث الإعدادي',
+      grade: s.grade || (isAr ? 'الصف الثالث الإعدادي' : '3rd Preparatory Grade'),
       avgScore: scorePct,
       latestScore: latest ? latest.score : null,
       latestMaxScore: latest ? latest.maxScore : null,
@@ -87,19 +89,21 @@ export default async function TeacherReportsPage({
       examsCompleted: combinedResults.length,
       homeworkCompleted: s.submissions?.length ?? 0,
       attendanceCount: s.attendance?.length ?? 0,
-      status: scorePct >= 65 ? 'ممتاز' : 'يحتاج متابعة',
+      status: scorePct >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Attention'),
     };
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
         <h1 className="text-2xl font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
           <BarChart3 className="h-6 w-6 text-accent" />
-          التقارير الأكاديمية وتحليلات الأداء
+          {isAr ? 'التقارير الأكاديمية وتحليلات الأداء' : 'Academic Reports & Performance Analytics'}
         </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          تصدير كشوف الدرجات، إحصائيات الحضور، وإرسال تنبيهات واتساب جماعية لأولياء الأمور
+          {isAr
+            ? 'تصدير كشوف الدرجات، إحصائيات الحضور، وإرسال تنبيهات واتساب جماعية لأولياء الأمور'
+            : 'Export grade rosters, attendance stats, and broadcast WhatsApp alerts to parents'}
         </p>
       </div>
 

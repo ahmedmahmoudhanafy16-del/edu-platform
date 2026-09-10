@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import { X, FileText, Plus, Calendar, Edit, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,8 @@ export function CreateAssignmentModal({
   onSuccess,
   assignmentToEdit,
 }: CreateAssignmentModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const isEditing = Boolean(assignmentToEdit && assignmentToEdit.id);
 
   const [title, setTitle] = useState('');
@@ -81,7 +84,7 @@ export function CreateAssignmentModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      toast.error('يرجى كتابة عنوان الواجب');
+      toast.error(isAr ? 'يرجى كتابة عنوان الواجب' : 'Please enter assignment title');
       return;
     }
 
@@ -121,8 +124,8 @@ export function CreateAssignmentModal({
 
       toast.success(
         isEditing
-          ? `تم تحديث الواجب "${title}" بنجاح!`
-          : `تم نشر الواجب "${title}" للطلاب بنجاح!`
+          ? (isAr ? `تم تحديث الواجب "${title}" بنجاح!` : `Assignment "${title}" updated successfully!`)
+          : (isAr ? `تم نشر الواجب "${title}" للطلاب بنجاح!` : `Assignment "${title}" published successfully!`)
       );
       
       onSuccess(returnedAssignment);
@@ -140,7 +143,7 @@ export function CreateAssignmentModal({
         submissions: [],
       };
       saveAssignment(fallbackAssignment as any);
-      toast.success(`تم حفظ الواجب "${title}" بنجاح!`);
+      toast.success(isAr ? `تم حفظ الواجب "${title}" بنجاح!` : `Assignment "${title}" saved successfully!`);
       onSuccess(fallbackAssignment);
       onClose();
     } finally {
@@ -149,7 +152,10 @@ export function CreateAssignmentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir="rtl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-lg overflow-hidden shadow-modal">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n-200 dark:border-n-300">
@@ -159,12 +165,14 @@ export function CreateAssignmentModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-n-800 dark:text-n-700">
-                {isEditing ? 'تعديل بيانات الواجب الدراسي' : 'إضافة واجب دراسي جديد'}
+                {isEditing
+                  ? (isAr ? 'تعديل بيانات الواجب الدراسي' : 'Edit Assignment Details')
+                  : (isAr ? 'إضافة واجب دراسي جديد' : 'Create New Assignment')}
               </h3>
               <p className="text-xs text-n-400">
                 {isEditing
-                  ? 'تحديث تفاصيل التكليف، تاريخ الاستحقاق، والدرجة القصوى'
-                  : 'سيظهر فوراً لجميع طلاب الفصل المحدد'}
+                  ? (isAr ? 'تحديث تفاصيل التكليف، تاريخ الاستحقاق، والدرجة القصوى' : 'Update assignment details, due date, and max points')
+                  : (isAr ? 'سيظهر فوراً لجميع طلاب الفصل المحدد' : 'Visible immediately to all students in this classroom')}
               </p>
             </div>
           </div>
@@ -180,21 +188,21 @@ export function CreateAssignmentModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              عنوان الواجب:
+              {isAr ? 'عنوان الواجب:' : 'Assignment Title:'}
             </label>
             <Input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="مثال: حل تدريبات درس التحليل التبادلي"
+              placeholder={isAr ? 'مثال: حل تدريبات درس التحليل التبادلي' : 'e.g. Unit 3 Homework Exercises'}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                الفصل الدراسي:
+                {isAr ? 'الفصل الدراسي:' : 'Classroom:'}
               </label>
               <select
                 value={classroomId}
@@ -211,7 +219,7 @@ export function CreateAssignmentModal({
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                الدرجة القصوى:
+                {isAr ? 'الدرجة القصوى:' : 'Max Points:'}
               </label>
               <Input
                 type="number"
@@ -225,7 +233,7 @@ export function CreateAssignmentModal({
 
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              آخر موعد للتسليم:
+              {isAr ? 'آخر موعد للتسليم:' : 'Due Date:'}
             </label>
             <Input
               type="date"
@@ -237,31 +245,31 @@ export function CreateAssignmentModal({
 
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              تفاصيل وتعليمات الواجب:
+              {isAr ? 'تفاصيل وتعليمات الواجب:' : 'Instructions & Details:'}
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="اكتب أرقام الصفحات أو المسائل المطلوبة بالتفصيل..."
+              placeholder={isAr ? 'اكتب أرقام الصفحات أو المسائل المطلوبة بالتفصيل...' : 'Enter page numbers or questions in detail...'}
               className="w-full p-3 rounded-xl border border-n-200 dark:border-n-300 bg-n-50 dark:bg-n-200 text-xs text-n-800 dark:text-n-700 outline-none focus:border-accent"
             />
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-100 dark:border-n-200">
             <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={loading}>
-              إلغاء
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button type="submit" loading={loading} size="md" variant="primary" className="font-semibold">
               {isEditing ? (
                 <>
                   <Check className="h-4 w-4 me-1" />
-                  حفظ التعديلات
+                  {isAr ? 'حفظ التعديلات' : 'Save Changes'}
                 </>
               ) : (
                 <>
                   <Plus className="h-4 w-4 me-1" />
-                  نشر الواجب للطلاب
+                  {isAr ? 'نشر الواجب للطلاب' : 'Publish to Students'}
                 </>
               )}
             </Button>

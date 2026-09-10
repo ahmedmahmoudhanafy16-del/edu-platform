@@ -94,12 +94,18 @@ export function StudentQuizzesListClient({
     };
   }, [studentId]);
 
+  const isAr = locale === 'ar';
+
   if (quizzes.length === 0) {
     return (
       <div className="col-span-full p-12 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100 shadow-sm">
         <ClipboardList className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-        <p className="text-sm font-semibold text-n-800 dark:text-n-700">لا توجد اختبارات متاحة حالياً</p>
-        <p className="text-xs text-n-400 mt-1">سيقوم المعلم بنشر الاختبارات الجديدة هنا قريباً</p>
+        <p className="text-sm font-semibold text-n-800 dark:text-n-700">
+          {isAr ? 'لا توجد اختبارات متاحة حالياً' : 'No exams available at the moment'}
+        </p>
+        <p className="text-xs text-n-400 mt-1">
+          {isAr ? 'سيقوم المعلم بنشر الاختبارات الجديدة هنا قريباً' : 'The teacher will publish new exams here soon'}
+        </p>
       </div>
     );
   }

@@ -14,6 +14,7 @@ export default async function StudentQuizzesPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let student: any = null;
   try {
@@ -21,7 +22,7 @@ export default async function StudentQuizzesPage({
   } catch (e) {}
 
   const studentId = student?.id || '';
-  const studentName = student?.name || 'طالب';
+  const studentName = student?.name || (isAr ? 'طالب' : 'Student');
 
   let quizzes: any[] = [];
   let dbResults: any[] = [];
@@ -122,14 +123,16 @@ export default async function StudentQuizzesPage({
   }));
 
   return (
-    <div dir="rtl" className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div dir={isAr ? 'rtl' : 'ltr'} className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-accent" />
-          بنك الاختبارات والامتحانات
+          {isAr ? 'بنك الاختبارات والامتحانات' : 'Exams & Quizzes Bank'}
         </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          مرحباً {studentName} — الاختبارات الأسبوعية والشهرية التفاعلية مع رصد الدرجات والتصحيح الفوري
+          {isAr
+            ? `مرحباً ${studentName} — الاختبارات الأسبوعية والشهرية التفاعلية مع رصد الدرجات والتصحيح الفوري`
+            : `Welcome ${studentName} — Interactive weekly and monthly exams with instant grading and scoring`}
         </p>
       </div>
 

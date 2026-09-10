@@ -38,7 +38,7 @@ interface Quiz {
  * and option choices for every student attempt to prevent copying and leaks.
  * Strips any correct answers completely so client never receives them.
  */
-function normalizeQuestions(raw: any[], studentId?: string): Question[] {
+function normalizeQuestions(raw: any[], studentId?: string, isAr: boolean = true): Question[] {
   if (!Array.isArray(raw) || raw.length === 0) return [];
 
   const parsed: Question[] = raw.map((q, idx) => {
@@ -65,7 +65,7 @@ function normalizeQuestions(raw: any[], studentId?: string): Question[] {
 
     return {
       id: q.id || `q-${idx + 1}`,
-      text: q.text || `السؤال ${idx + 1}`,
+      text: q.text || (isAr ? `السؤال ${idx + 1}` : `Question ${idx + 1}`),
       type: q.type || 'MCQ',
       options: randomizedOptions,
       maxScore: Number(q.maxScore) || 5,
@@ -87,6 +87,7 @@ export function QuizRunner({
   initialTimeLeft?: number;
 }) {
   const router = useRouter();
+  const isAr = locale === 'ar';
   const [mounted, setMounted] = useState(false);
   const [activeQuiz, setActiveQuiz] = useState<Quiz>(quiz);
 
@@ -96,13 +97,13 @@ export function QuizRunner({
     studentCode: string;
     phone: string;
   }>({
-    name: 'طالب مسجل',
+    name: isAr ? 'طالب مسجل' : 'Enrolled Student',
     studentCode: studentId || 'STU-001',
     phone: '',
   });
 
   const [questions, setQuestions] = useState<Question[]>(() =>
-    normalizeQuestions(quiz?.questions || [], studentId)
+    normalizeQuestions(quiz?.questions || [], studentId, isAr)
   );
 
   const [current, setCurrent] = useState(0);
@@ -137,14 +138,14 @@ export function QuizRunner({
         const parsed = JSON.parse(stored);
         if (parsed) {
           setStudentInfo({
-            name: parsed.name || 'طالب مسجل',
+            name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
             studentCode: parsed.studentCode || parsed.id || studentId || 'STU-001',
             phone: parsed.phone || '',
           });
         }
       }
     } catch {}
-  }, [studentId]);
+  }, [studentId, isAr]);
 
   // 2. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
   useEffect(() => {
@@ -171,7 +172,8 @@ export function QuizRunner({
             if (Array.isArray(match.questions) && match.questions.length > 0) {
               const syncedQuestions = normalizeQuestions(
                 match.questions,
-                studentId
+                studentId,
+                isAr
               );
               setQuestions(syncedQuestions);
             }
@@ -181,7 +183,7 @@ export function QuizRunner({
     } catch (err) {
       console.warn('[QuizRunner] Local storage sync error:', err);
     }
-  }, [mounted, quiz.id, quiz.accessCode, studentId]);
+  }, [mounted, quiz.id, quiz.accessCode, studentId, isAr]);
 
   // Restore autosaved answers
   useEffect(() => {
@@ -190,10 +192,10 @@ export function QuizRunner({
       const saved = localStorage.getItem(autosaveKey);
       if (saved) {
         setAnswers(JSON.parse(saved));
-        toast.info('تم استعادة إجاباتك المحفوظة تلقائياً');
+        toast.info(isAr ? 'تم استعادة إجاباتك المحفوظة تلقائياً' : 'Your saved answers have been automatically restored');
       }
     } catch {}
-  }, [mounted, autosaveKey]);
+  }, [mounted, autosaveKey, isAr]);
 
   // Autosave answers to localStorage
   useEffect(() => {
@@ -320,9 +322,9 @@ export function QuizRunner({
         });
         setSubmitted(true);
         if (auto) {
-          toast.info('تم تسليم الامتحان تلقائياً');
+          toast.info(isAr ? 'تم تسليم الامتحان تلقائياً' : 'Exam submitted automatically');
         } else {
-          toast.success('تم تسليم الامتحان بنجاح');
+          toast.success(isAr ? 'تم تسليم الامتحان بنجاح' : 'Exam submitted successfully');
         }
       } catch (e: any) {
         console.error('[QuizRunner] Fatal handleSubmit fallback:', e);
@@ -373,12 +375,12 @@ export function QuizRunner({
 
         setResult(fallbackRes);
         setSubmitted(true);
-        toast.success('تم استلام إجاباتك بنجاح');
+        toast.success(isAr ? 'تم استلام إجاباتك بنجاح' : 'Your answers have been received successfully');
       } finally {
         setSubmitting(false);
       }
     },
-    [questions, answers, activeQuiz.id, activeQuiz.title, quiz.id, quiz.title, studentId, submitted, autosaveKey]
+    [questions, answers, activeQuiz.id, activeQuiz.title, quiz.id, quiz.title, studentId, submitted, autosaveKey, isAr]
   );
 
   // Anti-cheat: tab switch detection (client only)
@@ -389,10 +391,14 @@ export function QuizRunner({
         setViolations((prev) => {
           const next = prev + 1;
           if (next >= (activeQuiz?.maxViolations ?? 3)) {
-            toast.error('تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!');
+            toast.error(isAr ? 'تم تسليم الامتحان تلقائياً بسبب مغادرة النافذة!' : 'Exam submitted automatically due to leaving the window!');
             handleSubmit(true);
           } else {
-            toast.warning(`تحذير: غادرت نافذة الامتحان! (${next}/${activeQuiz?.maxViolations ?? 3})`);
+            toast.warning(
+              isAr
+                ? `تحذير: غادرت نافذة الامتحان! (${next}/${activeQuiz?.maxViolations ?? 3})`
+                : `Warning: You left the exam window! (${next}/${activeQuiz?.maxViolations ?? 3})`
+            );
           }
           return next;
         });
@@ -401,7 +407,7 @@ export function QuizRunner({
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [mounted, activeQuiz?.maxViolations, submitted, handleSubmit]);
+  }, [mounted, activeQuiz?.maxViolations, submitted, handleSubmit, isAr]);
 
   // Timer countdown (client only)
   useEffect(() => {
@@ -420,11 +426,19 @@ export function QuizRunner({
 
     if (questionTimeLeft <= 0) {
       if (current < questions.length - 1) {
-        toast.warning(`انتهى وقت السؤال (${current + 1})! تم الانتقال للسؤال التالي وقفل السؤال السابق.`);
+        toast.warning(
+          isAr
+            ? `انتهى وقت السؤال (${current + 1})! تم الانتقال للسؤال التالي وقفل السؤال السابق.`
+            : `Time is up for question (${current + 1})! Moved to next question and locked previous.`
+        );
         setCurrent((p) => p + 1);
         setQuestionTimeLeft(secondsPerQuestion);
       } else {
-        toast.error('انتهى وقت السؤال الأخير! جاري تسليم الامتحان تلقائياً...');
+        toast.error(
+          isAr
+            ? 'انتهى وقت السؤال الأخير! جاري تسليم الامتحان تلقائياً...'
+            : 'Time is up for the last question! Submitting exam automatically...'
+        );
         handleSubmit(true);
       }
       return;
@@ -443,14 +457,18 @@ export function QuizRunner({
   // Empty questions state guard
   if (!questions || questions.length === 0) {
     return (
-      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4 shadow-sm" dir="rtl">
+      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-4 shadow-sm" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="w-16 h-16 rounded-full bg-accent-light text-accent flex items-center justify-center mx-auto">
           <FileQuestion className="h-8 w-8" />
         </div>
         <h1 className="text-xl font-bold text-n-800 dark:text-n-700">{activeQuiz.title}</h1>
-        <p className="text-xs text-n-500">لا توجد أسئلة مضافة في هذا الاختبار حالياً أو الاختبار قيد التجهيز من قبل المعلم.</p>
+        <p className="text-xs text-n-500">
+          {isAr
+            ? 'لا توجد أسئلة مضافة في هذا الاختبار حالياً أو الاختبار قيد التجهيز من قبل المعلم.'
+            : 'No questions have been added to this exam yet or it is being prepared by the teacher.'}
+        </p>
         <Button onClick={() => router.push(`/${locale}/student/quizzes`)} className="w-full">
-          العودة لقائمة الامتحانات
+          {isAr ? 'العودة لقائمة الامتحانات' : 'Back to Quizzes'}
         </Button>
       </div>
     );
@@ -460,20 +478,31 @@ export function QuizRunner({
 
   if (submitted && result) {
     return (
-      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-5 shadow-sm" dir="rtl">
+      <div className="max-w-xl mx-auto bg-white dark:bg-n-100 rounded-xl border border-n-200 dark:border-n-300 p-8 text-center space-y-5 shadow-sm" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="w-16 h-16 rounded-full bg-ok-light text-ok flex items-center justify-center mx-auto text-2xl font-bold">
           ✓
         </div>
-        <h1 className="text-xl font-bold text-n-800 dark:text-n-700">تم تسليم الامتحان بنجاح</h1>
+        <h1 className="text-xl font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'تم تسليم الامتحان بنجاح' : 'Exam Submitted Successfully'}
+        </h1>
         {result.status === 'PENDING' ? (
-          <p className="text-xs text-n-500">الأسئلة المقالية قيد التصحيح من قبل المعلم. ستظهر النتيجة فور اكتمالها.</p>
+          <p className="text-xs text-n-500">
+            {isAr
+              ? 'الأسئلة المقالية قيد التصحيح من قبل المعلم. ستظهر النتيجة فور اكتمالها.'
+              : 'Essay questions are pending grading by the teacher. The result will appear once completed.'}
+          </p>
         ) : (
           <div className="py-2 space-y-1">
             <p className="text-3xl font-bold text-accent">
               <span dir="ltr">{result.autoScore ?? result.totalScore ?? 0} / {result.maxScore ?? 0}</span>
             </p>
             <p className="text-xs font-semibold">
-              النتيجة: {result.isPassed ? <span className="text-ok">ناجح ✓</span> : <span className="text-bad">راسب ✕</span>}
+              {isAr ? 'النتيجة:' : 'Result:'}{' '}
+              {result.isPassed ? (
+                <span className="text-ok">{isAr ? 'ناجح ✓' : 'Passed ✓'}</span>
+              ) : (
+                <span className="text-bad">{isAr ? 'راسب ✕' : 'Failed ✕'}</span>
+              )}
             </p>
           </div>
         )}
@@ -482,7 +511,7 @@ export function QuizRunner({
         <div className="pt-2">
           <Link href={`/${locale}/student/quizzes/${activeQuiz.id || quiz.id}/review`} className="block w-full">
             <Button variant="primary" className="w-full text-xs font-bold py-2.5 shadow-sm">
-              مراجعة الإجابات وتصحيح الأخطاء 📝
+              {isAr ? 'مراجعة الإجابات وتصحيح الأخطاء 📝' : 'Review Answers & Corrections 📝'}
             </Button>
           </Link>
         </div>
@@ -496,7 +525,7 @@ export function QuizRunner({
             variant="secondary"
             className="w-full sm:flex-1 text-xs"
           >
-            العودة للوحة الطالب
+            {isAr ? 'العودة للوحة الطالب' : 'Back to Dashboard'}
           </Button>
           <Button
             onClick={() => {
@@ -506,14 +535,22 @@ export function QuizRunner({
             variant="secondary"
             className="w-full sm:flex-1 text-xs"
           >
-            عرض سجل الدرجات
+            {isAr ? 'عرض سجل الدرجات' : 'View Grades Record'}
           </Button>
         </div>
 
         {/* Retake Notice */}
         <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl text-center">
           <p className="text-[11px] text-amber-800 dark:text-amber-300">
-            💡 <strong>إعادة الامتحان:</strong> في حال واجهتك مشكلة تقنية أو انقطاع بالإنترنت، تواصل مع معلمك للحصول على <strong>كود إعادة استثنائي (Retake Code)</strong> لبدء محاولة جديدة.
+            {isAr ? (
+              <>
+                💡 <strong>إعادة الامتحان:</strong> في حال واجهتك مشكلة تقنية أو انقطاع بالإنترنت، تواصل مع معلمك للحصول على <strong>كود إعادة استثنائي (Retake Code)</strong> لبدء محاولة جديدة.
+              </>
+            ) : (
+              <>
+                💡 <strong>Exam Retake:</strong> If you experienced a technical issue or connection drop, contact your teacher to obtain an <strong>exceptional Retake Code</strong> to start a new attempt.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -521,7 +558,7 @@ export function QuizRunner({
   }
 
   return (
-    <div className="max-w-3xl mx-auto w-full space-y-4 exam-secure-area select-none relative" dir="rtl">
+    <div className="max-w-3xl mx-auto w-full space-y-4 exam-secure-area select-none relative" dir={isAr ? 'rtl' : 'ltr'}>
       {/* 🛡️ Universal Exam Security Shield (Anti-Copy, Anti-Screenshot, Tab-Switch Detection, Dynamic Watermark) */}
       <ExamSecurityShield
         studentName={studentInfo.name}
@@ -538,10 +575,14 @@ export function QuizRunner({
       <div className="flex items-center justify-between gap-2 px-3.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold">
         <div className="flex items-center gap-1.5">
           <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>حماية مشددة: الترتيب عشوائي • حظر مغادرة الصفحة • إنهاء فوري عند محاولة الغش</span>
+          <span>
+            {isAr
+              ? 'حماية مشددة: الترتيب عشوائي • حظر مغادرة الصفحة • إنهاء فوري عند محاولة الغش'
+              : 'Strict Proctoring: Randomized order • Tab leaving blocked • Instant finish on cheat attempt'}
+          </span>
         </div>
         <span className="text-[10px] font-mono text-emerald-600/80 dark:text-emerald-400/80 hidden sm:inline">
-          طالب: {studentInfo.studentCode}
+          {isAr ? 'طالب:' : 'Student:'} {studentInfo.studentCode}
         </span>
       </div>
 
@@ -550,14 +591,16 @@ export function QuizRunner({
         <div>
           <p className="text-sm font-bold text-n-800 dark:text-n-700">{activeQuiz.title}</p>
           <p className="text-xs text-n-400 mt-0.5">
-            السؤال {current + 1} من {questions.length} (ترتيب عشوائي خاص بك)
+            {isAr
+              ? `السؤال ${current + 1} من ${questions.length} (ترتيب عشوائي خاص بك)`
+              : `Question ${current + 1} of ${questions.length} (Your randomized order)`}
           </p>
         </div>
         <div className="flex items-center gap-3">
           {violations > 0 && (
             <span className="flex items-center gap-1 text-xs text-red-600 bg-red-50 dark:bg-red-950/50 px-2 py-1 rounded border border-red-200 font-bold animate-pulse">
               <AlertTriangle className="h-3.5 w-3.5" />
-              {violations} مخالفة مسجلة
+              {violations} {isAr ? 'مخالفة مسجلة' : 'violation(s)'}
             </span>
           )}
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-n-100 dark:bg-n-200 text-n-800 font-mono text-sm font-bold border border-n-200">
@@ -580,7 +623,7 @@ export function QuizRunner({
                 }
               } catch {}
             }}
-            title="وضع ملء الشاشة الكامل"
+            title={isAr ? 'وضع ملء الشاشة الكامل' : 'Toggle Fullscreen'}
             className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 hover:text-accent hover:bg-n-50 dark:hover:bg-n-200 transition-colors"
           >
             <Maximize2 className="h-4 w-4" />
@@ -601,7 +644,9 @@ export function QuizRunner({
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-n-600 dark:text-n-400">
-              السؤال {current + 1} من {questions.length}
+              {isAr
+                ? `السؤال ${current + 1} من ${questions.length}`
+                : `Question ${current + 1} of ${questions.length}`}
             </span>
             <div
               className={cn(
@@ -614,13 +659,21 @@ export function QuizRunner({
               )}
             >
               <Timer className="h-3.5 w-3.5" />
-              <span>متبقي للسؤال: {questionTimeLeft} ثانية</span>
+              <span>
+                {isAr
+                  ? `متبقي للسؤال: ${questionTimeLeft} ثانية`
+                  : `Question time left: ${questionTimeLeft}s`}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-1 text-[11px] font-semibold text-amber-800 dark:text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
             <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-            <span>نمط خطي مشدد: لا يمكن الرجوع بعد الانتقال</span>
+            <span>
+              {isAr
+                ? 'نمط خطي مشدد: لا يمكن الرجوع بعد الانتقال'
+                : 'Strict Linear Mode: Cannot return to previous questions'}
+            </span>
           </div>
         </div>
 
@@ -646,15 +699,19 @@ export function QuizRunner({
       <div className="exam-secure-area-content rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100 p-6 space-y-4 shadow-sm relative">
         {/* Inline Student Identity Watermark Header */}
         <div className="flex items-center justify-between pb-2 border-b border-n-100 dark:border-n-200 text-[11px] font-mono text-amber-700 dark:text-amber-400 font-bold select-none">
-          <span>🔒 نسخة امتحان خاصة بالطالب: {studentInfo.name} ({studentInfo.studentCode})</span>
-          <span>{studentInfo.phone ? `هاتف: ${studentInfo.phone}` : 'سري وخاص'}</span>
+          <span>
+            {isAr
+              ? `🔒 نسخة امتحان خاصة بالطالب: ${studentInfo.name} (${studentInfo.studentCode})`
+              : `🔒 Private student exam copy: ${studentInfo.name} (${studentInfo.studentCode})`}
+          </span>
+          <span>{studentInfo.phone ? `${isAr ? 'هاتف' : 'Phone'}: ${studentInfo.phone}` : (isAr ? 'سري وخاص' : 'Confidential')}</span>
         </div>
 
         <div className="flex items-start gap-3">
           <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
             {current + 1}
           </span>
-          <p className="text-sm font-semibold text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || 'نص السؤال'}</p>
+          <p className="text-sm font-semibold text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || (isAr ? 'نص السؤال' : 'Question text')}</p>
         </div>
 
         {q?.type === 'MCQ' ? (
@@ -699,10 +756,14 @@ export function QuizRunner({
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-xs text-n-400">سؤال مقالي (الدرجة القصوى: {q?.maxScore ?? 5})</p>
+            <p className="text-xs text-n-400">
+              {isAr
+                ? `سؤال مقالي (الدرجة القصوى: ${q?.maxScore ?? 5})`
+                : `Essay Question (Max score: ${q?.maxScore ?? 5})`}
+            </p>
             <textarea
               rows={5}
-              placeholder="اكتب إجابتك بالتفصيل هنا..."
+              placeholder={isAr ? 'اكتب إجابتك بالتفصيل هنا...' : 'Write your detailed answer here...'}
               value={answers[q?.id] || ''}
               onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
               className="w-full rounded-lg border border-n-200 dark:border-n-300 bg-white dark:bg-n-200 p-3 text-sm text-n-800 dark:text-n-700 outline-none focus:border-accent"
@@ -716,7 +777,7 @@ export function QuizRunner({
         {isLinearMode ? (
           <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-n-100 dark:bg-n-200 text-n-400 dark:text-n-500 text-xs font-semibold border border-n-200 dark:border-n-300 cursor-not-allowed select-none">
             <Lock className="h-3.5 w-3.5 text-n-400" />
-            <span>السابق مغلق</span>
+            <span>{isAr ? 'السابق مغلق' : 'Previous Locked'}</span>
           </div>
         ) : (
           <Button
@@ -725,8 +786,8 @@ export function QuizRunner({
             disabled={current === 0}
             onClick={() => setCurrent((p) => Math.max(0, p - 1))}
           >
-            <ChevronRight className="h-4 w-4 ml-1" />
-            السابق
+            {isAr ? <ChevronRight className="h-4 w-4 ml-1" /> : <ChevronLeft className="h-4 w-4 mr-1" />}
+            {isAr ? 'السابق' : 'Previous'}
           </Button>
         )}
 
@@ -745,10 +806,10 @@ export function QuizRunner({
                 }}
                 title={
                   isCurrent
-                    ? 'السؤال الحالي النشط'
+                    ? (isAr ? 'السؤال الحالي النشط' : 'Current active question')
                     : isPast
-                    ? 'تم تجاوزه ومغلق (لا يمكن العودة)'
-                    : 'سؤال قادم'
+                    ? (isAr ? 'تم تجاوزه ومغلق (لا يمكن العودة)' : 'Passed and locked (cannot return)')
+                    : (isAr ? 'سؤال قادم' : 'Upcoming question')
                 }
                 className={cn(
                   'w-7 h-7 rounded text-xs font-bold border transition-colors flex items-center justify-center',
@@ -774,8 +835,8 @@ export function QuizRunner({
             }}
             className="font-bold gap-1.5"
           >
-            <span>تأكيد والتالي</span>
-            <ChevronLeft className="h-4 w-4" />
+            <span>{isAr ? 'تأكيد والتالي' : 'Confirm & Next'}</span>
+            {isAr ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </Button>
         ) : (
           <Button
@@ -786,7 +847,7 @@ export function QuizRunner({
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold gap-1.5"
           >
             <Send className="h-4 w-4" />
-            <span>تسليم الامتحان</span>
+            <span>{isAr ? 'تسليم الامتحان' : 'Submit Exam'}</span>
           </Button>
         )}
       </div>

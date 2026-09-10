@@ -11,14 +11,15 @@ export default async function StudentRedeemPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   const student = await getAuthenticatedStudent();
 
   return (
-    <div className="min-h-[75vh] flex items-center justify-center px-4 py-12" dir="rtl">
+    <div className="min-h-[75vh] flex items-center justify-center px-4 py-12" dir={isAr ? 'rtl' : 'ltr'}>
       <StudentRedeemClient
         locale={locale}
-        studentName={student?.name || 'الطالب'}
+        studentName={student?.name || (isAr ? 'الطالب' : 'Student')}
       />
     </div>
   );

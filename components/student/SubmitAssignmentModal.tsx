@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useLocale } from 'next-intl';
 import { X, Upload, CheckCircle2, Image as ImageIcon, Send, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitAssignment } from '@/actions/assignment';
@@ -32,6 +33,8 @@ export function SubmitAssignmentModal({
   onClose,
   onSuccess,
 }: SubmitAssignmentModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const [answerText, setAnswerText] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -50,12 +53,20 @@ export function SubmitAssignmentModal({
       const file = files[i];
 
       if (!allowedTypes.includes(file.type.toLowerCase())) {
-        toast.error(`الملف "${file.name}" غير مدعوم. يرجى رفع ملفات PDF أو صور فقط (JPG, PNG).`);
+        toast.error(
+          isAr
+            ? `الملف "${file.name}" غير مدعوم. يرجى رفع ملفات PDF أو صور فقط (JPG, PNG).`
+            : `File "${file.name}" is not supported. Please upload PDF or image files only (JPG, PNG).`
+        );
         continue;
       }
 
       if (file.size > maxBytes) {
-        toast.error(`حجم الملف "${file.name}" يتجاوز 5 ميجابايت.`);
+        toast.error(
+          isAr
+            ? `حجم الملف "${file.name}" يتجاوز 5 ميجابايت.`
+            : `File "${file.name}" exceeds 5MB.`
+        );
         continue;
       }
 
@@ -70,14 +81,14 @@ export function SubmitAssignmentModal({
 
     if (newFiles.length > 0) {
       setUploadedFiles((prev) => [...prev, ...newFiles]);
-      toast.success('تم فحص الملفات والتأكد من أمانها بنجاح');
+      toast.success(isAr ? 'تم فحص الملفات والتأكد من أمانها بنجاح' : 'Files scanned and verified safe successfully');
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!answerText.trim() && uploadedFiles.length === 0) {
-      toast.error('يرجى كتابة الإجابة أو إرفاق ملف الواجب');
+      toast.error(isAr ? 'يرجى كتابة الإجابة أو إرفاق ملف الواجب' : 'Please enter an answer or attach assignment files');
       return;
     }
 
@@ -97,7 +108,7 @@ export function SubmitAssignmentModal({
       if (!currentStudentId) currentStudentId = 'STU-001';
 
       const fullAnswer = uploadedFiles.length > 0
-        ? `${answerText}\n\n[مرفق ${uploadedFiles.length} ملف/صورة من حل الطالب]`
+        ? `${answerText}\n\n[${isAr ? 'مرفق' : 'Attached'} ${uploadedFiles.length} ${isAr ? 'ملف/صورة من حل الطالب' : 'file(s)/image(s) of student solution'}]`
         : answerText;
 
       const primaryFile = uploadedFiles[0] ? {
@@ -107,24 +118,28 @@ export function SubmitAssignmentModal({
       } : null;
 
       await submitAssignment(assignmentId, currentStudentId, fullAnswer, primaryFile);
-      toast.success('تم تسليم الواجب بنجاح وحُفظ في قاعدة البيانات! 🎉');
+      toast.success(isAr ? 'تم تسليم الواجب بنجاح وحُفظ في قاعدة البيانات! 🎉' : 'Assignment submitted successfully and saved! 🎉');
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'حدث خطأ أثناء تسليم الواجب');
+      toast.error(err.message || (isAr ? 'حدث خطأ أثناء تسليم الواجب' : 'An error occurred while submitting assignment'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">تسليم الواجب الدراسي</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{assignmentTitle} (الدرجة القصوى: {maxScore})</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              {isAr ? 'تسليم الواجب الدراسي' : 'Submit Assignment'}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {assignmentTitle} ({isAr ? 'الدرجة القصوى:' : 'Max Score:'} {maxScore})
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -138,25 +153,29 @@ export function SubmitAssignmentModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              الإجابة المكتوبة (اختياري إذا أرفقت ملفات الحل):
+              {isAr ? 'الإجابة المكتوبة (اختياري إذا أرفقت ملفات الحل):' : 'Written Answer (optional if files are attached):'}
             </label>
             <textarea
               rows={4}
               value={answerText}
               onChange={(e) => setAnswerText(e.target.value)}
-              placeholder="اكتب خطوات الحل أو ملاحظاتك هنا..."
+              placeholder={isAr ? 'اكتب خطوات الحل أو ملاحظاتك هنا...' : 'Write your solution steps or notes here...'}
               className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm text-slate-900 dark:text-white outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              ملف الواجب أو صور الكشكول (PDF أو صور - أقصى حد 5MB):
+              {isAr ? 'ملف الواجب أو صور الكشكول (PDF أو صور - أقصى حد 5MB):' : 'Assignment file or notebook photos (PDF or images - max 5MB):'}
             </label>
             <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-colors">
               <Upload className="h-6 w-6 text-blue-600 mb-1" />
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">اضغط لرفع ملف PDF أو صور الكشكول</span>
-              <span className="text-[11px] text-slate-400 mt-0.5">PDF, JPG, PNG حتى 5 ميجابايت</span>
+              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                {isAr ? 'اضغط لرفع ملف PDF أو صور الكشكول' : 'Click to upload PDF file or notebook photos'}
+              </span>
+              <span className="text-[11px] text-slate-400 mt-0.5">
+                {isAr ? 'PDF, JPG, PNG حتى 5 ميجابايت' : 'PDF, JPG, PNG up to 5MB'}
+              </span>
               <input
                 type="file"
                 multiple
@@ -169,7 +188,9 @@ export function SubmitAssignmentModal({
 
           {uploadedFiles.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold text-slate-500">الملفات المرفقة ({uploadedFiles.length}):</p>
+              <p className="text-[11px] font-semibold text-slate-500">
+                {isAr ? 'الملفات المرفقة' : 'Attached Files'} ({uploadedFiles.length}):
+              </p>
               <div className="flex flex-wrap gap-2">
                 {uploadedFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs">
@@ -188,11 +209,11 @@ export function SubmitAssignmentModal({
 
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100 dark:border-slate-800">
             <Button type="button" variant="secondary" size="md" onClick={onClose}>
-              إلغاء
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button type="submit" loading={loading} size="md" variant="primary">
               <Send className="h-4 w-4 me-1.5" />
-              تأكيد وتسليم الواجب
+              {isAr ? 'تأكيد وتسليم الواجب' : 'Confirm & Submit Assignment'}
             </Button>
           </div>
         </form>

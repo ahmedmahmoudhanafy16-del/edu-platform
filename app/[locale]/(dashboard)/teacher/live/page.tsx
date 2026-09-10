@@ -106,12 +106,18 @@ export default async function TeacherLivePage({
     endedAt: s.endedAt ? safeIsoString(s.endedAt) : null,
   }));
 
+  const isAr = locale === 'ar';
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">البث المباشر وغرفة التحكم</h1>
+        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'البث المباشر وغرفة التحكم' : 'Live Streaming & Control Room'}
+        </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          بدء الحصص التفاعلية، كتم الصوت، مشاركة الشاشة، وتسجيل حضور الطلاب التلقائي
+          {isAr
+            ? 'بدء الحصص التفاعلية، كتم الصوت، مشاركة الشاشة، وتسجيل حضور الطلاب التلقائي'
+            : 'Start interactive sessions, mute controls, screen sharing, and automated student attendance logging'}
         </p>
       </div>
 

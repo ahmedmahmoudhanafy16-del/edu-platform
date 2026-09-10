@@ -15,6 +15,7 @@ export async function UnlockedSessions({
   studentName,
   locale,
 }: UnlockedSessionsProps) {
+  const isAr = locale === 'ar';
   let dbUnlocked: any[] = [];
 
   try {
@@ -46,10 +47,10 @@ export async function UnlockedSessions({
       usedAt: m.usedAt ? new Date(m.usedAt) : new Date(),
       liveSession: {
         id: m.liveSessionId || 'session-1',
-        title: m.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
+        title: m.liveSessionTitle || (isAr ? 'مراجعة شاملة للوحدة الأولى والبث المباشر' : 'Unit 1 Comprehensive Review & Live Stream'),
         roomCode: m.roomCode || 'LIVE-MATH1',
         isActive: true,
-        classroom: { name: 'الصف الرابع الابتدائي' },
+        classroom: { name: isAr ? 'الصف الرابع الابتدائي' : 'Grade 4 (Primary 4)' },
       },
     }));
 
@@ -58,17 +59,17 @@ export async function UnlockedSessions({
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
           <Ticket className="h-5 w-5 text-accent" strokeWidth={1.75} />
-          جلساتي المفعّلة (الحصص المشتراة)
+          {isAr ? 'جلساتي المفعّلة (الحصص المشتراة)' : 'My Active Sessions (Purchased Classes)'}
         </h2>
         <Link href={`/${locale}/student/redeem`}>
           <Button variant="secondary" size="sm" className="text-xs flex items-center gap-1">
             <Plus className="h-3.5 w-3.5" />
-            تفعيل كود جديد
+            {isAr ? 'تفعيل كود جديد' : 'Redeem New Code'}
           </Button>
         </Link>
       </div>
@@ -78,15 +79,19 @@ export async function UnlockedSessions({
         <div className={`${card} p-8 text-center space-y-3`}>
           <Ticket className="h-8 w-8 text-n-300 dark:text-n-400 mx-auto" strokeWidth={1.5} />
           <div className="space-y-1">
-            <p className="text-sm font-semibold text-n-800 dark:text-n-700">لم تقم بتفعيل أي حصص مباشرة بعد</p>
+            <p className="text-sm font-semibold text-n-800 dark:text-n-700">
+              {isAr ? 'لم تقم بتفعيل أي حصص مباشرة بعد' : 'No live sessions activated yet'}
+            </p>
             <p className="text-xs text-n-500 dark:text-n-400 max-w-sm mx-auto">
-              إذا حصلت على كود وصول للحصة المباشرة، يمكنك تفعيله الآن والاشتراك الفوري
+              {isAr
+                ? 'إذا حصلت على كود وصول للحصة المباشرة، يمكنك تفعيله الآن والاشتراك الفوري'
+                : 'If you received an access code for a live session, you can redeem it now for instant access'}
             </p>
           </div>
           <Link href={`/${locale}/student/redeem`}>
             <Button variant="primary" size="sm" className="mt-2 text-xs">
               <Ticket className="h-3.5 w-3.5 me-1" />
-              أدخل كود الحصة الآن
+              {isAr ? 'أدخل كود الحصة الآن' : 'Enter Session Code Now'}
             </Button>
           </Link>
         </div>
@@ -95,10 +100,10 @@ export async function UnlockedSessions({
           {unlockedCodes.map((item) => {
             const session = item.liveSession || {
               id: 'fallback-session',
-              title: 'حصة البث المباشر',
+              title: isAr ? 'حصة البث المباشر' : 'Live Stream Session',
               roomCode: 'LIVE-MATH1',
               isActive: true,
-              classroom: { name: 'الفصل التعليمي' },
+              classroom: { name: isAr ? 'الفصل التعليمي' : 'Classroom' },
             };
             const isLiveNow = Boolean(session.isActive);
 
@@ -111,7 +116,7 @@ export async function UnlockedSessions({
                 <div className="p-5 pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-[10px] font-bold text-accent-text bg-accent-light px-2.5 py-0.5 rounded border border-accent/20">
-                      {session.classroom?.name || 'الفصل التعليمي'}
+                      {session.classroom?.name || (isAr ? 'الفصل التعليمي' : 'Classroom')}
                     </span>
                     <span className="font-mono text-[10px] font-bold text-n-500 bg-n-100 dark:bg-n-200 px-2 py-0.5 rounded">
                       {item.code}
@@ -119,12 +124,13 @@ export async function UnlockedSessions({
                   </div>
 
                   <h3 className="text-sm font-bold text-n-800 dark:text-n-700 leading-snug mt-2.5">
-                    {session.title || 'حصة البث المباشر'}
+                    {session.title || (isAr ? 'حصة البث المباشر' : 'Live Stream Session')}
                   </h3>
 
                   <p className="text-[11px] text-n-400 mt-1 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    تم التفعيل: {item.usedAt ? new Date(item.usedAt).toLocaleDateString('ar-EG') : '—'}
+                    {isAr ? 'تم التفعيل:' : 'Activated:'}{' '}
+                    {item.usedAt ? new Date(item.usedAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US') : '—'}
                   </p>
                 </div>
 
@@ -133,15 +139,15 @@ export async function UnlockedSessions({
                   {isLiveNow ? (
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-xs font-bold text-ok flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> مباشر الآن
+                        <span className="w-2 h-2 rounded-full bg-ok animate-ping" /> {isAr ? 'مباشر الآن' : 'Live Now'}
                       </span>
                       <Link
-                        href={`/${locale}/student/live?room=${session.roomCode || 'LIVE-MATH1'}&name=${encodeURIComponent(studentName || 'الطالب')}`}
+                        href={`/${locale}/student/live?room=${session.roomCode || 'LIVE-MATH1'}&name=${encodeURIComponent(studentName || (isAr ? 'الطالب' : 'Student'))}`}
                         className="flex-shrink-0"
                       >
                         <Button size="sm" variant="primary" className="text-xs font-bold px-3">
                           <Wifi className="h-3.5 w-3.5 me-1" />
-                          انضمام الآن
+                          {isAr ? 'انضمام الآن' : 'Join Now'}
                         </Button>
                       </Link>
                     </div>
@@ -149,10 +155,10 @@ export async function UnlockedSessions({
                     <div className="w-full flex items-center justify-between gap-2">
                       <span className="text-xs text-n-400 flex items-center gap-1">
                         <CheckCircle2 className="h-3.5 w-3.5 text-n-400" />
-                        اشتراك مفعل
+                        {isAr ? 'اشتراك مفعل' : 'Active Subscription'}
                       </span>
                       <span className="text-[11px] font-semibold text-n-500 bg-n-100 dark:bg-n-200 px-2.5 py-1 rounded">
-                        في انتظار بدء البث
+                        {isAr ? 'في انتظار بدء البث' : 'Awaiting stream start'}
                       </span>
                     </div>
                   )}

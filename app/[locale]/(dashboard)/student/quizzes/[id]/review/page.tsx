@@ -57,6 +57,7 @@ export default function QuizReviewPage() {
   const router = useRouter();
   const quizId = (params?.id as string)?.trim() || '';
   const locale = (params?.locale as string) || 'ar';
+  const isAr = locale === 'ar';
 
   const [isMounted, setIsMounted] = useState(false);
   const [result, setResult] = useState<ExamResult | null>(null);
@@ -67,7 +68,7 @@ export default function QuizReviewPage() {
     studentCode: string;
     phone: string;
   }>({
-    name: 'طالب مسجل',
+    name: isAr ? 'طالب مسجل' : 'Enrolled Student',
     studentCode: 'STU-001',
     phone: '',
   });
@@ -80,14 +81,14 @@ export default function QuizReviewPage() {
         const parsed = JSON.parse(stored);
         if (parsed) {
           setStudentInfo({
-            name: parsed.name || 'طالب مسجل',
+            name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
             studentCode: parsed.studentCode || parsed.id || 'STU-001',
             phone: parsed.phone || '',
           });
         }
       }
     } catch {}
-  }, []);
+  }, [isAr]);
 
   useEffect(() => {
     if (!isMounted || !quizId) return;
@@ -179,7 +180,7 @@ export default function QuizReviewPage() {
 
             return {
               questionId: q.id || `q-${i + 1}`,
-              text: q.text || q.question || `السؤال ${i + 1}`,
+              text: q.text || q.question || (isAr ? `السؤال ${i + 1}` : `Question ${i + 1}`),
               type: q.type || 'MCQ',
               options: opts,
               studentAnswer: displayCorrect,
@@ -196,7 +197,7 @@ export default function QuizReviewPage() {
           const constructedResult: ExamResult = {
             id: foundResult?.id || `res-${quizId}`,
             quizId,
-            quizTitle: quizDetails.title || 'الاختبار الأكاديمي',
+            quizTitle: quizDetails.title || (isAr ? 'الاختبار الأكاديمي' : 'Academic Quiz'),
             totalScore: foundResult?.totalScore ?? totalEarned,
             autoScore: foundResult?.autoScore ?? totalEarned,
             maxScore: foundResult?.maxScore ?? maxPossible,
@@ -222,26 +223,32 @@ export default function QuizReviewPage() {
     }
 
     loadReviewData();
-  }, [isMounted, quizId]);
+  }, [isMounted, quizId, isAr]);
 
   if (!isMounted || loading) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 space-y-3" dir="rtl">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 space-y-3" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm font-semibold text-n-600">جاري تحميل تقرير مراجعة الإجابات...</p>
+        <p className="text-sm font-semibold text-n-600">
+          {isAr ? 'جاري تحميل تقرير مراجعة الإجابات...' : 'Loading exam review report...'}
+        </p>
       </div>
     );
   }
 
   if (!result || !result.reviewQuestions || result.reviewQuestions.length === 0) {
     return (
-      <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 text-center space-y-4" dir="rtl">
+      <div className="max-w-xl mx-auto my-12 p-8 bg-white dark:bg-n-100 rounded-2xl border border-n-200 dark:border-n-300 text-center space-y-4" dir={isAr ? 'rtl' : 'ltr'}>
         <AlertCircle className="h-10 w-10 text-amber-500 mx-auto" />
-        <h2 className="text-lg font-bold text-n-800 dark:text-n-700">لم يتم العثور على نتيجة هذا الامتحان</h2>
-        <p className="text-xs text-n-500">يرجى أداء الامتحان أولاً لتتمكن من مراجعة الإجابات والدرجات.</p>
+        <h2 className="text-lg font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'لم يتم العثور على نتيجة هذا الامتحان' : 'Exam result not found'}
+        </h2>
+        <p className="text-xs text-n-500">
+          {isAr ? 'يرجى أداء الامتحان أولاً لتتمكن من مراجعة الإجابات والدرجات.' : 'Please take the exam first to be able to review your answers and scores.'}
+        </p>
         <Link href={`/${locale}/student/quizzes`} className="block">
           <Button variant="primary" className="w-full text-xs">
-            العودة لقائمة الامتحانات
+            {isAr ? 'العودة لقائمة الامتحانات' : 'Back to Quizzes'}
           </Button>
         </Link>
       </div>
@@ -253,7 +260,7 @@ export default function QuizReviewPage() {
   const pct = result.percentage ?? Math.round((earned / Math.max(1, max)) * 100);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 exam-secure-area select-none relative" dir="rtl">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6 exam-secure-area select-none relative" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Anti-Copy and Dynamic Student Watermark */}
       <ExamSecurityShield
         studentName={studentInfo.name}
@@ -265,12 +272,12 @@ export default function QuizReviewPage() {
       {/* Navigation breadcrumb */}
       <div className="flex items-center justify-between">
         <Link href={`/${locale}/student/quizzes`} className="text-xs font-semibold text-accent hover:underline flex items-center gap-1">
-          <ArrowRight className="h-4 w-4" />
-          العودة لبنك الامتحانات
+          {isAr ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+          {isAr ? 'العودة لبنك الامتحانات' : 'Back to Quizzes'}
         </Link>
         <Link href={`/${locale}/student/grades`}>
           <Button size="sm" variant="secondary" className="text-xs">
-            سجل الدرجات والشهادات
+            {isAr ? 'سجل الدرجات والشهادات' : 'Grades & Certificates'}
           </Button>
         </Link>
       </div>
@@ -280,34 +287,35 @@ export default function QuizReviewPage() {
         <div className="space-y-1.5 text-center md:text-start">
           <div className="flex items-center justify-center md:justify-start gap-2">
             <span className="text-[11px] font-bold text-accent-text bg-accent-light px-2.5 py-0.5 rounded-full border border-accent/20">
-              تقرير المراجعة وتصحيح الأخطاء
+              {isAr ? 'تقرير المراجعة وتصحيح الأخطاء' : 'Review Report & Corrections'}
             </span>
             {result.isPassed ? (
               <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                <CheckCircle2 className="h-3 w-3" /> ناجح
+                <CheckCircle2 className="h-3 w-3" /> {isAr ? 'ناجح' : 'Passed'}
               </span>
             ) : (
               <span className="text-[11px] font-bold text-red-700 bg-red-50 px-2.5 py-0.5 rounded-full border border-red-200 flex items-center gap-1">
-                <XCircle className="h-3 w-3" /> يحتاج مراجعة
+                <XCircle className="h-3 w-3" /> {isAr ? 'يحتاج مراجعة' : 'Needs Review'}
               </span>
             )}
           </div>
           <h1 className="text-xl font-bold text-n-800 dark:text-n-700">{result.quizTitle}</h1>
           <p className="text-xs text-n-400">
-            تاريخ أداء الاختبار: {new Date(result.submittedAt).toLocaleDateString('ar-EG', { dateStyle: 'full' })}
+            {isAr ? 'تاريخ أداء الاختبار:' : 'Exam Date:'}{' '}
+            {new Date(result.submittedAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US', { dateStyle: 'full' })}
           </p>
         </div>
 
         {/* Score Pill */}
         <div className="flex items-center gap-4 bg-n-50 dark:bg-n-200/50 p-4 rounded-xl border border-n-200 dark:border-n-300">
           <div className="text-center px-3 border-e border-n-200 dark:border-n-300">
-            <p className="text-xs text-n-400 font-semibold">الدرجة المحققة</p>
+            <p className="text-xs text-n-400 font-semibold">{isAr ? 'الدرجة المحققة' : 'Score Achieved'}</p>
             <p className="text-2xl font-bold font-mono text-accent mt-0.5">
               <span dir="ltr">{Math.round(earned)} / {max}</span>
             </p>
           </div>
           <div className="text-center px-3">
-            <p className="text-xs text-n-400 font-semibold">النسبة المئوية</p>
+            <p className="text-xs text-n-400 font-semibold">{isAr ? 'النسبة المئوية' : 'Percentage'}</p>
             <p className={`text-2xl font-bold font-mono mt-0.5 ${result.isPassed ? 'text-emerald-600' : 'text-red-600'}`}>
               <span dir="ltr">{pct}%</span>
             </p>
@@ -319,7 +327,7 @@ export default function QuizReviewPage() {
       <div className="space-y-4">
         <h2 className="text-sm font-bold text-n-800 dark:text-n-700 flex items-center gap-2">
           <ClipboardList className="h-4 w-4 text-accent" />
-          تفاصيل الأسئلة والإجابات النموذجية ({result.reviewQuestions?.length || 0})
+          {isAr ? 'تفاصيل الأسئلة والإجابات النموذجية' : 'Questions & Model Answers Details'} ({result.reviewQuestions?.length || 0})
         </h2>
 
         {(result.reviewQuestions || []).map((q, idx) => {
@@ -391,21 +399,21 @@ export default function QuizReviewPage() {
                       optionStyle = 'border-emerald-500 bg-emerald-50/70 text-emerald-900 font-bold';
                       badge = (
                         <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded font-bold ms-auto flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> إجابتك (صحيحة)
+                          <CheckCircle2 className="h-3 w-3" /> {isAr ? 'إجابتك (صحيحة)' : 'Your answer (Correct)'}
                         </span>
                       );
                     } else if (isSelected && !isModelCorrect) {
                       optionStyle = 'border-red-500 bg-red-50/70 text-red-900 font-bold';
                       badge = (
                         <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-bold ms-auto flex items-center gap-1">
-                          <XCircle className="h-3 w-3" /> إجابتك (خاطئة)
+                          <XCircle className="h-3 w-3" /> {isAr ? 'إجابتك (خاطئة)' : 'Your answer (Incorrect)'}
                         </span>
                       );
                     } else if (isModelCorrect) {
                       optionStyle = 'border-emerald-500 bg-emerald-50/40 text-emerald-800 font-semibold border-dashed';
                       badge = (
                         <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold ms-auto flex items-center gap-1">
-                          <CheckCircle2 className="h-3 w-3" /> الإجابة النموذجية
+                          <CheckCircle2 className="h-3 w-3" /> {isAr ? 'الإجابة النموذجية' : 'Model Answer'}
                         </span>
                       );
                     }
@@ -429,12 +437,14 @@ export default function QuizReviewPage() {
               {/* Essay answer review */}
               {q.type !== 'MCQ' && (
                 <div className="p-3.5 rounded-xl border border-n-200 bg-n-50 space-y-2 text-xs">
-                  <p className="font-semibold text-n-600">إجابتك المسجلة:</p>
+                  <p className="font-semibold text-n-600">{isAr ? 'إجابتك المسجلة:' : 'Your Recorded Answer:'}</p>
                   <p className="p-2.5 bg-white rounded-lg border border-n-200 text-n-800 whitespace-pre-wrap">
-                    {q.studentAnswer || 'لم تقم بكتابة إجابة على هذا السؤال.'}
+                    {q.studentAnswer || (isAr ? 'لم تقم بكتابة إجابة على هذا السؤال.' : 'No answer provided for this question.')}
                   </p>
                   <p className="text-[11px] text-accent font-semibold pt-1">
-                    * السؤال المقالي قيد التصحيح والتقييم من قبل المعلم.
+                    {isAr
+                      ? '* السؤال المقالي قيد التصحيح والتقييم من قبل المعلم.'
+                      : '* Essay question is pending grading and evaluation by the teacher.'}
                   </p>
                 </div>
               )}
@@ -447,15 +457,15 @@ export default function QuizReviewPage() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-n-200">
         <Link href={`/${locale}/student/quizzes`} className="w-full sm:w-auto">
           <Button variant="secondary" className="w-full sm:w-auto text-xs">
-            <ArrowRight className="h-4 w-4 me-1" />
-            العودة لبنك الامتحانات
+            {isAr ? <ArrowRight className="h-4 w-4 me-1" /> : <ArrowLeft className="h-4 w-4 me-1" />}
+            {isAr ? 'العودة لبنك الامتحانات' : 'Back to Quizzes'}
           </Button>
         </Link>
 
         <Link href={`/${locale}/student/grades`} className="w-full sm:w-auto">
           <Button variant="primary" className="w-full sm:w-auto text-xs">
-            عرض سجل الدرجات والشهادات
-            <ArrowLeft className="h-4 w-4 ms-1" />
+            {isAr ? 'عرض سجل الدرجات والشهادات' : 'View Grades & Certificates'}
+            {isAr ? <ArrowLeft className="h-4 w-4 ms-1" /> : <ArrowRight className="h-4 w-4 ms-1" />}
           </Button>
         </Link>
       </div>

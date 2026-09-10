@@ -14,6 +14,7 @@ export default function StudentQuizPage() {
   const router = useRouter();
   const quizId = (params?.id as string)?.trim() || '';
   const locale = (params?.locale as string) || 'ar';
+  const isAr = locale === 'ar';
 
   const [isMounted, setIsMounted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -107,7 +108,9 @@ export default function StudentQuizPage() {
       if (!resolvedQuiz) {
         resolvedQuiz = {
           id: quizId,
-          title: quizId === 'sample-q1' ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'الاختبار الأسبوعي التفاعلي',
+          title: isAr
+            ? (quizId === 'sample-q1' ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'الاختبار الأسبوعي التفاعلي')
+            : (quizId === 'sample-q1' ? 'First Weekly Quiz - Algebra & Statistics' : 'Weekly Interactive Quiz'),
           duration: 20,
           passingScore: 60,
           accessCode: 'QUIZ-MATH-2026',
@@ -116,21 +119,21 @@ export default function StudentQuizPage() {
           questions: [
             {
               id: `q-${quizId}-1`,
-              text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
+              text: isAr ? 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:' : 'If x + 3 = 7, then the value of 2x is:',
               type: 'MCQ',
               options: ['6', '8', '10', '12'],
               maxScore: 5,
             },
             {
               id: `q-${quizId}-2`,
-              text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
+              text: isAr ? 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:' : 'The solution set of x² - 9 = 0 in R is:',
               type: 'MCQ',
               options: ['{3}', '{-3}', '{3, -3}', '∅'],
               maxScore: 5,
             },
             {
               id: `q-${quizId}-3`,
-              text: 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.',
+              text: isAr ? 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.' : 'Briefly explain the graphical method to solve a system of two linear equations in two variables.',
               type: 'ESSAY',
               options: [],
               maxScore: 10,
@@ -143,7 +146,7 @@ export default function StudentQuizPage() {
 
       // 4. Guard against Hidden / Unpublished Quizzes
       if (resolvedQuiz && (resolvedQuiz.isPublished === false || resolvedQuiz.isHidden === true)) {
-        setError('هذا الاختبار غير متاح حالياً');
+        setError(isAr ? 'هذا الاختبار غير متاح حالياً' : 'This exam is not currently available');
         setLoading(false);
         return;
       }
@@ -171,16 +174,18 @@ export default function StudentQuizPage() {
     return () => {
       isSubscribed = false;
     };
-  }, [isMounted, quizId]);
+  }, [isMounted, quizId, isAr]);
 
   // Loading State / SSR placeholder (prevents hydration mismatch & server component render crashes)
   if (!isMounted || loading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 space-y-4" dir="rtl">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 space-y-4" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="w-12 h-12 rounded-2xl bg-accent-light text-accent flex items-center justify-center animate-spin">
           <Loader2 className="h-6 w-6" />
         </div>
-        <p className="text-sm font-semibold text-n-700 dark:text-n-600">جاري تجهيز وتحميل الامتحان...</p>
+        <p className="text-sm font-semibold text-n-700 dark:text-n-600">
+          {isAr ? 'جاري تجهيز وتحميل الامتحان...' : 'Preparing and loading exam...'}
+        </p>
       </div>
     );
   }
@@ -188,19 +193,22 @@ export default function StudentQuizPage() {
   // Error State or Hidden Quiz Guard
   if (error || !quiz) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6" dir="rtl">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-6" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-sm">
           <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 flex items-center justify-center mx-auto">
             <AlertCircle className="h-6 w-6" />
           </div>
-          <h2 className="text-lg font-bold text-n-800 dark:text-n-700">الاختبار غير متاح</h2>
+          <h2 className="text-lg font-bold text-n-800 dark:text-n-700">
+            {isAr ? 'الاختبار غير متاح' : 'Exam Not Available'}
+          </h2>
           <p className="text-xs text-n-500 font-medium">
-            {error || 'هذا الاختبار غير متاح حالياً أو تم إخفاؤه بواسطة المعلم.'}
+            {error || (isAr ? 'هذا الاختبار غير متاح حالياً أو تم إخفاؤه بواسطة المعلم.' : 'This exam is not currently available or has been hidden by the teacher.')}
           </p>
           <Link href={`/${locale}/student`} className="block w-full">
             <Button variant="primary" className="w-full text-xs">
-              <ArrowRight className="h-4 w-4 me-1" />
-              العودة للوحة تحكم الطالب
+              {isAr ? <ArrowRight className="h-4 w-4 me-1" /> : null}
+              {isAr ? 'العودة للوحة تحكم الطالب' : 'Return to Student Dashboard'}
+              {!isAr ? <ArrowRight className="h-4 w-4 ms-1" /> : null}
             </Button>
           </Link>
         </div>
@@ -211,10 +219,10 @@ export default function StudentQuizPage() {
   // 5. Passcode Guard View (If passcode protected and not unlocked yet)
   if (quiz.isCodeRequired && !isUnlocked) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 flex flex-col justify-center" dir="rtl">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 flex flex-col justify-center" dir={isAr ? 'rtl' : 'ltr'}>
         <QuizPasscodeGuard
           quizId={quiz.id || quizId}
-          quizTitle={quiz.title || 'الاختبار الأكاديمي'}
+          quizTitle={quiz.title || (isAr ? 'الاختبار الأكاديمي' : 'Academic Quiz')}
           studentId={studentId}
           locale={locale}
           onUnlocked={() => setIsUnlocked(true)}
@@ -225,11 +233,11 @@ export default function StudentQuizPage() {
 
   // 6. Interactive Quiz Runner View
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 flex flex-col justify-center" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 sm:p-6 flex flex-col justify-center" dir={isAr ? 'rtl' : 'ltr'}>
       <QuizRunner
         quiz={{
           id: quiz.id || quizId,
-          title: quiz.title || 'الاختبار الأكاديمي',
+          title: quiz.title || (isAr ? 'الاختبار الأكاديمي' : 'Academic Quiz'),
           duration: Number(quiz.duration) || 20,
           shuffleQuestions: Boolean(quiz.shuffleQuestions),
           maxViolations: Number(quiz.maxViolations) || 3,

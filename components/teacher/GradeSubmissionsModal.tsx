@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useLocale } from 'next-intl';
 import { X, CheckCircle2, Award, User, Clock, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +37,9 @@ export function GradeSubmissionsModal({
   onClose,
   onSuccess,
 }: GradeSubmissionsModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
+
   const [activeSubmission, setActiveSubmission] = useState<SubmissionItem | null>(submissions[0] || null);
   const [grade, setGrade] = useState<number>(activeSubmission?.grade ?? maxScore);
   const [note, setNote] = useState<string>(activeSubmission?.teacherNote ?? '');
@@ -56,23 +60,34 @@ export function GradeSubmissionsModal({
     setLoading(true);
     try {
       await gradeSubmission(activeSubmission.id, Number(grade), note);
-      toast.success(`تم حفظ تصحيح الطالب ${activeSubmission.studentName} بنجاح!`);
+      toast.success(
+        isAr
+          ? `تم حفظ تصحيح الطالب ${activeSubmission.studentName} بنجاح!`
+          : `Graded ${activeSubmission.studentName} successfully!`
+      );
       onSuccess();
     } catch (err: any) {
-      toast.error(err?.message || 'حدث خطأ أثناء حفظ التصحيح');
+      toast.error(err?.message || (isAr ? 'حدث خطأ أثناء حفظ التصحيح' : 'Failed to save grade'));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm" dir="rtl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-3xl overflow-hidden shadow-modal flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n-200 dark:border-n-300">
           <div>
-            <h3 className="text-base font-bold text-n-800 dark:text-n-700">تصحيح ومراجعة تسليمات الواجب</h3>
-            <p className="text-xs text-n-400 mt-0.5">{assignmentTitle} (الدرجة القصوى: {maxScore})</p>
+            <h3 className="text-base font-bold text-n-800 dark:text-n-700">
+              {isAr ? 'تصحيح ومراجعة تسليمات الواجب' : 'Grade & Review Submissions'}
+            </h3>
+            <p className="text-xs text-n-400 mt-0.5">
+              {assignmentTitle} ({isAr ? `الدرجة القصوى: ${maxScore}` : `Max Score: ${maxScore}`})
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -86,9 +101,13 @@ export function GradeSubmissionsModal({
         <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
           {/* Submissions List */}
           <div className="w-full md:w-64 border-b md:border-b-0 md:border-s border-n-200 dark:border-n-300 overflow-y-auto p-3 space-y-1.5 bg-n-50 dark:bg-n-200">
-            <p className="text-[11px] font-bold text-n-500 mb-2 px-2">الطلاب الذين قاموا بالتسليم ({submissions.length}):</p>
+            <p className="text-[11px] font-bold text-n-500 mb-2 px-2">
+              {isAr ? `الطلاب الذين قاموا بالتسليم (${submissions.length}):` : `Submitted Students (${submissions.length}):`}
+            </p>
             {submissions.length === 0 ? (
-              <p className="text-xs text-n-400 p-4 text-center">لا توجد تسليمات حتى الآن</p>
+              <p className="text-xs text-n-400 p-4 text-center">
+                {isAr ? 'لا توجد تسليمات حتى الآن' : 'No submissions yet'}
+              </p>
             ) : (
               submissions.map((sub) => {
                 const isSelected = activeSubmission?.id === sub.id;
@@ -128,18 +147,23 @@ export function GradeSubmissionsModal({
                 <div className="flex items-center justify-between pb-3 border-b border-n-100 dark:border-n-200">
                   <div>
                     <h4 className="text-sm font-bold text-n-800 dark:text-n-700">{activeSubmission.studentName}</h4>
-                    <p className="text-xs text-n-400 mt-0.5 font-mono">كود الطالب: {activeSubmission.studentCode}</p>
+                    <p className="text-xs text-n-400 mt-0.5 font-mono">
+                      {isAr ? 'كود الطالب:' : 'Student Code:'} {activeSubmission.studentCode}
+                    </p>
                   </div>
                   <span className="text-xs text-n-400">
-                    تاريخ التسليم: {new Date(activeSubmission.submittedAt).toLocaleDateString('ar-EG')}
+                    {isAr ? 'تاريخ التسليم:' : 'Submitted:'}{' '}
+                    {new Date(activeSubmission.submittedAt).toLocaleDateString(isAr ? 'ar-EG' : 'en-US')}
                   </span>
                 </div>
 
                 {/* Submitted Content */}
                 <div>
-                  <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">إجابة الطالب:</label>
+                  <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
+                    {isAr ? 'إجابة الطالب:' : 'Student Answer:'}
+                  </label>
                   <div className="p-3 bg-n-50 dark:bg-n-200 rounded-xl border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 whitespace-pre-wrap min-h-[80px]">
-                    {activeSubmission.answerText || 'قام الطالب برفع صور كشكول الواجب المرفقة.'}
+                    {activeSubmission.answerText || (isAr ? 'قام الطالب برفع صور كشكول الواجب المرفقة.' : 'Student uploaded homework notebook images.')}
                   </div>
                 </div>
 
@@ -147,7 +171,7 @@ export function GradeSubmissionsModal({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div>
                     <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                      الدرجة المستحقة (من {maxScore}):
+                      {isAr ? `الدرجة المستحقة (من ${maxScore}):` : `Grade (out of ${maxScore}):`}
                     </label>
                     <Input
                       type="number"
@@ -160,13 +184,13 @@ export function GradeSubmissionsModal({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                      ملاحظة / تشجيع للطالب:
+                      {isAr ? 'ملاحظة / تشجيع للطالب:' : 'Teacher Feedback / Note:'}
                     </label>
                     <Input
                       type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder="مثال: إجابة ممتازة وخطوات واضحة!"
+                      placeholder={isAr ? 'مثال: إجابة ممتازة وخطوات واضحة!' : 'e.g. Excellent work and clear steps!'}
                     />
                   </div>
                 </div>
@@ -174,12 +198,14 @@ export function GradeSubmissionsModal({
                 <div className="flex items-center justify-end gap-2.5 pt-4">
                   <Button type="submit" loading={loading} size="md" variant="primary">
                     <Award className="h-4 w-4 me-1.5" />
-                    حفظ وإرسال الدرجة للطالب
+                    {isAr ? 'حفظ وإرسال الدرجة للطالب' : 'Save & Submit Grade'}
                   </Button>
                 </div>
               </form>
             ) : (
-              <div className="p-12 text-center text-xs text-n-400">اختر طالباً من القائمة لعرض إجابته وتصحيحها</div>
+              <div className="p-12 text-center text-xs text-n-400">
+                {isAr ? 'اختر طالباً من القائمة لعرض إجابته وتصحيحها' : 'Select a student to review submission'}
+              </div>
             )}
           </div>
         </div>

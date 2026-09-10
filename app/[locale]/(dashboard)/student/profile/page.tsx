@@ -15,32 +15,37 @@ export default async function StudentProfilePage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
   const student = await getAuthenticatedStudent();
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
           <User className="h-6 w-6 text-blue-600" />
-          الملف الشخصي للطالب
+          {isAr ? 'الملف الشخصي للطالب' : 'Student Profile'}
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          بيانات الحساب الأكاديمي وكود الدخول المعتمد
+          {isAr
+            ? 'بيانات الحساب الأكاديمي وكود الدخول المعتمد'
+            : 'Academic account details and authenticated access code'}
         </p>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 md:p-8 space-y-6 shadow-sm">
         <div className="flex items-center gap-4 pb-6 border-b border-slate-100 dark:border-slate-800">
           <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white font-bold text-2xl flex items-center justify-center shadow-md">
-            {student?.name?.charAt(0) || 'ط'}
+            {student?.name?.charAt(0) || (isAr ? 'ط' : 'S')}
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{student?.name || 'الطالب'}</h2>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+              {student?.name || (isAr ? 'الطالب' : 'Student')}
+            </h2>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" className="bg-blue-50 text-blue-700 font-bold text-xs">
-                {student?.grade || 'المرحلة الدراسية'}
+              <Badge variant="secondary" className="bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 font-bold text-xs">
+                {student?.grade || (isAr ? 'المرحلة الدراسية' : 'Grade Level')}
               </Badge>
-              <code className="bg-slate-100 dark:bg-slate-800 text-blue-600 font-mono font-bold px-2 py-0.5 rounded text-xs">
+              <code className="bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 font-mono font-bold px-2 py-0.5 rounded text-xs">
                 {student?.studentCode || '—'}
               </code>
             </div>
@@ -49,30 +54,40 @@ export default async function StudentProfilePage({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-            <span className="text-slate-500 block mb-1">اسم الطالب الكامل:</span>
+            <span className="text-slate-500 block mb-1">
+              {isAr ? 'اسم الطالب الكامل:' : 'Full Student Name:'}
+            </span>
             <strong className="text-sm text-slate-900 dark:text-white">{student?.name || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-            <span className="text-slate-500 block mb-1">كود الدخول المعتمد:</span>
-            <strong className="text-sm font-mono text-blue-600">{student?.studentCode || '—'}</strong>
+            <span className="text-slate-500 block mb-1">
+              {isAr ? 'كود الدخول المعتمد:' : 'Authenticated Access Code:'}
+            </span>
+            <strong className="text-sm font-mono text-blue-600 dark:text-blue-400">{student?.studentCode || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-            <span className="text-slate-500 block mb-1">رقم هاتف الطالب:</span>
+            <span className="text-slate-500 block mb-1">
+              {isAr ? 'رقم هاتف الطالب:' : 'Student Phone Number:'}
+            </span>
             <strong className="text-sm font-mono text-slate-900 dark:text-white">{student?.phone || '—'}</strong>
           </div>
 
           <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-100 dark:border-slate-800">
-            <span className="text-slate-500 block mb-1">واتساب ولي الأمر المربوط:</span>
-            <strong className="text-sm font-mono text-emerald-600">{student?.parentPhone || student?.phone || '—'}</strong>
+            <span className="text-slate-500 block mb-1">
+              {isAr ? 'واتساب ولي الأمر المربوط:' : 'Linked Parent WhatsApp:'}
+            </span>
+            <strong className="text-sm font-mono text-emerald-600 dark:text-emerald-400">
+              {student?.parentPhone || student?.phone || '—'}
+            </strong>
           </div>
         </div>
 
         <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
           <Link href={`/${locale}/student/settings`}>
             <Button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm">
-              تعديل الإعدادات وكلمة المرور
+              {isAr ? 'تعديل الإعدادات وكلمة المرور' : 'Edit Settings & Password'}
             </Button>
           </Link>
         </div>

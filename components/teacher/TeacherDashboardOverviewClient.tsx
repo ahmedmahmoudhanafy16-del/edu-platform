@@ -47,13 +47,14 @@ export function TeacherDashboardOverviewClient({
     };
   }, []);
 
+  const isAr = locale === 'ar';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
   const stats = [
-    { label: 'الفصول الدراسية', value: initialClassroomsCount, icon: BookOpen },
-    { label: 'إجمالي الطلاب', value: initialStudentsCount, icon: Users },
-    { label: 'الواجبات', value: assignments.length, icon: FileText },
-    { label: 'الامتحانات', value: quizzes.length, icon: ClipboardList },
+    { label: isAr ? 'الفصول الدراسية' : 'Classrooms', value: initialClassroomsCount, icon: BookOpen },
+    { label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: initialStudentsCount, icon: Users },
+    { label: isAr ? 'الواجبات' : 'Assignments', value: assignments.length, icon: FileText },
+    { label: isAr ? 'الامتحانات' : 'Quizzes', value: quizzes.length, icon: ClipboardList },
   ];
 
   return (
@@ -76,17 +77,23 @@ export function TeacherDashboardOverviewClient({
         {/* Recent assignments */}
         <div className={card}>
           <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-n-100 dark:border-n-200">
-            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">آخر الواجبات المضافة</h2>
+            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">
+              {isAr ? 'آخر الواجبات المضافة' : 'Recent Assignments'}
+            </h2>
             <Link href={`/${locale}/teacher/assignments`} className="text-xs text-accent hover:underline">
-              عرض الكل
+              {isAr ? 'عرض الكل' : 'View All'}
             </Link>
           </div>
           <div className="px-5 py-4">
             {assignments.length === 0 ? (
               <div className="text-center py-6 text-xs text-n-400 border border-dashed border-n-200 dark:border-n-300 rounded-xl bg-n-50/50 dark:bg-n-200/20">
                 <FileText className="h-6 w-6 text-n-300 dark:text-n-400 mx-auto mb-1.5" strokeWidth={1.5} />
-                <p className="font-semibold text-n-700 dark:text-n-600">لا توجد واجبات مضافة حالياً</p>
-                <p className="text-[11px] text-n-400 mt-0.5">يمكنك إضافة واجب دراسي جديد من صفحة الواجبات</p>
+                <p className="font-semibold text-n-700 dark:text-n-600">
+                  {isAr ? 'لا توجد واجبات مضافة حالياً' : 'No assignments added yet'}
+                </p>
+                <p className="text-[11px] text-n-400 mt-0.5">
+                  {isAr ? 'يمكنك إضافة واجب دراسي جديد من صفحة الواجبات' : 'You can create a new assignment from the assignments page'}
+                </p>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -97,10 +104,12 @@ export function TeacherDashboardOverviewClient({
                   >
                     <div className="min-w-0">
                       <p className="font-semibold text-n-800 dark:text-n-700 truncate">{a.title}</p>
-                      <p className="text-xs text-n-400 mt-0.5">الدرجة القصوى: {a.maxScore ?? 10}</p>
+                      <p className="text-xs text-n-400 mt-0.5">
+                        {isAr ? 'الدرجة القصوى:' : 'Max Score:'} {a.maxScore ?? 10}
+                      </p>
                     </div>
                     <span className="text-xs text-n-500 font-mono flex-shrink-0 ms-3">
-                      {new Date(a.dueDate || Date.now()).toLocaleDateString('ar-EG', {
+                      {new Date(a.dueDate || Date.now()).toLocaleDateString(isAr ? 'ar-EG' : 'en-US', {
                         month: 'short',
                         day: 'numeric',
                       })}
@@ -115,45 +124,47 @@ export function TeacherDashboardOverviewClient({
         {/* Quick links */}
         <div className={card}>
           <div className="px-5 pt-5 pb-3 border-b border-n-100 dark:border-n-200">
-            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">روابط سريعة</h2>
+            <h2 className="text-sm font-bold text-n-800 dark:text-n-700">
+              {isAr ? 'روابط سريعة' : 'Quick Actions'}
+            </h2>
           </div>
           <div className="p-4 grid grid-cols-2 gap-3">
             {[
               {
                 href: `/${locale}/teacher/access-codes`,
                 icon: Ticket,
-                title: 'أكواد الحصص',
-                sub: 'توليد ومتابعة المبيعات',
+                title: isAr ? 'أكواد الحصص' : 'Session Codes',
+                sub: isAr ? 'توليد ومتابعة المبيعات' : 'Generate & Track',
               },
               {
                 href: `/${locale}/teacher/live`,
                 icon: Video,
-                title: 'البث المباشر',
-                sub: 'بدء وإدارة الحصص',
+                title: isAr ? 'البث المباشر' : 'Live Class',
+                sub: isAr ? 'بدء وإدارة الحصص' : 'Start & Manage',
               },
               {
                 href: `/${locale}/teacher/classrooms`,
                 icon: BookOpen,
-                title: 'إدارة الفصول',
-                sub: 'إضافة وتعديل الفصول',
+                title: isAr ? 'إدارة الفصول' : 'Classrooms',
+                sub: isAr ? 'إضافة وتعديل الفصول' : 'Add & Edit',
               },
               {
                 href: `/${locale}/teacher/quizzes`,
                 icon: ClipboardList,
-                title: 'بنك الامتحانات',
-                sub: 'إنشاء وتوليد الاختبارات',
+                title: isAr ? 'بنك الامتحانات' : 'Quizzes & Exams',
+                sub: isAr ? 'إنشاء وتوليد الاختبارات' : 'Create & Generate',
               },
               {
                 href: `/${locale}/teacher/students`,
                 icon: Users,
-                title: 'قائمة الطلاب',
-                sub: 'تصدير CSV · واتساب',
+                title: isAr ? 'قائمة الطلاب' : 'Student Directory',
+                sub: isAr ? 'تصدير CSV · واتساب' : 'CSV Export · WhatsApp',
               },
               {
                 href: `/${locale}/teacher/reports`,
                 icon: BarChart3,
-                title: 'التقارير الأكاديمية',
-                sub: 'كشوف الدرجات والحضور',
+                title: isAr ? 'التقارير الأكاديمية' : 'Academic Reports',
+                sub: isAr ? 'كشوف الدرجات والحضور' : 'Grades & Attendance',
               },
             ].map(({ href, icon: Icon, title, sub }) => (
               <Link

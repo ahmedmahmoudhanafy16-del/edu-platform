@@ -60,7 +60,7 @@ export function Sidebar({ role, userName, onNavClick }: SidebarProps) {
         )}
       >
         <p className="text-label font-semibold text-n-800 dark:text-n-700 leading-none">
-          منصة التعليم
+          {isRtl ? 'منصة التعليم' : 'EduPlatform'}
         </p>
         <p className="text-caption text-n-400 mt-1">
           {role === 'TEACHER' ? t('teacher') : t('student')}

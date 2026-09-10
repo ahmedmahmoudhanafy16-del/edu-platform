@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useLocale } from 'next-intl';
 import { X, ClipboardList, Plus, Trash2, KeyRound, Sparkles, ShieldCheck, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,8 @@ export function CreateQuizModal({
   onSuccess,
   quizToEdit,
 }: CreateQuizModalProps) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
   const isEditing = Boolean(quizToEdit && quizToEdit.id);
 
   const [title, setTitle] = useState('');
@@ -138,7 +141,7 @@ export function CreateQuizModal({
     const randomNum = Math.floor(1000 + Math.random() * 9000);
     const code = `QUIZ-MATH-${randomNum}`;
     setAccessCode(code);
-    toast.info(`تم توليد كود جديد: ${code}`);
+    toast.info(isAr ? `تم توليد كود جديد: ${code}` : `New passcode generated: ${code}`);
   }
 
   function handleTotalScoreChange(newVal: number) {
@@ -175,7 +178,11 @@ export function CreateQuizModal({
         maxScore: perQ,
       }))
     );
-    toast.success(`تم توزيع ${totalScore} درجات بالتساوي (${perQ} درجة لكل سؤال)`);
+    toast.success(
+      isAr
+        ? `تم توزيع ${totalScore} درجات بالتساوي (${perQ} درجة لكل سؤال)`
+        : `Distributed ${totalScore} points equally (${perQ} pts per question)`
+    );
   }
 
   function updateQuestionText(idx: number, text: string) {
@@ -222,7 +229,7 @@ export function CreateQuizModal({
 
   function removeQuestion(idx: number) {
     if (questions.length <= 1) {
-      toast.error('يجب أن يحتوي الامتحان على سؤال واحد على الأقل');
+      toast.error(isAr ? 'يجب أن يحتوي الامتحان على سؤال واحد على الأقل' : 'Quiz must contain at least one question');
       return;
     }
     const remaining = questions.filter((_, i) => i !== idx);
@@ -238,12 +245,12 @@ export function CreateQuizModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) {
-      toast.error('يرجى كتابة عنوان الامتحان');
+      toast.error(isAr ? 'يرجى كتابة عنوان الامتحان' : 'Please enter quiz title');
       return;
     }
 
     if (isCodeRequired && !accessCode.trim()) {
-      toast.error('يرجى كتابة أو توليد كود دخول الامتحان');
+      toast.error(isAr ? 'يرجى كتابة أو توليد كود دخول الامتحان' : 'Please enter or generate an exam passcode');
       return;
     }
 
@@ -299,10 +306,14 @@ export function CreateQuizModal({
 
       toast.success(
         isEditing
-          ? `تم تحديث امتحان "${title}" بنجاح!`
-          : `تم إنشاء ونشر امتحان "${title}" بنجاح! ${
-              isCodeRequired ? `كود الدخول: ${res?.accessCode || accessCode}` : ''
-            }`
+          ? (isAr ? `تم تحديث امتحان "${title}" بنجاح!` : `Exam "${title}" updated successfully!`)
+          : (isAr
+              ? `تم إنشاء ونشر امتحان "${title}" بنجاح! ${
+                  isCodeRequired ? `كود الدخول: ${res?.accessCode || accessCode}` : ''
+                }`
+              : `Exam "${title}" created and published! ${
+                  isCodeRequired ? `Access Code: ${res?.accessCode || accessCode}` : ''
+                }`)
       );
       
       onSuccess(returnedQuiz);
@@ -331,7 +342,7 @@ export function CreateQuizModal({
         questions: validQuestions,
       };
       saveQuiz(fallbackQuiz as any);
-      toast.success(`تم حفظ امتحان "${title}" بنجاح!`);
+      toast.success(isAr ? `تم حفظ امتحان "${title}" بنجاح!` : `Exam "${title}" saved successfully!`);
       onSuccess(fallbackQuiz);
       onClose();
     } finally {
@@ -340,7 +351,10 @@ export function CreateQuizModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm overflow-y-auto" dir="rtl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-n-900/60 backdrop-blur-sm overflow-y-auto"
+      dir={isAr ? 'rtl' : 'ltr'}
+    >
       <div className="bg-white dark:bg-n-100 border border-n-200 dark:border-n-300 rounded-2xl w-full max-w-2xl overflow-hidden shadow-modal my-8">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-n-200 dark:border-n-300">
@@ -350,12 +364,14 @@ export function CreateQuizModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-n-800 dark:text-n-700">
-                {isEditing ? 'تعديل بيانات الامتحان' : 'إنشاء اختبار أو امتحان جديد'}
+                {isEditing
+                  ? (isAr ? 'تعديل بيانات الامتحان' : 'Edit Exam Details')
+                  : (isAr ? 'إنشاء اختبار أو امتحان جديد' : 'Create New Exam / Quiz')}
               </h3>
               <p className="text-xs text-n-400">
                 {isEditing
-                  ? 'تحديث الأسئلة ورمز المرور وإعدادات التصحيح'
-                  : 'حماية برمز مرور وتصحيح فوري ومنع الغش المدمج'}
+                  ? (isAr ? 'تحديث الأسئلة ورمز المرور وإعدادات التصحيح' : 'Update questions, passcode, and scoring')
+                  : (isAr ? 'حماية برمز مرور وتصحيح فوري ومنع الغش المدمج' : 'Passcode protected, auto-graded, anti-cheat enabled')}
               </p>
             </div>
           </div>
@@ -371,21 +387,21 @@ export function CreateQuizModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
           <div>
             <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-              عنوان الاختبار:
+              {isAr ? 'عنوان الاختبار:' : 'Exam Title:'}
             </label>
             <Input
               type="text"
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="مثال: الاختبار التراكمي للوحدة الأولى والثانية"
+              placeholder={isAr ? 'مثال: الاختبار التراكمي للوحدة الأولى والثانية' : 'e.g. Unit 1 & 2 Comprehensive Exam'}
             />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                الفصل الدراسي:
+                {isAr ? 'الفصل الدراسي:' : 'Classroom:'}
               </label>
               <select
                 value={classroomId}
@@ -402,7 +418,7 @@ export function CreateQuizModal({
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1 flex items-center justify-between">
-                <span>الدرجة الكلية للامتحان:</span>
+                <span>{isAr ? 'الدرجة الكلية للامتحان:' : 'Total Exam Score:'}</span>
               </label>
               <div className="relative">
                 <Input
@@ -413,18 +429,18 @@ export function CreateQuizModal({
                   required
                   value={totalScore}
                   onChange={(e) => handleTotalScoreChange(Number(e.target.value))}
-                  className="font-bold text-emerald-600 dark:text-emerald-400 pl-12 h-9 text-xs"
+                  className={`font-bold text-emerald-600 dark:text-emerald-400 h-9 text-xs ${isAr ? 'pl-12' : 'pr-12'}`}
                   placeholder="10"
                 />
-                <span className="absolute left-2.5 top-2 text-[11px] font-bold text-slate-400 pointer-events-none">
-                  درجة
+                <span className={`absolute ${isAr ? 'left-2.5' : 'right-2.5'} top-2 text-[11px] font-bold text-slate-400 pointer-events-none`}>
+                  {isAr ? 'درجة' : 'pts'}
                 </span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                المدة (بالدقائق):
+                {isAr ? 'المدة (بالدقائق):' : 'Duration (mins):'}
               </label>
               <Input
                 type="number"
@@ -438,7 +454,7 @@ export function CreateQuizModal({
 
             <div>
               <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                نسبة النجاح (%):
+                {isAr ? 'نسبة النجاح (%):' : 'Passing Score (%):'}
               </label>
               <Input
                 type="number"
@@ -456,7 +472,7 @@ export function CreateQuizModal({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-accent-text flex items-center gap-1.5">
                 <KeyRound className="h-4 w-4 text-accent" />
-                كود دخول الامتحان (Passcode Protection)
+                {isAr ? 'كود دخول الامتحان (Passcode Protection)' : 'Exam Access Passcode'}
               </span>
               <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-accent-text">
                 <input
@@ -465,7 +481,7 @@ export function CreateQuizModal({
                   onChange={(e) => setIsCodeRequired(e.target.checked)}
                   className="rounded text-accent focus:ring-accent"
                 />
-                طلب الكود للدخول
+                {isAr ? 'طلب الكود للدخول' : 'Require Passcode'}
               </label>
             </div>
 
@@ -477,7 +493,7 @@ export function CreateQuizModal({
                     required={isCodeRequired}
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                    placeholder="مثال: QUIZ-MATH-2026"
+                    placeholder={isAr ? 'مثال: QUIZ-MATH-2026' : 'e.g. QUIZ-MATH-2026'}
                     className="font-mono font-bold tracking-wider text-xs uppercase"
                   />
                 </div>
@@ -489,7 +505,7 @@ export function CreateQuizModal({
                   className="shrink-0 text-xs flex items-center gap-1"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-accent" />
-                  توليد كود تلقائي
+                  {isAr ? 'توليد كود تلقائي' : 'Auto Generate'}
                 </Button>
               </div>
             )}
@@ -499,14 +515,14 @@ export function CreateQuizModal({
           <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/30 space-y-1.5 text-xs text-emerald-900 dark:text-emerald-300">
             <div className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400">
               <ShieldCheck className="h-4 w-4" />
-              <span>ميزات الأمان والحماية المشددة (مفعّلة تلقائياً):</span>
+              <span>{isAr ? 'ميزات الأمان والحماية المشددة (مفعّلة تلقائياً):' : 'Anti-Cheat & Proctoring Features (Enabled):'}</span>
             </div>
-            <ul className="text-[11px] list-disc list-inside space-y-0.5 text-emerald-800 dark:text-emerald-300 pr-1">
-              <li>ترتيب عشوائي للأسئلة والخيارات فريد لكل طالب (مستحيل يتطابق الترتيب بين طالبين).</li>
-              <li>حظر تحديد النص، النسخ، القص، اللصق، والنقر بزر الفأرة الأيمن.</li>
-              <li>حظر التقاط لقطات الشاشة (PrintScreen / Snipping) ومحاولات الطباعة.</li>
-              <li>ستار أمني فوري وتعتيم الشاشة عند مغادرة نافذة الامتحان أو فتح نافذة أخرى.</li>
-              <li>علامة مائية أمنية ديناميكية باسم وكود الطالب لمنع تصوير الشاشة بكاميرا خارجية.</li>
+            <ul className={`text-[11px] list-disc list-inside space-y-0.5 text-emerald-800 dark:text-emerald-300 ${isAr ? 'pr-1' : 'pl-1'}`}>
+              <li>{isAr ? 'ترتيب عشوائي للأسئلة والخيارات فريد لكل طالب لمنع التطابق.' : 'Randomized question and option order unique to each student.'}</li>
+              <li>{isAr ? 'حظر تحديد النص، النسخ، القص، اللصق، والنقر بزر الفأرة الأيمن.' : 'Blocked text selection, copying, pasting, and right-click context menu.'}</li>
+              <li>{isAr ? 'حظر التقاط لقطات الشاشة ومحاولات الطباعة.' : 'Blocked screenshot capture (PrintScreen/Snipping) and printing.'}</li>
+              <li>{isAr ? 'ستار أمني فوري وتعتيم الشاشة عند مغادرة نافذة الامتحان.' : 'Instant privacy blur shield whenever the student switches tabs/windows.'}</li>
+              <li>{isAr ? 'علامة مائية أمنية ديناميكية باسم الطالب لمنع تصوير الشاشة بكاميرا خارجية.' : 'Dynamic security watermark with student identity to prevent external phone camera leaks.'}</li>
             </ul>
           </div>
 
@@ -515,10 +531,10 @@ export function CreateQuizModal({
             <div className="flex items-center justify-between border-b border-n-100 dark:border-n-200/60 pb-2.5">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-xs font-bold text-n-800 dark:text-n-700">
-                  بنك الأسئلة والخيارات ({questions.length})
+                  {isAr ? `بنك الأسئلة والخيارات (${questions.length})` : `Questions Bank (${questions.length})`}
                 </h4>
                 <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-bold">
-                  إجمالي الدرجات: {totalScore} درجة
+                  {isAr ? `إجمالي الدرجات: ${totalScore} درجة` : `Total Score: ${totalScore} pts`}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -528,10 +544,10 @@ export function CreateQuizModal({
                   variant="outline"
                   onClick={distributeScoreEqually}
                   className="text-[11px] h-7 px-2.5 flex items-center gap-1 text-slate-600 dark:text-slate-300"
-                  title="توزيع الدرجة الكلية بالتساوي على جميع الأسئلة"
+                  title={isAr ? 'توزيع الدرجة الكلية بالتساوي على جميع الأسئلة' : 'Distribute total score equally across all questions'}
                 >
                   <Sparkles className="h-3 w-3 text-amber-500" />
-                  توزيع بالتساوي
+                  {isAr ? 'توزيع بالتساوي' : 'Distribute Equally'}
                 </Button>
                 <Button
                   type="button"
@@ -541,7 +557,7 @@ export function CreateQuizModal({
                   className="text-xs flex items-center gap-1 h-7"
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  إضافة سؤال
+                  {isAr ? 'إضافة سؤال' : 'Add Question'}
                 </Button>
               </div>
             </div>
@@ -553,12 +569,14 @@ export function CreateQuizModal({
                   className="p-4 rounded-xl border border-n-200 dark:border-n-300 bg-n-50/50 dark:bg-n-200/50 space-y-3 relative group"
                 >
                   <div className="flex items-center justify-between gap-2 border-b border-n-100 dark:border-n-200/60 pb-2">
-                    <span className="text-xs font-bold text-accent">السؤال رقم {qIdx + 1}</span>
+                    <span className="text-xs font-bold text-accent">
+                      {isAr ? `السؤال رقم ${qIdx + 1}` : `Question #${qIdx + 1}`}
+                    </span>
 
                     <div className="flex items-center gap-2">
                       <div className="flex items-center gap-1 bg-white dark:bg-n-100 px-2 py-0.5 rounded-lg border border-n-200 dark:border-n-300 shadow-sm">
                         <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">
-                          درجة السؤال:
+                          {isAr ? 'درجة السؤال:' : 'Points:'}
                         </label>
                         <input
                           type="number"
@@ -569,14 +587,14 @@ export function CreateQuizModal({
                           onChange={(e) => handleQuestionScoreChange(qIdx, Number(e.target.value))}
                           className="w-12 h-6 text-center font-bold text-xs rounded border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 outline-none focus:border-emerald-500"
                         />
-                        <span className="text-[11px] text-slate-400 font-medium">درجة</span>
+                        <span className="text-[11px] text-slate-400 font-medium">{isAr ? 'درجة' : 'pts'}</span>
                       </div>
 
                       <button
                         type="button"
                         onClick={() => removeQuestion(qIdx)}
                         className="text-bad hover:text-bad/80 p-1 rounded-md hover:bg-bad-light transition-colors"
-                        title="حذف هذا السؤال"
+                        title={isAr ? 'حذف هذا السؤال' : 'Delete question'}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -589,7 +607,11 @@ export function CreateQuizModal({
                       required
                       value={q.text}
                       onChange={(e) => updateQuestionText(qIdx, e.target.value)}
-                      placeholder="اكتب نص السؤال هنا (مثال: ما قيمة س إذا كان 2س = 10؟)"
+                      placeholder={
+                        isAr
+                          ? 'اكتب نص السؤال هنا (مثال: ما قيمة س إذا كان 2س = 10؟)'
+                          : 'Enter question text here (e.g. Solve for x: 2x = 10)'
+                      }
                       className="text-xs font-medium"
                     />
                   </div>
@@ -597,7 +619,9 @@ export function CreateQuizModal({
                   {/* Options */}
                   <div className="space-y-2 pt-1">
                     <label className="block text-[11px] font-semibold text-n-500">
-                      الخيارات (اختر الإجابة الصحيحة بالنقر على الدائرة):
+                      {isAr
+                        ? 'الخيارات (اختر الإجابة الصحيحة بالنقر على الدائرة):'
+                        : 'Options (Select the correct answer by clicking radio button):'}
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {q.options.map((opt, optIdx) => (
@@ -627,7 +651,7 @@ export function CreateQuizModal({
                                 setCorrectAnswer(qIdx, e.target.value);
                               }
                             }}
-                            placeholder={`الخيار ${optIdx + 1}`}
+                            placeholder={isAr ? `الخيار ${optIdx + 1}` : `Option ${optIdx + 1}`}
                             className="w-full bg-transparent text-xs outline-none"
                           />
                         </div>
@@ -642,10 +666,12 @@ export function CreateQuizModal({
           {/* Footer */}
           <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-n-200 dark:border-n-300">
             <Button type="button" variant="secondary" size="md" onClick={onClose} disabled={loading}>
-              إلغاء
+              {isAr ? 'إلغاء' : 'Cancel'}
             </Button>
             <Button type="submit" variant="primary" size="md" loading={loading} className="font-semibold">
-              {isEditing ? 'حفظ التعديلات' : 'نشر الاختبار للطلاب'}
+              {isEditing
+                ? (isAr ? 'حفظ التعديلات' : 'Save Changes')
+                : (isAr ? 'نشر الاختبار للطلاب' : 'Publish Exam to Students')}
             </Button>
           </div>
         </form>

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { AlertTriangle, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useLocale } from 'next-intl';
 
 export default function TeacherStudentsError({
   error,
@@ -12,6 +13,9 @@ export default function TeacherStudentsError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const locale = useLocale();
+  const isAr = locale === 'ar';
+
   useEffect(() => {
     // Log the real error and server digest to console for debugging
     console.error('Teacher Students Error Boundary Caught:', error);
@@ -21,7 +25,7 @@ export default function TeacherStudentsError({
   }, [error]);
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center p-4" dir="rtl">
+    <div className="min-h-[60vh] flex items-center justify-center p-4" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="bg-white dark:bg-slate-900 border border-red-200 dark:border-red-900/50 rounded-2xl p-8 max-w-lg w-full text-center shadow-lg space-y-5">
         <div className="w-14 h-14 bg-red-50 dark:bg-red-950/50 text-red-600 rounded-full flex items-center justify-center mx-auto">
           <AlertTriangle className="h-7 w-7" />
@@ -29,10 +33,12 @@ export default function TeacherStudentsError({
 
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            حدث خطأ أثناء معالجة بيانات الطلاب
+            {isAr ? 'حدث خطأ أثناء معالجة بيانات الطلاب' : 'An error occurred while processing student data'}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            تعذر إكمال معالجة الصفحة على الخادم (Server Component Render Error).
+            {isAr
+              ? 'تعذر إكمال معالجة الصفحة على الخادم (Server Component Render Error).'
+              : 'Failed to process page on server (Server Component Render Error).'}
           </p>
         </div>
 
@@ -50,13 +56,13 @@ export default function TeacherStudentsError({
 
         <div className="flex items-center justify-center gap-3 pt-2">
           <Button onClick={() => reset()} variant="primary" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-            <RefreshCcw className="h-4 w-4 ml-1.5" />
-            إعادة المحاولة
+            <RefreshCcw className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'}`} />
+            {isAr ? 'إعادة المحاولة' : 'Try Again'}
           </Button>
-          <Link href="/ar/teacher">
+          <Link href={`/${locale}/teacher`}>
             <Button variant="secondary">
-              <Home className="h-4 w-4 ml-1.5" />
-              الرئيسية
+              <Home className={`h-4 w-4 ${isAr ? 'ml-1.5' : 'mr-1.5'}`} />
+              {isAr ? 'الرئيسية' : 'Home'}
             </Button>
           </Link>
         </div>

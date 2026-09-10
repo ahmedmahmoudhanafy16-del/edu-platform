@@ -12,6 +12,7 @@ export default async function StudentAssignmentsPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let student: any = null;
   try {
@@ -19,7 +20,7 @@ export default async function StudentAssignmentsPage({
   } catch (e) {}
 
   const studentId = student?.id || '';
-  const studentName = student?.name || 'طالب';
+  const studentName = student?.name || (isAr ? 'طالب' : 'Student');
 
   let assignments: any[] = [];
   try {
@@ -43,11 +44,11 @@ export default async function StudentAssignmentsPage({
 
   const serialized = (assignments || []).map((a) => ({
     id: a.id || 'assign-1',
-    title: a.title || 'الواجب المنزلي',
+    title: a.title || (isAr ? 'الواجب المنزلي' : 'Homework Assignment'),
     description: a.description || '',
     dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
     maxScore: a.maxScore ?? 10,
-    classroomName: a.classroom?.name || 'فصل الرياضيات',
+    classroomName: a.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Math Classroom'),
     submission: a.submissions && a.submissions[0]
       ? {
           id: a.submissions[0].id,
@@ -60,11 +61,15 @@ export default async function StudentAssignmentsPage({
   }));
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir="rtl">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
       <div>
-        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">الواجبات والتسليمات</h1>
+        <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+          {isAr ? 'الواجبات والتسليمات' : 'Assignments & Submissions'}
+        </h1>
         <p className="text-xs text-n-500 dark:text-n-400 mt-1">
-          مرحباً {studentName} — قائمة بالواجبات المطلوبة ومتابعة درجات وملاحظات المعلم
+          {isAr
+            ? `مرحباً ${studentName} — قائمة بالواجبات المطلوبة ومتابعة درجات وملاحظات المعلم`
+            : `Welcome ${studentName} — List of required assignments, grades, and teacher feedback`}
         </p>
       </div>
 
