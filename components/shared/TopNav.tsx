@@ -39,7 +39,6 @@ export function TopNav({ role, userName = 'أحمد', brandName = 'منصة ال
           { label: 'الواجبات',       href: `${base}/assignments` },
           { label: 'البث المباشر',   href: `${base}/live` },
           { label: 'الدرجات',        href: `${base}/grades` },
-          { label: 'الجدول',         href: `${base}/schedule` },
         ]
       : [
           { label: 'الرئيسية',         href: base },
