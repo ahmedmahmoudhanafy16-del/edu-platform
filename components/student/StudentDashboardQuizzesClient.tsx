@@ -18,21 +18,26 @@ export function StudentDashboardQuizzesClient({
 }) {
   const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
     if (typeof window !== 'undefined') {
-      const stored = getStudentQuizzes();
+      const stored = getStudentQuizzes(studentId);
       if (stored.length > 0) return stored;
     }
-    return (initialQuizzes || []).filter((q) => q.isPublished !== false && !q.isHidden);
+    return initialQuizzes || [];
   });
 
-  const [results, setResults] = useState<QuizSubmissionData[]>(quizResults);
+  const [results, setResults] = useState<QuizSubmissionData[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        return (quizResults || []).filter((r: any) => !r.quizId || !deletedSet.has(r.quizId));
+      } catch {}
+    }
+    return quizResults || [];
+  });
 
   useEffect(() => {
     function syncQuizzesAndResults() {
-      // 1. Strict filtering of published quizzes from the unified client store
-      const activeQuizzes = getStudentQuizzes();
-      setQuizzes(activeQuizzes);
-
-      // 2. Sync student submissions with dynamic student ID resolution
+      // 1. Resolve student ID
       let currentTargetId = studentId;
       try {
         const cur = localStorage.getItem('current_student');
@@ -43,6 +48,10 @@ export function StudentDashboardQuizzesClient({
           }
         }
       } catch {}
+
+      // 2. Strict filtering of quizzes from client store (preserves completed hidden quizzes)
+      const activeQuizzes = getStudentQuizzes(currentTargetId);
+      setQuizzes(activeQuizzes);
 
       let activeSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
       if (!activeSubmissions || activeSubmissions.length === 0) {

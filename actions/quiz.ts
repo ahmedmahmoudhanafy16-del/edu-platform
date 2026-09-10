@@ -1273,7 +1273,8 @@ export async function updateQuiz(
 }
 
 /**
- * Deletes a quiz and cascade cleans related questions and student submissions.
+ * Deletes a quiz and cascade cleans related questions, student submissions, violations, and retake records.
+ * Ensures the student sees ZERO trace of the exam across the entire platform.
  */
 export async function deleteQuiz(quizId: string) {
   try {
@@ -1288,33 +1289,68 @@ export async function deleteQuiz(quizId: string) {
       console.warn('[deleteQuiz] Auth check skipped/relaxed:', authErr?.message);
     }
 
-    // 2. Cascade cleanup related records safely
+    const cleanId = quizId.trim();
+
+    // 2. Cascade cleanup related records safely in Database
     try {
+      const matchedQuizzes = await prisma.quiz.findMany({
+        where: {
+          OR: [{ id: cleanId }, { accessCode: cleanId }],
+        },
+        select: { id: true },
+      }).catch(() => []);
+
+      const targetIds = Array.from(new Set([cleanId, ...matchedQuizzes.map((q) => q.id)]));
+
       await prisma.quizViolation.deleteMany({
-        where: { quizResult: { quizId } },
+        where: { quizResult: { quizId: { in: targetIds } } },
       }).catch(() => null);
 
       await prisma.quizResult.deleteMany({
-        where: { quizId },
+        where: { quizId: { in: targetIds } },
       }).catch(() => null);
 
       await prisma.question.deleteMany({
-        where: { quizId },
+        where: { quizId: { in: targetIds } },
       }).catch(() => null);
 
-      await prisma.quiz.delete({
-        where: { id: quizId },
+      await prisma.quiz.deleteMany({
+        where: { id: { in: targetIds } },
       }).catch(() => null);
     } catch (dbErr: any) {
       console.warn('[deleteQuiz] Database delete skipped/relaxed:', dbErr?.message);
     }
 
-    // Cascade cleanup in memory
-    const memIndex = (memoryQuizzes || []).findIndex(
-      (m: any) => m.id === quizId || m.accessCode === quizId
-    );
-    if (memIndex !== -1) {
-      memoryQuizzes.splice(memIndex, 1);
+    // Cascade cleanup in memoryQuizzes
+    for (let i = (memoryQuizzes || []).length - 1; i >= 0; i--) {
+      const m = memoryQuizzes[i];
+      if (m.id === cleanId || m.accessCode === cleanId) {
+        memoryQuizzes.splice(i, 1);
+      }
+    }
+
+    // Cascade cleanup in memoryQuizResults (Purge completely so students see no past grades/submissions)
+    for (let i = (memoryQuizResults || []).length - 1; i >= 0; i--) {
+      const r = memoryQuizResults[i];
+      if (r.quizId === cleanId) {
+        memoryQuizResults.splice(i, 1);
+      }
+    }
+
+    // Cascade cleanup in memoryRetakeCodes
+    for (let i = (memoryRetakeCodes || []).length - 1; i >= 0; i--) {
+      const rc = memoryRetakeCodes[i];
+      if (rc.quizId === cleanId) {
+        memoryRetakeCodes.splice(i, 1);
+      }
+    }
+
+    // Cascade cleanup in memoryUnlockedQuizzes
+    for (let i = (memoryUnlockedQuizzes || []).length - 1; i >= 0; i--) {
+      const uq = memoryUnlockedQuizzes[i];
+      if (uq.quizId === cleanId) {
+        memoryUnlockedQuizzes.splice(i, 1);
+      }
     }
 
     // 3. Cache revalidation across all layouts and routes
@@ -1327,6 +1363,7 @@ export async function deleteQuiz(quizId: string) {
       revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
+      revalidatePath('/[locale]/(dashboard)/student/grades');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
       revalidatePath('/ar/teacher');
@@ -1335,13 +1372,16 @@ export async function deleteQuiz(quizId: string) {
       revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student/grades');
+      revalidatePath('/en/student/grades');
       revalidatePath('/teacher/quizzes');
       revalidatePath('/student/quizzes');
+      revalidatePath('/student/grades');
     } catch (e) {}
 
     return {
       success: true,
-      message: 'تم حذف الامتحان بنجاح',
+      message: 'تم حذف الامتحان وكافة سجلاته ونتائجه بنجاح',
     };
   } catch (error: any) {
     console.error('[deleteQuiz Server Action Error]:', error);
@@ -1354,6 +1394,9 @@ export async function deleteQuiz(quizId: string) {
 
 /**
  * Toggles a quiz between Published ("متاح للطلاب") and Hidden ("مخفي").
+ * When hidden:
+ * - Students who already completed the quiz still have their results, grades, and completion record preserved.
+ * - Students who have not taken it yet will not see it or be able to start it.
  */
 export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
   try {
@@ -1367,38 +1410,53 @@ export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
       console.warn('[toggleQuizPublish] Auth check skipped/relaxed:', authErr?.message);
     }
 
+    const cleanId = quizId.trim();
+
     // 1. Update in-memory quizzes cache
-    const mem = (memoryQuizzes || []).find((m: any) => m.id === quizId || m.accessCode === quizId);
+    const mem = (memoryQuizzes || []).find((m: any) => m.id === cleanId || m.accessCode === cleanId);
     if (mem) {
-      mem.isPublished = isPublished;
+      mem.isPublished = Boolean(isPublished);
+      mem.isHidden = !Boolean(isPublished);
     }
 
-    // 2. Safe Database update with graceful error catching for read-only Vercel SQLite
+    // 2. Safe Database update with graceful error catching
     try {
-      await prisma.quiz.update({
-        where: { id: quizId },
-        data: { isPublished },
+      await prisma.quiz.updateMany({
+        where: {
+          OR: [{ id: cleanId }, { accessCode: cleanId }],
+        },
+        data: {
+          isPublished: Boolean(isPublished),
+        },
       });
     } catch (dbErr: any) {
       console.warn('[toggleQuizPublish] Database update skipped/relaxed:', dbErr?.message);
     }
 
     try {
+      revalidatePath('/[locale]/teacher');
+      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student');
+      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
+      revalidatePath('/[locale]/(dashboard)/student/grades');
       revalidatePath('/ar/student');
       revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student/grades');
+      revalidatePath('/en/student/grades');
       revalidatePath('/student');
       revalidatePath('/student/quizzes');
+      revalidatePath('/student/grades');
     } catch (e) {}
 
     return {
       success: true,
-      isPublished,
-      message: isPublished ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان عن الطلاب',
+      isPublished: Boolean(isPublished),
+      message: isPublished ? 'تم إتاحة الامتحان للطلاب' : 'تم إخفاء الامتحان مع الحفاظ على درجات الطلاب المكتملة',
     };
   } catch (error: any) {
     console.error('[toggleQuizPublish Server Action Error]:', error);

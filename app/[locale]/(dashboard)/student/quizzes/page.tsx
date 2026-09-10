@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma, memoryQuizResults } from '@/lib/prisma';
+import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
 import { ClipboardList } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { StudentQuizzesListClient } from '@/components/student/StudentQuizzesListClient';
@@ -30,10 +30,23 @@ export default async function StudentQuizzesPage({
     const res = await Promise.allSettled([
       prisma.quiz.findMany({
         where: {
-          isPublished: true,
           OR: [
-            { classroomId: null },
-            { classroom: { isActive: true } },
+            {
+              isPublished: true,
+              OR: [
+                { classroomId: null },
+                { classroom: { isActive: true } },
+              ],
+            },
+            ...(studentId
+              ? [
+                  {
+                    results: {
+                      some: { studentId },
+                    },
+                  },
+                ]
+              : []),
           ],
         },
         include: { classroom: true },
@@ -48,6 +61,25 @@ export default async function StudentQuizzesPage({
     if (res[1].status === 'fulfilled') dbResults = res[1].value || [];
   } catch (err) {
     console.warn('[Student Quizzes] DB query skipped:', err);
+  }
+
+  // Memory fallback if DB returned empty
+  if ((!quizzes || quizzes.length === 0) && memoryQuizzes && memoryQuizzes.length > 0) {
+    const completedMemoryQuizIds = new Set(
+      (memoryQuizResults || [])
+        .filter((m: any) => m.studentId === studentId)
+        .map((m: any) => m.quizId)
+    );
+
+    quizzes = memoryQuizzes.filter((q: any) => {
+      if (
+        completedMemoryQuizIds.has(q.id) ||
+        (q.accessCode && completedMemoryQuizIds.has(q.accessCode))
+      ) {
+        return true;
+      }
+      return q.isPublished !== false && !q.isHidden;
+    });
   }
 
   // Merge database quiz results with in-memory store

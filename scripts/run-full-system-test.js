@@ -181,8 +181,11 @@ async function runAllTests() {
   // -------------------------------------------------------------------------
   console.log('\n📋 Test Suite 3: Quiz Lifecycle, Zero Answer Leakage & Grading');
 
-  // Clean previous questions if exist
-  await prisma.question.deleteMany({ where: { quizId: 'quiz-qa-test-1' } });
+  // Clean previous quiz if exist
+  await prisma.quizViolation.deleteMany({ where: { quizResult: { quizId: 'quiz-qa-test-1' } } }).catch(() => null);
+  await prisma.quizResult.deleteMany({ where: { quizId: 'quiz-qa-test-1' } }).catch(() => null);
+  await prisma.question.deleteMany({ where: { quizId: 'quiz-qa-test-1' } }).catch(() => null);
+  await prisma.quiz.deleteMany({ where: { id: 'quiz-qa-test-1' } }).catch(() => null);
 
   // Create Quiz in Database
   const testQuiz = await prisma.quiz.upsert({

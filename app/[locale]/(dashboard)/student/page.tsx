@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { prisma, memoryQuizResults } from '@/lib/prisma';
+import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
@@ -64,7 +64,12 @@ export default async function StudentDashboardPage({
         take: 10,
       }),
       prisma.quiz.findMany({
-        where: { isPublished: true },
+        where: {
+          OR: [
+            { isPublished: true },
+            ...(studentId ? [{ results: { some: { studentId } } }] : []),
+          ],
+        },
         orderBy: { createdAt: 'desc' },
         take: 6,
       }),
@@ -85,6 +90,27 @@ export default async function StudentDashboardPage({
     if (results[5].status === 'fulfilled') attendance = results[5].value || [];
   } catch (err) {
     console.warn('[Student Dashboard] Database queries skipped:', err);
+  }
+
+  // Memory fallback if DB returned empty
+  if ((!quizzes || quizzes.length === 0) && memoryQuizzes && memoryQuizzes.length > 0) {
+    const completedMemoryQuizIds = new Set(
+      (memoryQuizResults || [])
+        .filter((m: any) => m.studentId === studentId)
+        .map((m: any) => m.quizId)
+    );
+
+    quizzes = memoryQuizzes
+      .filter((q: any) => {
+        if (
+          completedMemoryQuizIds.has(q.id) ||
+          (q.accessCode && completedMemoryQuizIds.has(q.accessCode))
+        ) {
+          return true;
+        }
+        return q.isPublished !== false && !q.isHidden;
+      })
+      .slice(0, 6);
   }
 
   // Merge database quiz results with in-memory store for instant reflection

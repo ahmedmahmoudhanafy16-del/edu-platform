@@ -35,6 +35,7 @@ export interface QuizData {
 }
 
 export interface QuizSubmissionData {
+  id?: string;
   quizId: string;
   studentId?: string;
   studentCode?: string;
@@ -166,9 +167,12 @@ export function getQuizzes(): QuizData[] {
 }
 
 /**
- * 2. Retrieves only visible quizzes for students (isPublished === true && !isHidden && classroom is active)
+ * 2. Retrieves quizzes for students:
+ * - If published and classroom active: available for all students to take.
+ * - If hidden (isPublished === false or isHidden): ONLY visible to students who ALREADY completed it (so their grade and record are preserved).
+ * - If deleted: NEVER returned under any circumstances.
  */
-export function getStudentQuizzes(): QuizData[] {
+export function getStudentQuizzes(studentId?: string): QuizData[] {
   if (typeof window === 'undefined') return [];
 
   try {
@@ -182,10 +186,46 @@ export function getStudentQuizzes(): QuizData[] {
       classroomsList.filter((c: any) => c.isActive === false).map((c: any) => c.name)
     );
 
+    // Resolve student's completed submissions
+    let targetStudentId = studentId;
+    if (!targetStudentId) {
+      try {
+        const cur = localStorage.getItem('current_student');
+        if (cur) {
+          const parsed = JSON.parse(cur);
+          targetStudentId = parsed.studentCode || parsed.id || '';
+        }
+      } catch {}
+    }
+
+    const submissions = getSubmissions(targetStudentId);
+    const completedQuizIds = new Set(
+      submissions
+        .filter(
+          (s: any) =>
+            s &&
+            s.quizId &&
+            (s.status === 'AUTO_GRADED' ||
+              s.status === 'GRADED' ||
+              s.status === 'PENDING' ||
+              s.isPassed !== undefined ||
+              s.score !== undefined ||
+              s.totalScore !== undefined)
+        )
+        .map((s: any) => s.quizId)
+    );
+
     return getQuizzes().filter((q) => {
-      if (!q.isPublished || q.isHidden) return false;
-      if (q.classroomId && inactiveClassroomIds.has(q.classroomId)) return false;
-      if (q.classroomName && inactiveClassroomNames.has(q.classroomName)) return false;
+      const hasCompleted =
+        completedQuizIds.has(q.id) || (q.accessCode && completedQuizIds.has(q.accessCode));
+
+      // If the student already completed it, keep it visible so they see their score and completion status
+      if (!hasCompleted) {
+        if (!q.isPublished || q.isHidden) return false;
+        if (q.classroomId && inactiveClassroomIds.has(q.classroomId)) return false;
+        if (q.classroomName && inactiveClassroomNames.has(q.classroomName)) return false;
+      }
+
       return true;
     });
   } catch {
@@ -288,13 +328,17 @@ export function toggleQuizVisibility(quizId: string, isPublished?: boolean): boo
 }
 
 /**
- * 6. Deletes a quiz and records tombstone ID
+ * 6. Deletes a quiz and wipes out all its questions, results, submissions, and retake records.
+ * Leaves zero trace of the quiz for any student across the platform.
  */
 export function deleteQuiz(quizId: string): boolean {
   if (typeof window === 'undefined') return false;
 
   try {
     const current = getQuizzes();
+    const targetQuiz = current.find((q) => q.id === quizId || q.accessCode === quizId);
+    const targetAccessCode = targetQuiz?.accessCode;
+
     const updated = current.filter((q) => q.id !== quizId && q.accessCode !== quizId);
     localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(updated));
 
@@ -302,7 +346,48 @@ export function deleteQuiz(quizId: string): boolean {
     const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_QUIZZES);
     const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
     deletedSet.add(quizId);
+    if (targetAccessCode) deletedSet.add(targetAccessCode);
     localStorage.setItem(STORAGE_KEYS.DELETED_QUIZZES, JSON.stringify(Array.from(deletedSet)));
+
+    // Purge student results and submissions for this quiz completely
+    const resultsRaw = localStorage.getItem(STORAGE_KEYS.RESULTS);
+    if (resultsRaw) {
+      const resultsParsed = JSON.parse(resultsRaw);
+      if (Array.isArray(resultsParsed)) {
+        const cleanedResults = resultsParsed.filter(
+          (r: any) =>
+            r.quizId !== quizId &&
+            r.quizId !== targetAccessCode &&
+            r.id !== quizId &&
+            r.id !== targetAccessCode
+        );
+        localStorage.setItem(STORAGE_KEYS.RESULTS, JSON.stringify(cleanedResults));
+      }
+    }
+
+    // Purge retake codes for this quiz
+    const retakeRaw = localStorage.getItem(STORAGE_KEYS.RETAKE_CODES);
+    if (retakeRaw) {
+      const retakeParsed = JSON.parse(retakeRaw);
+      if (Array.isArray(retakeParsed)) {
+        const cleanedRetake = retakeParsed.filter(
+          (rc: any) => rc.quizId !== quizId && rc.quizId !== targetAccessCode
+        );
+        localStorage.setItem(STORAGE_KEYS.RETAKE_CODES, JSON.stringify(cleanedRetake));
+      }
+    }
+
+    // Also purge edu_submissions if present
+    const subsRaw = localStorage.getItem('edu_submissions');
+    if (subsRaw) {
+      const subsParsed = JSON.parse(subsRaw);
+      if (Array.isArray(subsParsed)) {
+        const cleanedSubs = subsParsed.filter(
+          (s: any) => s.quizId !== quizId && s.quizId !== targetAccessCode
+        );
+        localStorage.setItem('edu_submissions', JSON.stringify(cleanedSubs));
+      }
+    }
 
     notifyStoreUpdated();
     return true;
@@ -314,6 +399,7 @@ export function deleteQuiz(quizId: string): boolean {
 
 /**
  * 7. Submissions & Results Store Functions
+ * Excludes any results that belong to deleted quizzes.
  */
 export function getSubmissions(studentId?: string): QuizSubmissionData[] {
   if (typeof window === 'undefined') return [];
@@ -322,10 +408,19 @@ export function getSubmissions(studentId?: string): QuizSubmissionData[] {
     if (!raw) return [];
     const parsed: QuizSubmissionData[] = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    if (!studentId) return parsed;
+
+    // Filter out results belonging to deleted quizzes
+    const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_QUIZZES);
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+    const activeList = parsed.filter(
+      (s) => s && s.quizId && !deletedSet.has(s.quizId) && (!s.id || !deletedSet.has(s.id))
+    );
+
+    if (!studentId) return activeList;
 
     const cleanTarget = studentId.trim().toUpperCase();
-    return parsed.filter((s) => {
+    return activeList.filter((s) => {
       if (!s) return false;
       const sId = (s.studentId || (s as any).studentCode || '').trim().toUpperCase();
       const sCode = ((s as any).studentCode || s.studentId || '').trim().toUpperCase();

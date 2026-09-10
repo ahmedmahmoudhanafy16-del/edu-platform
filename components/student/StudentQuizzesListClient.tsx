@@ -20,19 +20,22 @@ export function StudentQuizzesListClient({
 }) {
   const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
     if (typeof window !== 'undefined') {
-      const stored = getStudentQuizzes();
+      const stored = getStudentQuizzes(studentId);
       if (stored.length > 0) return stored;
     }
-    return (initialQuizzes || []).filter((q) => q.isPublished !== false && !q.isHidden);
+    return initialQuizzes || [];
   });
 
   const [resultsMap, setResultsMap] = useState<Record<string, QuizSubmissionData>>(() => {
     const map: Record<string, QuizSubmissionData> = {};
+    const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
     (initialResults || []).forEach((r) => {
-      if (r.quizId) map[r.quizId] = r;
+      if (r.quizId && !deletedSet.has(r.quizId)) map[r.quizId] = r;
     });
     (completedQuizIds || []).forEach((id) => {
-      if (!map[id]) {
+      if (!deletedSet.has(id) && !map[id]) {
         map[id] = { quizId: id, score: undefined, isPassed: true };
       }
     });
@@ -41,11 +44,7 @@ export function StudentQuizzesListClient({
 
   useEffect(() => {
     function syncQuizzesAndResults() {
-      // 1. Sync published quizzes from the unified client store
-      const activeQuizzes = getStudentQuizzes();
-      setQuizzes(activeQuizzes);
-
-      // 2. Sync submissions from the unified client store with dynamic student ID
+      // 1. Resolve target student ID
       let currentTargetId = studentId;
       try {
         const cur = localStorage.getItem('current_student');
@@ -56,6 +55,12 @@ export function StudentQuizzesListClient({
           }
         }
       } catch {}
+
+      // 2. Sync quizzes from the unified client store (preserves completed hidden quizzes)
+      const activeQuizzes = getStudentQuizzes(currentTargetId);
+      setQuizzes(activeQuizzes);
+
+      // 3. Sync submissions from the unified client store with dynamic student ID
 
       let activeSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
       if (!activeSubmissions || activeSubmissions.length === 0) {

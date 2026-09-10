@@ -34,7 +34,18 @@ export function StudentGradesClient({
   studentId?: string;
   locale: string;
 }) {
-  const [results, setResults] = useState<GradeResultItem[]>(initialResults);
+  const [results, setResults] = useState<GradeResultItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        return (initialResults || []).filter(
+          (r) => !r.quizId || (!deletedSet.has(r.quizId) && (!r.id || !deletedSet.has(r.id)))
+        );
+      } catch {}
+    }
+    return initialResults || [];
+  });
   const [effectiveStudent, setEffectiveStudent] = useState<{ id: string; name: string }>({
     id: studentId || '',
     name: studentName,
@@ -58,6 +69,12 @@ export function StudentGradesClient({
   useEffect(() => {
     function syncGrades() {
       try {
+        const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+        const sanitizedInitial = (initialResults || []).filter(
+          (r) => !r.quizId || (!deletedSet.has(r.quizId) && (!r.id || !deletedSet.has(r.id)))
+        );
+
         let currentTargetId = effectiveStudent.id || studentId || '';
         if (!currentTargetId && typeof window !== 'undefined') {
           try {
@@ -84,6 +101,11 @@ export function StudentGradesClient({
             storedSubmissions = matched.length > 0 ? matched : allSubs;
           }
         }
+
+        // Exclude any deleted quizzes
+        storedSubmissions = (storedSubmissions || []).filter(
+          (s: any) => !s.quizId || !deletedSet.has(s.quizId)
+        );
 
         if (storedSubmissions && storedSubmissions.length > 0) {
           const mapped: GradeResultItem[] = storedSubmissions.map((p: any, idx: number) => {
@@ -112,10 +134,21 @@ export function StudentGradesClient({
           setResults(mapped);
           return;
         }
+
+        setResults(sanitizedInitial);
+        return;
       } catch (e) {
         console.warn('[StudentGradesClient] Sync error:', e);
       }
-      setResults(initialResults);
+      setResults((initialResults || []).filter((r) => {
+        try {
+          const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
+          const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+          return !r.quizId || !deletedSet.has(r.quizId);
+        } catch {
+          return true;
+        }
+      }));
     }
 
     syncGrades();
