@@ -59,6 +59,48 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
       return { success: false, error: 'هذا الاختبار غير متاح حالياً لأن الفصل الدراسي معطل مؤقتاً' };
     }
 
+    // Guard: Prevent re-taking with regular access if student already completed the quiz
+    if (studentId) {
+      const cleanStudent = studentId.trim();
+      const isSessionUnlocked = (memoryUnlockedQuizzes || []).some(
+        (u: any) =>
+          (u.quizId === quiz.id || (quiz.accessCode && u.quizId === quiz.accessCode)) &&
+          (u.studentId === cleanStudent || (u as any).studentCode === cleanStudent)
+      );
+
+      if (!isSessionUnlocked) {
+        let hasCompleted = (memoryQuizResults || []).some(
+          (r: any) =>
+            (r.quizId === quiz.id || (quiz.accessCode && r.quizId === quiz.accessCode)) &&
+            (r.studentId === cleanStudent || (r as any).studentCode === cleanStudent) &&
+            (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+        );
+
+        if (!hasCompleted) {
+          try {
+            const dbResult = await prisma.quizResult.findFirst({
+              where: {
+                quizId: quiz.id,
+                OR: [
+                  { studentId: cleanStudent },
+                  { student: { studentCode: cleanStudent } },
+                  { student: { phone: cleanStudent } },
+                ],
+              },
+            });
+            if (dbResult) hasCompleted = true;
+          } catch (e) {}
+        }
+
+        if (hasCompleted) {
+          return {
+            success: false,
+            error: 'لقد أتممت هذا الاختبار بالفعل ولا يمكنك دخوله مرة أخرى إلا بتصريح من المعلم. يرجى طلب كود إعادة (Retake Code) من معلمك.',
+          };
+        }
+      }
+    }
+
     const sanitizedQuestions = (quiz.questions || []).map((q: any) => {
       let parsedOptions: string[] = [];
       try {
@@ -435,6 +477,41 @@ export async function verifyQuizAccessCode(
 
   // 6. Record unlock status in memory
   const actualQuizId = quiz.id || quizId;
+
+  // Guard against re-entering with regular exam code if already completed
+  if (studentId && !isRetakeFormat) {
+    const cleanStudent = studentId.trim();
+    let alreadyCompleted = (memoryQuizResults || []).some(
+      (r: any) =>
+        (r.quizId === actualQuizId || (quiz.accessCode && r.quizId === quiz.accessCode)) &&
+        (r.studentId === cleanStudent || (r as any).studentCode === cleanStudent) &&
+        (r.status === 'AUTO_GRADED' || r.status === 'GRADED' || r.status === 'PENDING')
+    );
+
+    if (!alreadyCompleted) {
+      try {
+        const dbResult = await prisma.quizResult.findFirst({
+          where: {
+            quizId: actualQuizId,
+            OR: [
+              { studentId: cleanStudent },
+              { student: { studentCode: cleanStudent } },
+              { student: { phone: cleanStudent } },
+            ],
+          },
+        });
+        if (dbResult) alreadyCompleted = true;
+      } catch (err) {}
+    }
+
+    if (alreadyCompleted) {
+      return {
+        success: false,
+        error: 'لقد أتممت هذا الاختبار بالفعل ولا يمكنك دخوله مرة أخرى إلا بتصريح من المعلم. يرجى طلب كود إعادة (Retake Code) من معلمك.',
+      };
+    }
+  }
+
   const alreadyUnlocked = memoryUnlockedQuizzes.some(
     (u: any) => u.quizId === actualQuizId && u.studentId === studentId
   );
