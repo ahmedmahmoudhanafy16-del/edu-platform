@@ -1,4 +1,4 @@
-import type { Viewport } from 'next';
+import type { Viewport, Metadata } from 'next';
 import { Cairo } from 'next/font/google';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -11,6 +11,65 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1.0,
 };
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }> | { locale: string };
+}): Promise<Metadata> {
+  let locale = 'ar';
+  try {
+    const resolvedParams = await params;
+    if (resolvedParams?.locale) locale = resolvedParams.locale;
+  } catch (e) {
+    locale = 'ar';
+  }
+
+  const isAr = locale === 'ar';
+
+  return {
+    title: {
+      template: isAr ? '%s | المنصة التعليمية الذكية' : '%s | Smart EduPlatform',
+      default: isAr
+        ? 'المنصة التعليمية الذكية | نظام إدارة الفصول والاختبارات التفاعلية'
+        : 'Smart EduPlatform | Interactive Classrooms & Exam System',
+    },
+    description: isAr
+      ? 'منصة تعليمية متطورة للطلاب والمعلمين، تدعم الاختبارات التفاعلية، الفصول الافتراضية، ومتابعة أولياء الأمور عبر الواتساب.'
+      : 'Advanced educational platform for students and teachers supporting interactive quizzes, virtual classrooms, and automated parent tracking.',
+    keywords: isAr
+      ? ['منصة تعليمية', 'اختبارات إلكترونية', 'فصول ذكية', 'متابعة الطلاب', 'مصر', 'التعليم الإلكتروني']
+      : ['EduPlatform', 'online quizzes', 'smart classroom', 'student tracking', 'e-learning'],
+    metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://eduplatform.example.com'),
+    alternates: {
+      canonical: `/${locale}`,
+      languages: {
+        'ar': '/ar',
+        'en': '/en',
+      },
+    },
+    openGraph: {
+      title: isAr ? 'المنصة التعليمية الذكية' : 'Smart EduPlatform',
+      description: isAr
+        ? 'بيئة تعليمية رقمية متكاملة لتقييم ومتابعة الطلاب بكفاءة وموثوقية عالية.'
+        : 'Integrated digital learning environment for student assessment and tracking.',
+      siteName: isAr ? 'منصة التعليم الذكي' : 'EduPlatform',
+      locale: isAr ? 'ar_EG' : 'en_US',
+      type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: isAr ? 'المنصة التعليمية الذكية' : 'Smart EduPlatform',
+      description: isAr
+        ? 'نظام تعليمي متكامل للفصول والاختبارات ومتابعة أداء الطلاب.'
+        : 'Comprehensive learning system for classrooms, quizzes, and student analytics.',
+    },
+    robots: {
+      index: true,
+      follow: true,
+    },
+  };
+}
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],

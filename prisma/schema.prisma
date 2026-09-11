@@ -76,6 +76,7 @@ model Enrollment {
   classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
   @@unique([userId, classroomId])
+  @@index([classroomId])
 }
 
 // -------------------------------------------------------------
@@ -114,6 +115,7 @@ model AssignmentSubmission {
   student    User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
+  @@index([studentId])
 }
 
 // -------------------------------------------------------------
@@ -151,6 +153,8 @@ model Question {
   order         Int      @default(0)
 
   quiz          Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
 }
 
 model QuizResult {
@@ -170,6 +174,9 @@ model QuizResult {
   quiz       Quiz            @relation(fields: [quizId], references: [id], onDelete: Cascade)
   student    User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   violations QuizViolation[]
+
+  @@index([quizId])
+  @@index([studentId])
 }
 
 model QuizViolation {
@@ -179,6 +186,8 @@ model QuizViolation {
   occurredAt   DateTime @default(now())
 
   quizResult QuizResult @relation(fields: [quizResultId], references: [id], onDelete: Cascade)
+
+  @@index([quizResultId])
 }
 
 // -------------------------------------------------------------
@@ -195,6 +204,8 @@ model ClassResource {
   createdAt   DateTime @default(now())
 
   classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([classroomId])
 }
 
 // -------------------------------------------------------------
@@ -231,6 +242,8 @@ model SessionAccessCode {
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
   usedBy        User?       @relation("UsedByRelation", fields: [usedById], references: [id], onDelete: SetNull)
   usedByStudent User?       @relation("UsedByStudentRelation", fields: [usedByStudentId], references: [id], onDelete: SetNull)
+
+  @@index([liveSessionId])
 }
 
 model LiveAttendance {
@@ -245,6 +258,7 @@ model LiveAttendance {
   student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([liveSessionId, studentId])
+  @@index([studentId])
 }
 
 model ChatMessage {
@@ -256,6 +270,8 @@ model ChatMessage {
 
   liveSession LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
   sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([liveSessionId])
 }
 
 // -------------------------------------------------------------
@@ -272,6 +288,8 @@ model ParentNotification {
   sentAt      DateTime @default(now())
 
   parent User @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  @@index([parentId])
 }
 
 model NotificationLog {
@@ -283,4 +301,6 @@ model NotificationLog {
   status       String   @default("DELIVERED")
   errorMessage String?
   createdAt    DateTime @default(now())
+
+  @@index([studentId])
 }
