@@ -94,7 +94,7 @@ export default async function StudentAttendancePage({
               {isAr ? 'الالتزام والمواظبة' : 'Commitment & Regularity'}
             </p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
-              {isAr ? 'ممتاز 🌟' : 'Excellent 🌟'}
+              {isAr ? 'ممتاز' : 'Excellent'}
             </p>
           </div>
           <ShieldCheck className="h-8 w-8 text-blue-600" />

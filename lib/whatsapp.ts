@@ -141,7 +141,7 @@ export async function notifyParentHomeworkGraded({
   teacherNote?: string | null;
 }) {
   const percentage = Math.round((grade / maxScore) * 100);
-  const statusEmoji = percentage >= 85 ? '🌟 ممتاز' : percentage >= 65 ? '👍 جيد جداً' : '⚠️ يحتاج لمتابعة';
+  const statusEmoji = percentage >= 85 ? '✅ ممتاز' : percentage >= 65 ? '👍 جيد جداً' : '⚠️ يحتاج لمتابعة';
 
   const message = `السلام عليكم ولي أمر الطالب/ة: *${studentName}* 📚
 

@@ -283,7 +283,7 @@ export function QuizResultsAndRetakeModal({
 • سيتم فتح محاولة جديدة بترتيب عشوائي للأسئلة والخيارات.
 • يُرجى عدم مغادرة شاشة الامتحان أو التبديل بين التطبيقات لتجنب الإلغاء التلقائي.
 
-نتمنى له دوام التوفيق والنجاح! 🌟`
+نتمنى له دوام التوفيق والنجاح.`
       : `Dear Parent of *${student.studentName}* (${student.studentCode}),
 
 An exceptional retake has been granted for:
@@ -297,7 +297,7 @@ An exceptional retake has been granted for:
 • New attempt with randomized question order.
 • Please do not leave or switch away from exam screen.
 
-Best wishes! 🌟`;
+Best wishes for success.`;
 
     const url = cleanPhone
       ? `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`

@@ -801,7 +801,8 @@ export async function submitQuizAnswers(
     }
 
     const percentage = totalMaxScore > 0 ? Math.round((autoScore / totalMaxScore) * 100) : 0;
-    const isPassed = !hasEssay && percentage >= (quiz.passingScore || 50);
+    const passThreshold = typeof quiz?.passingScore === 'number' ? quiz.passingScore : (Number(quiz?.passingScore) || 60);
+    const isPassed = !hasEssay && percentage >= passThreshold;
     const status = hasEssay ? 'PENDING' : 'AUTO_GRADED';
 
     const resultPayload: any = {

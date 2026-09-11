@@ -331,7 +331,7 @@ export function TeacherAccessCodesClient({
 • سيتم فتح محاولة جديدة بترتيب عشوائي للأسئلة والخيارات.
 • يُرجى عدم مغادرة شاشة الامتحان لتجنب الإلغاء التلقائي.
 
-نتمنى له دوام التوفيق والنجاح! 🌟`
+نتمنى له دوام التوفيق والنجاح.`
       : `Dear Parent of Student: *${retake.studentName}* (${retake.studentCode}),
 
 As requested, an *exceptional exam retake* has been authorized for:
@@ -345,7 +345,7 @@ As requested, an *exceptional exam retake* has been authorized for:
 • A fresh attempt with randomized questions and answers will be provided.
 • Please do not leave the exam window to prevent auto-cancellation.
 
-Best wishes for excellence and success! 🌟`;
+Best wishes for excellence and success.`;
 
     const url = cleanPhone
       ? `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`

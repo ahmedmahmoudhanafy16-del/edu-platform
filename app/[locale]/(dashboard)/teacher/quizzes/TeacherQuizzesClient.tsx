@@ -16,6 +16,9 @@ import {
   AlertTriangle,
   Sparkles,
   RotateCcw,
+  Users,
+  CheckCircle2,
+  FileQuestion,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
@@ -325,15 +328,26 @@ export function TeacherQuizzesClient({
     }, 200);
   }
 
+  // Executive Statistics Overview
+  const totalQuizzesCount = quizzes.length;
+  const weeklyQuizzesCount = quizzes.filter((q) => q.type === 'WEEKLY').length;
+  const monthlyQuizzesCount = quizzes.filter((q) => q.type !== 'WEEKLY').length;
+  const publishedQuizzesCount = quizzes.filter((q) => q.isPublished).length;
+  const publishedRate = totalQuizzesCount > 0 ? Math.round((publishedQuizzesCount / totalQuizzesCount) * 100) : 0;
+  const totalSubmissionsCount = quizzes.reduce((sum, q) => sum + (q.resultsCount || 0), 0);
+  const avgQuestionsCount = totalQuizzesCount > 0
+    ? Math.round(quizzes.reduce((sum, q) => sum + (q.questionsCount || 0), 0) / totalQuizzesCount)
+    : 0;
+
   return (
     <>
       {/* Page Header */}
       <div className="flex flex-wrap items-center justify-between gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
         <div>
-          <h1 className="text-2xl font-bold text-n-800 dark:text-n-700">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             {isAr ? 'بنك الامتحانات والتقييمات' : 'Quiz & Exam Bank'}
           </h1>
-          <p className="text-xs text-n-500 dark:text-n-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             {isAr
               ? 'إدارة وتعديل الاختبارات، التحكم برمز المرور، وحذف ونشر الامتحانات للطلاب'
               : 'Manage and edit quizzes, configure passcodes, and publish exams'}
@@ -347,15 +361,94 @@ export function TeacherQuizzesClient({
         </div>
       </div>
 
+      {/* 4 Executive Overview Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
+        {/* Card 1: Total Quizzes */}
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'إجمالي الاختبارات' : 'Total Quizzes'}
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/50 dark:border-blue-900/50">
+              <ClipboardList className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2 font-mono whitespace-nowrap">
+            {totalQuizzesCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap">
+            {isAr
+              ? `${weeklyQuizzesCount} أسبوعي • ${monthlyQuizzesCount} شهري`
+              : `${weeklyQuizzesCount} Weekly • ${monthlyQuizzesCount} Monthly`}
+          </p>
+        </div>
+
+        {/* Card 2: Active Published Rate */}
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'الاختبارات النشطة' : 'Active Published Rate'}
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200/50 dark:border-emerald-900/50">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 mt-2 font-mono whitespace-nowrap">
+            {publishedRate}%
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap">
+            {isAr
+              ? `${publishedQuizzesCount} من أصل ${totalQuizzesCount} متاح للطلاب`
+              : `${publishedQuizzesCount} of ${totalQuizzesCount} accessible to students`}
+          </p>
+        </div>
+
+        {/* Card 3: Total Submissions */}
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'إجمالي تسليمات الطلاب' : 'Total Submissions'}
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-900/50">
+              <Users className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2 font-mono whitespace-nowrap">
+            {totalSubmissionsCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap">
+            {isAr ? 'محاولات مكتملة ومصححة' : 'Completed & graded attempts'}
+          </p>
+        </div>
+
+        {/* Card 4: Avg Questions Count */}
+        <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              {isAr ? 'متوسط الأسئلة' : 'Avg Questions / Quiz'}
+            </span>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-200/50 dark:border-purple-900/50">
+              <FileQuestion className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white mt-2 font-mono whitespace-nowrap">
+            {avgQuestionsCount}
+          </p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-nowrap">
+            {isAr ? 'سؤال لكل اختبار كمتوسط' : 'Questions per exam average'}
+          </p>
+        </div>
+      </div>
+
       {/* Quizzes List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
         {quizzes.length === 0 ? (
-          <div className="col-span-full p-12 text-center border border-n-200 dark:border-n-300 rounded-2xl bg-white dark:bg-n-100">
-            <ClipboardList className="h-10 w-10 text-n-300 dark:text-n-400 mx-auto mb-2" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-n-800 dark:text-n-700">
+          <div className="col-span-full p-12 text-center border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
+            <ClipboardList className="h-10 w-10 text-slate-400 dark:text-slate-500 mx-auto mb-2" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
               {isAr ? 'لا توجد اختبارات مضافة بعد' : 'No quizzes added yet'}
             </p>
-            <p className="text-xs text-n-400 mt-1">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
               {isAr
                 ? 'اضغط على زر "إنشاء امتحان جديد" أعلاه لنشر أول اختبار للطلاب'
                 : 'Click "Create New Quiz" above to publish your first quiz'}
@@ -365,10 +458,10 @@ export function TeacherQuizzesClient({
           quizzes.map((q) => (
             <div
               key={q.id}
-              className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-n-100 space-y-4 shadow-sm ${
+              className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-slate-900 space-y-4 shadow-sm ${
                 q.isPublished
-                  ? 'border-n-200 dark:border-n-300'
-                  : 'border-warn/40 bg-warn-light/20 opacity-90'
+                  ? 'border-slate-200 dark:border-slate-800'
+                  : 'border-amber-400/40 bg-amber-50/20 dark:bg-amber-950/10 opacity-90'
               }`}
             >
               {/* Card Header & Actions */}
@@ -387,7 +480,7 @@ export function TeacherQuizzesClient({
                       </span>
                     )}
                   </div>
-                  <h2 className="text-base font-bold text-n-800 dark:text-n-700 leading-snug">{q.title}</h2>
+                  <h2 className="text-base font-bold text-slate-900 dark:text-white leading-snug">{q.title}</h2>
                 </div>
 
                 {/* Action Buttons: Edit, Toggle, Delete */}
@@ -412,7 +505,7 @@ export function TeacherQuizzesClient({
                   <button
                     type="button"
                     onClick={() => handleEdit(q)}
-                    className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-accent hover:border-accent hover:bg-accent-light transition-colors"
                     title={isAr ? 'تعديل بيانات الامتحان والأسئلة' : 'Edit quiz details and questions'}
                   >
                     <Edit className="h-4 w-4" />
@@ -421,7 +514,7 @@ export function TeacherQuizzesClient({
                   <button
                     type="button"
                     onClick={() => setQuizToDelete(q)}
-                    className="p-1.5 rounded-lg border border-n-200 dark:border-n-300 text-n-600 dark:text-n-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
+                    className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-bad hover:border-bad hover:bg-bad-light transition-colors"
                     title={isAr ? 'حذف هذا الامتحان نهائياً' : 'Delete this quiz permanently'}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -434,8 +527,8 @@ export function TeacherQuizzesClient({
                 <div className="flex items-center justify-between p-2.5 rounded-xl bg-accent-light/50 border border-accent/20 text-xs">
                   <div className="flex items-center gap-2">
                     <KeyRound className="h-4 w-4 text-accent" />
-                    <span className="text-n-600 font-medium">{isAr ? 'كود دخول الامتحان:' : 'Quiz Access Code:'}</span>
-                    <code className="font-mono font-bold text-accent text-sm tracking-wider">
+                    <span className="text-slate-600 dark:text-slate-300 font-medium">{isAr ? 'كود دخول الامتحان:' : 'Quiz Access Code:'}</span>
+                    <code className="font-mono font-bold text-accent text-sm tracking-wider whitespace-nowrap select-all">
                       {q.accessCode}
                     </code>
                   </div>
@@ -449,12 +542,12 @@ export function TeacherQuizzesClient({
                     {copiedId === q.id ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-ok" />
-                        <span className="text-ok">{isAr ? 'تم النسخ' : 'Copied'}</span>
+                        <span className="text-ok whitespace-nowrap">{isAr ? 'تم النسخ' : 'Copied'}</span>
                       </>
                     ) : (
                       <>
                         <Copy className="h-3.5 w-3.5" />
-                        <span>{isAr ? 'نسخ الكود' : 'Copy Code'}</span>
+                        <span className="whitespace-nowrap">{isAr ? 'نسخ الكود' : 'Copy Code'}</span>
                       </>
                     )}
                   </Button>
@@ -469,26 +562,26 @@ export function TeacherQuizzesClient({
                     : 10
                 );
                 return (
-                  <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-n-100 dark:border-n-200 text-center text-xs">
+                  <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-slate-100 dark:border-slate-800 text-center text-xs">
                     <div>
-                      <p className="text-n-400">{isAr ? 'الأسئلة' : 'Questions'}</p>
-                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">{q.questionsCount}</p>
+                      <p className="text-slate-400">{isAr ? 'الأسئلة' : 'Questions'}</p>
+                      <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">{q.questionsCount}</p>
                     </div>
                     <div>
-                      <p className="text-n-400">{isAr ? 'الدرجة الكلية' : 'Total Score'}</p>
-                      <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                      <p className="text-slate-400">{isAr ? 'الدرجة الكلية' : 'Total Score'}</p>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono whitespace-nowrap">
                         {totalScore} {isAr ? 'درجات' : 'pts'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-n-400">{isAr ? 'المدة' : 'Duration'}</p>
-                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">
+                      <p className="text-slate-400">{isAr ? 'المدة' : 'Duration'}</p>
+                      <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">
                         {q.duration} {isAr ? 'دقيقة' : 'mins'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-n-400">{isAr ? 'الممتحنون' : 'Examinees'}</p>
-                      <p className="font-bold text-n-800 dark:text-n-700 mt-0.5">
+                      <p className="text-slate-400">{isAr ? 'الممتحنون' : 'Examinees'}</p>
+                      <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">
                         {q.resultsCount} {isAr ? 'طالب' : 'students'}
                       </p>
                     </div>
@@ -501,14 +594,14 @@ export function TeacherQuizzesClient({
                 <Button
                   variant="primary"
                   size="sm"
-                  className="w-full text-xs font-bold bg-accent hover:bg-accent/90 shadow-sm flex items-center justify-center gap-1.5 py-2"
+                  className="w-full text-xs font-bold bg-accent hover:bg-accent/90 shadow-sm flex items-center justify-center gap-1.5 py-2 whitespace-nowrap"
                   onClick={() => setQuizForResults(q)}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   <span>
                     {isAr
-                      ? `نتائج الطلاب وأكواد الإعادة 🔄 (${q.resultsCount} طالب)`
-                      : `Student Results & Retake Codes 🔄 (${q.resultsCount} students)`}
+                      ? `نتائج الطلاب وأكواد الإعادة (${q.resultsCount} طالب)`
+                      : `Student Results & Retake Codes (${q.resultsCount} students)`}
                   </span>
                 </Button>
 
