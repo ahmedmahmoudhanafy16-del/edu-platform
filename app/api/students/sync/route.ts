@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDynamicStudents, saveDynamicStudents } from '@/lib/dynamic-students';
+import { getDynamicStudents, saveDynamicStudents, removeDynamicStudent } from '@/lib/dynamic-students';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,23 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const students = body.students || (body.student ? [body.student] : []);
+    const deletedIds: string[] = body.deletedIds || [];
+
+    if (Array.isArray(deletedIds) && deletedIds.length > 0) {
+      for (const delId of deletedIds) {
+        if (!delId) continue;
+        const clean = String(delId).trim();
+        removeDynamicStudent(clean);
+        try {
+          await prisma.quizResult.deleteMany({
+            where: { OR: [{ studentId: clean }, { student: { studentCode: clean } }] },
+          }).catch(() => null);
+          await prisma.user.deleteMany({
+            where: { OR: [{ id: clean }, { studentCode: clean }] },
+          }).catch(() => null);
+        } catch (e) {}
+      }
+    }
 
     if (Array.isArray(students) && students.length > 0) {
       saveDynamicStudents(students);

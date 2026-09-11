@@ -58,3 +58,44 @@ export function addDynamicStudent(student: any): void {
   if (!student) return;
   saveDynamicStudents([student]);
 }
+
+export function removeDynamicStudent(idOrCode: string): void {
+  if (!idOrCode) return;
+  const clean = String(idOrCode).trim().toUpperCase();
+  try {
+    const list = getDynamicStudents();
+    const filtered = list.filter((s) => {
+      const sId = String(s.id || '').trim().toUpperCase();
+      const sCode = String(s.studentCode || '').trim().toUpperCase();
+      return sId !== clean && sCode !== clean;
+    });
+    global.dynamicStudentsList = filtered;
+    try {
+      const tmpFile = getTmpFilePath();
+      fs.writeFileSync(tmpFile, JSON.stringify(filtered), 'utf8');
+    } catch (fsErr) {}
+  } catch (e) {}
+}
+
+export function updateDynamicStudent(student: any): void {
+  if (!student || (!student.id && !student.studentCode)) return;
+  const targetId = String(student.id || '').trim().toUpperCase();
+  const targetCode = String(student.studentCode || '').trim().toUpperCase();
+
+  try {
+    const list = getDynamicStudents();
+    const updated = list.map((s) => {
+      const sId = String(s.id || '').trim().toUpperCase();
+      const sCode = String(s.studentCode || '').trim().toUpperCase();
+      if ((targetId && sId === targetId) || (targetCode && sCode === targetCode)) {
+        return { ...s, ...student };
+      }
+      return s;
+    });
+    global.dynamicStudentsList = updated;
+    try {
+      const tmpFile = getTmpFilePath();
+      fs.writeFileSync(tmpFile, JSON.stringify(updated), 'utf8');
+    } catch (fsErr) {}
+  } catch (e) {}
+}

@@ -17,6 +17,7 @@ export default async function TeacherReportsPage({
   const locale = resolvedParams?.locale || 'ar';
 
   let students: any[] = [];
+  let dbSuccess = false;
   try {
     const res = await prisma.user.findMany({
       where: { role: 'STUDENT' },
@@ -24,40 +25,37 @@ export default async function TeacherReportsPage({
         quizResults: true,
         submissions: true,
         attendance: true,
+        enrollments: {
+          include: { classroom: true },
+        },
       },
-      orderBy: { name: 'asc' },
+      orderBy: { createdAt: 'asc' },
     });
-    students = res || [];
+    if (res) {
+      students = res;
+      dbSuccess = true;
+    }
   } catch (err) {
     console.warn('[Teacher Reports] DB query skipped:', err);
   }
 
-  if (!students || students.length === 0) {
-    students = [
-      {
-        id: 'student-1',
-        name: 'أحمد محمد علي',
-        studentCode: 'STU-001',
-        phone: '01099998888',
-        parentPhone: '01012345678',
-        grade: 'الصف الثالث الإعدادي',
-        quizResults: [],
-        submissions: [],
-        attendance: [1, 2, 3],
-      },
-      {
-        id: 'student-2',
-        name: 'زياد طارق إبراهيم',
-        studentCode: 'STU-777',
-        phone: '01055554444',
-        parentPhone: '01087654321',
-        grade: 'الصف الثالث الإعدادي',
-        quizResults: [],
-        submissions: [],
-        attendance: [1, 2],
-      },
-    ];
+  // Fallback to dynamic registered students only if DB query failed
+  if (!dbSuccess) {
+    try {
+      const { getDynamicStudents } = await import('@/lib/dynamic-students');
+      const dynamicList = getDynamicStudents();
+      if (dynamicList && dynamicList.length > 0) {
+        students = dynamicList;
+      }
+    } catch (e) {}
   }
+
+  let classrooms: any[] = [];
+  try {
+    classrooms = await prisma.classroom.findMany({
+      select: { id: true, name: true },
+    });
+  } catch (e) {}
 
   const isAr = locale === 'ar';
 
@@ -81,6 +79,8 @@ export default async function TeacherReportsPage({
       phone: s.phone || '—',
       parentPhone: s.parentPhone || s.phone || '—',
       grade: s.grade || (isAr ? 'الصف الثالث الإعدادي' : '3rd Preparatory Grade'),
+      classroomId: s.enrollments?.[0]?.classroom?.id || '',
+      classroomName: s.enrollments?.[0]?.classroom?.name || '',
       avgScore: scorePct,
       latestScore: latest ? latest.score : null,
       latestMaxScore: latest ? latest.maxScore : null,
@@ -107,7 +107,7 @@ export default async function TeacherReportsPage({
         </p>
       </div>
 
-      <TeacherReportsClient initialReports={studentReports} />
+      <TeacherReportsClient initialReports={studentReports} classrooms={classrooms} />
     </div>
   );
 }

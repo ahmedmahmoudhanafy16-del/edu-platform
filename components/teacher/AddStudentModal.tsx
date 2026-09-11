@@ -140,6 +140,16 @@ export function AddStudentModal({
       // Immediately save to client-side localStorage store for zero-latency UI update
       if (typeof window !== 'undefined') {
         saveStudentToStore(student);
+        try {
+          const delRaw = localStorage.getItem('edu_deleted_students');
+          if (delRaw) {
+            const delSet = new Set<string>(JSON.parse(delRaw));
+            delSet.delete(student.id);
+            if (student.studentCode) delSet.delete(student.studentCode);
+            localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
+          }
+        } catch {}
+        window.dispatchEvent(new CustomEvent('edu_students_updated', { detail: { student } }));
         window.dispatchEvent(new Event('edu_store_updated'));
         window.dispatchEvent(new Event('storage'));
         fetch('/api/students/sync', {

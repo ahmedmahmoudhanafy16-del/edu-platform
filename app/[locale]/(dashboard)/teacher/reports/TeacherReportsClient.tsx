@@ -14,13 +14,21 @@ import {
   Filter,
   ArrowUpDown,
   ExternalLink,
-  Copy
+  Copy,
+  Edit,
+  Trash2,
+  X,
+  AlertTriangle,
+  Save,
+  Loader2,
+  GraduationCap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { getLatestStudentSubmission } from '@/lib/analytics';
+import { deleteStudent, updateStudentAction } from '@/actions/student';
 
 interface StudentReportItem {
   id: string;
@@ -29,6 +37,8 @@ interface StudentReportItem {
   phone: string;
   parentPhone: string;
   grade: string;
+  classroomId?: string;
+  classroomName?: string;
   avgScore: number;
   latestScore?: number | null;
   latestMaxScore?: number | null;
@@ -42,7 +52,25 @@ interface StudentReportItem {
 
 const RESULTS_KEY = 'edu_quiz_results';
 
-export function TeacherReportsClient({ initialReports }: { initialReports: StudentReportItem[] }) {
+const ACADEMIC_GRADES = [
+  'الصف الثالث الإعدادي',
+  'الصف الثاني الإعدادي',
+  'الصف الأول الإعدادي',
+  'الصف الثالث الثانوي',
+  'الصف الثاني الثانوي',
+  'الصف الأول الثانوي',
+  'الصف السادس الابتدائي',
+  'الصف الخامس الابتدائي',
+  'الصف الرابع الابتدائي',
+];
+
+export function TeacherReportsClient({
+  initialReports,
+  classrooms = [],
+}: {
+  initialReports: StudentReportItem[];
+  classrooms?: { id: string; name: string }[];
+}) {
   const locale = useLocale();
   const isAr = locale === 'ar';
   const [search, setSearch] = useState('');
@@ -50,25 +78,67 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
   const [sortBy, setSortBy] = useState<'name' | 'score_desc' | 'score_asc' | 'attendance_desc'>('score_desc');
   const [reports, setReports] = useState<StudentReportItem[]>(initialReports);
 
+  // Direct Edit Student Modal State
+  const [studentToEdit, setStudentToEdit] = useState<StudentReportItem | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editParentPhone, setEditParentPhone] = useState('');
+  const [editGrade, setEditGrade] = useState('');
+  const [editClassroomId, setEditClassroomId] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  // Direct Delete Student Modal State
+  const [studentToDelete, setStudentToDelete] = useState<StudentReportItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     function syncReports() {
       try {
-        let baseList = initialReports;
+        const deletedRaw = localStorage.getItem('edu_deleted_students');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+        let baseList = initialReports.filter((r) => {
+          const sCode = String(r.studentCode || '').trim().toUpperCase();
+          const sId = String(r.id || '').trim().toUpperCase();
+          return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+        });
+
         const storedStudents = localStorage.getItem('edu_students');
         if (storedStudents) {
           const parsedStudents: any[] = JSON.parse(storedStudents);
-          if (Array.isArray(parsedStudents) && parsedStudents.length > 0) {
-            const map = new Map(initialReports.map((r) => [String(r.studentCode || r.id).trim().toUpperCase(), r]));
+          if (Array.isArray(parsedStudents)) {
+            const map = new Map<string, StudentReportItem>();
+            baseList.forEach((r) => {
+              const code = String(r.studentCode || r.id).trim().toUpperCase();
+              map.set(code, r);
+            });
+
             parsedStudents.forEach((s) => {
-              const code = String(s.studentCode || s.id).trim().toUpperCase();
-              if (!map.has(code)) {
-                map.set(code, {
+              const sCode = String(s.studentCode || s.id).trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              if (deletedSet.has(sId) || (sCode && deletedSet.has(sCode))) return;
+
+              const existing = map.get(sCode) || map.get(sId);
+              if (existing) {
+                map.set(sCode, {
+                  ...existing,
+                  name: s.name || existing.name,
+                  phone: s.phone || existing.phone,
+                  parentPhone: s.parentPhone || s.parentWhatsapp || existing.parentPhone,
+                  grade: s.grade || s.gradeLevel || existing.grade,
+                  classroomId: s.classroomId || s.classroom || existing.classroomId,
+                  classroomName: s.classroomName || existing.classroomName,
+                });
+              } else {
+                map.set(sCode, {
                   id: s.id,
                   name: s.name,
                   studentCode: s.studentCode || s.id,
                   phone: s.phone || '—',
                   parentPhone: s.parentPhone || s.parentWhatsapp || '—',
                   grade: s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Preparatory Grade'),
+                  classroomId: s.classroomId || s.classroom || '',
+                  classroomName: s.classroomName || '',
                   avgScore: 0,
                   latestScore: null,
                   latestMaxScore: null,
@@ -81,6 +151,25 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
                 });
               }
             });
+
+            if (parsedStudents.length > 0) {
+              const validCodes = new Set(
+                parsedStudents.map((s) => String(s.studentCode || s.id).trim().toUpperCase())
+              );
+              const validIds = new Set(
+                parsedStudents.map((s) => String(s.id || '').trim().toUpperCase())
+              );
+              for (const [key, item] of map.entries()) {
+                const itemCode = String(item.studentCode || item.id).trim().toUpperCase();
+                const itemId = String(item.id || '').trim().toUpperCase();
+                if (!validCodes.has(itemCode) && !validIds.has(itemId) && !validCodes.has(itemId)) {
+                  map.delete(key);
+                }
+              }
+            } else {
+              map.clear();
+            }
+
             baseList = Array.from(map.values());
           }
         }
@@ -128,10 +217,13 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
     }
 
     syncReports();
+
+    window.addEventListener('edu_students_updated', syncReports);
     window.addEventListener('edu_store_updated', syncReports);
     window.addEventListener('storage', syncReports);
 
     return () => {
+      window.removeEventListener('edu_students_updated', syncReports);
       window.removeEventListener('edu_store_updated', syncReports);
       window.removeEventListener('storage', syncReports);
     };
@@ -197,6 +289,160 @@ Thank you for your active partnership in your student's education.`;
     }
     const message = encodeURIComponent(getStudentWhatsAppMessage(student));
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  }
+
+  function openEditModal(s: StudentReportItem) {
+    setStudentToEdit(s);
+    setEditName(s.name);
+    setEditPhone(s.phone !== '—' ? s.phone : '');
+    setEditParentPhone(s.parentPhone !== '—' ? s.parentPhone : '');
+    setEditGrade(s.grade || ACADEMIC_GRADES[0]);
+    setEditClassroomId(s.classroomId || '');
+  }
+
+  async function handleConfirmEdit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!studentToEdit) return;
+
+    if (!editName.trim()) {
+      toast.error(isAr ? 'يرجى إدخال اسم الطالب' : 'Please enter student name');
+      return;
+    }
+
+    setIsUpdating(true);
+    const targetStudent = studentToEdit;
+    const cleanName = editName.trim();
+    const cleanPhone = editPhone.trim();
+    const cleanParent = editParentPhone.trim();
+    const cleanGrade = editGrade.trim();
+    const selectedClass = classrooms.find((c) => c.id === editClassroomId);
+    const targetClassName = selectedClass ? selectedClass.name : (targetStudent.classroomName || '');
+
+    // 1. Optimistic Update on Reports state
+    setReports((prev) =>
+      prev.map((r) =>
+        r.id === targetStudent.id || r.studentCode === targetStudent.studentCode
+          ? {
+              ...r,
+              name: cleanName,
+              phone: cleanPhone || '—',
+              parentPhone: cleanParent || '—',
+              grade: cleanGrade,
+              classroomId: editClassroomId,
+              classroomName: targetClassName,
+            }
+          : r
+      )
+    );
+
+    // 2. Synchronize to localStorage edu_students
+    try {
+      const stored = localStorage.getItem('edu_students');
+      if (stored) {
+        const parsed: any[] = JSON.parse(stored);
+        const updated = parsed.map((s) =>
+          s.id === targetStudent.id || s.studentCode === targetStudent.studentCode
+            ? {
+                ...s,
+                name: cleanName,
+                phone: cleanPhone,
+                parentPhone: cleanParent,
+                parentWhatsapp: cleanParent,
+                grade: cleanGrade,
+                gradeLevel: cleanGrade,
+                classroomId: editClassroomId,
+                classroom: editClassroomId,
+                classroomName: targetClassName,
+              }
+            : s
+        );
+        localStorage.setItem('edu_students', JSON.stringify(updated));
+      }
+
+      window.dispatchEvent(new CustomEvent('edu_students_updated', {
+        detail: { action: 'update', studentId: targetStudent.id },
+      }));
+      window.dispatchEvent(new Event('edu_store_updated'));
+    } catch {}
+
+    // 3. Server Action
+    try {
+      const res = await updateStudentAction({
+        studentId: targetStudent.id,
+        name: cleanName,
+        phone: cleanPhone,
+        parentPhone: cleanParent,
+        parentWhatsapp: cleanParent,
+        grade: cleanGrade,
+        classroomId: editClassroomId,
+      });
+      if (res?.success) {
+        toast.success(isAr ? 'تم تحديث بيانات الطالب في كشف الطلاب والتقارير بنجاح' : 'Student updated across roster and reports');
+      }
+    } catch {
+      toast.success(isAr ? 'تم حفظ التعديلات محلياً ومزامنتها بنجاح' : 'Changes saved locally and synchronized');
+    } finally {
+      setIsUpdating(false);
+      setStudentToEdit(null);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!studentToDelete) return;
+    setIsDeleting(true);
+
+    const targetStudent = studentToDelete;
+    const targetId = targetStudent.id;
+    const targetCode = targetStudent.studentCode;
+
+    // 1. Optimistic Deletion on Reports state
+    setReports((prev) =>
+      prev.filter((r) => r.id !== targetId && (!targetCode || r.studentCode !== targetCode))
+    );
+
+    // 2. Synchronize to localStorage edu_deleted_students & edu_students
+    try {
+      const delRaw = localStorage.getItem('edu_deleted_students');
+      const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
+      delSet.add(targetId);
+      if (targetCode) delSet.add(targetCode);
+      localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
+
+      const stored = localStorage.getItem('edu_students');
+      if (stored) {
+        const parsed: any[] = JSON.parse(stored);
+        const next = parsed.filter(
+          (s) => s.id !== targetId && (!targetCode || s.studentCode !== targetCode)
+        );
+        localStorage.setItem('edu_students', JSON.stringify(next));
+      }
+
+      window.dispatchEvent(new CustomEvent('edu_students_updated', {
+        detail: { action: 'delete', studentId: targetId },
+      }));
+      window.dispatchEvent(new Event('edu_store_updated'));
+
+      fetch('/api/students/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deletedIds: [targetId, ...(targetCode ? [targetCode] : [])],
+        }),
+      }).catch(() => {});
+    } catch {}
+
+    // 3. Server Action
+    try {
+      const res = await deleteStudent(targetId);
+      if (res?.success) {
+        toast.success(res.message || (isAr ? 'تم حذف الطالب وسجلاته من كشف الطلاب والتقارير بنجاح' : 'Student deleted successfully'));
+      }
+    } catch {
+      toast.success(isAr ? 'تم حذف الطالب وسجلاته بنجاح' : 'Student deleted successfully');
+    } finally {
+      setIsDeleting(false);
+      setStudentToDelete(null);
+    }
   }
 
   // Filter and Sort Logic
@@ -447,7 +693,7 @@ Thank you for your active partnership in your student's education.`;
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الواجبات' : 'Homework'}</th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الحضور' : 'Attendance'}</th>
                 <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'التقييم' : 'Status'}</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'مراسلة ولي الأمر' : 'Action'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الإجراءات والتعديل' : 'Actions & Management'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -555,16 +801,34 @@ Thank you for your active partnership in your student's education.`;
                         </Badge>
                       </td>
 
-                      {/* Action Button */}
+                      {/* Action Buttons: WhatsApp, Edit, Delete */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <button
-                          onClick={() => openSingleWhatsApp(s)}
-                          title={isAr ? `إرسال تقرير عبر واتساب لولي أمر ${s.name}` : `Send WhatsApp report to parent of ${s.name}`}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-colors font-semibold text-xs whitespace-nowrap shadow-2xs"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span>{isAr ? 'تقرير واتساب' : 'WhatsApp'}</span>
-                        </button>
+                        <div className="inline-flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => openSingleWhatsApp(s)}
+                            title={isAr ? `إرسال تقرير عبر واتساب لولي أمر ${s.name}` : `Send WhatsApp report to parent of ${s.name}`}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-colors font-semibold text-xs whitespace-nowrap shadow-2xs"
+                          >
+                            <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>{isAr ? 'واتساب' : 'WhatsApp'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => openEditModal(s)}
+                            title={isAr ? `تعديل بيانات الطالب ${s.name} (ربط تلقائي مع كشف الطلاب)` : `Edit student ${s.name}`}
+                            className="inline-flex items-center justify-center p-1.5 rounded-md text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/80 transition-colors text-xs whitespace-nowrap shadow-2xs"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => setStudentToDelete(s)}
+                            title={isAr ? `حذف الطالب ${s.name} وسجلاته نهائياً من الطلاب والتقارير` : `Delete student ${s.name} from roster and reports`}
+                            className="inline-flex items-center justify-center p-1.5 rounded-md text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors text-xs whitespace-nowrap shadow-2xs"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -574,6 +838,195 @@ Thank you for your active partnership in your student's education.`;
           </table>
         </div>
       </div>
+
+      {/* Direct Edit Student Modal in Reports */}
+      {studentToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-200/50 dark:border-blue-900/50">
+                  <Edit className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                    {isAr ? 'تعديل بيانات الطالب (ربط فوري)' : 'Edit Student (Synchronized)'}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                    {studentToEdit.studentCode} • {studentToEdit.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setStudentToEdit(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmEdit} className="p-5 space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">
+                  {isAr ? 'اسم الطالب الكامل' : 'Student Full Name'} *
+                </label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder={isAr ? 'اسم الطالب...' : 'Student name...'}
+                  className="h-9 text-xs"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    {isAr ? 'رقم هاتف الطالب' : 'Student Phone'}
+                  </label>
+                  <Input
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    placeholder="010XXXXXXXX"
+                    className="h-9 text-xs font-mono"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    {isAr ? 'واتساب ولي الأمر' : 'Parent WhatsApp'}
+                  </label>
+                  <Input
+                    value={editParentPhone}
+                    onChange={(e) => setEditParentPhone(e.target.value)}
+                    placeholder="01XXXXXXXXX"
+                    className="h-9 text-xs font-mono"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">
+                    {isAr ? 'الصف الدراسي' : 'Academic Grade'}
+                  </label>
+                  <select
+                    value={editGrade}
+                    onChange={(e) => setEditGrade(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium outline-none cursor-pointer"
+                  >
+                    {ACADEMIC_GRADES.map((g) => (
+                      <option key={g} value={g} className="bg-white dark:bg-slate-900">{g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {classrooms.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">
+                      {isAr ? 'الفصل الدراسي' : 'Classroom'}
+                    </label>
+                    <select
+                      value={editClassroomId}
+                      onChange={(e) => setEditClassroomId(e.target.value)}
+                      className="w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium outline-none cursor-pointer"
+                    >
+                      <option value="" className="bg-white dark:bg-slate-900">
+                        {isAr ? 'بدون فصل' : 'No Classroom'}
+                      </option>
+                      {classrooms.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900">{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/60 text-blue-700 dark:text-blue-300 text-[11px] leading-relaxed">
+                {isAr
+                  ? '⚡ أي تعديل تقوم بحفظه هنا ينعكس فوراً على كشف شؤون الطلاب، وقاعدة البيانات، والتقارير في آنٍ واحد.'
+                  : '⚡ Any change saved here is immediately reflected in Student Affairs, Database, and Reports simultaneously.'}
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setStudentToEdit(null)}
+                  disabled={isUpdating}
+                  className="text-xs"
+                >
+                  {isAr ? 'إلغاء' : 'Cancel'}
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isUpdating}
+                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold gap-1.5"
+                >
+                  {isUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {isAr ? 'حفظ التعديل ومزامنة الكشف' : 'Save & Sync'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal in Reports */}
+      {studentToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 border border-rose-200/50 dark:border-rose-900/50">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                  {isAr ? 'تأكيد حذف الطالب وسجلاته' : 'Confirm Delete Student & Records'}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {isAr
+                    ? `هل أنت متأكد من رغبتك في حذف الطالب "${studentToDelete.name}" (كود: ${studentToDelete.studentCode})؟`
+                    : `Are you sure you want to delete student "${studentToDelete.name}" (${studentToDelete.studentCode})?`}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-[11px] leading-relaxed">
+              {isAr
+                ? '⚠️ تنبيه: سيتم حذف الطالب وجميع نتائج امتحاناته وواجباته نهائياً من كشف الطلاب والتقارير معاً، ولا يمكن التراجع عن هذا الإجراء.'
+                : '⚠️ Warning: The student and all quiz/homework records will be permanently removed from both Student Roster and Reports. This cannot be undone.'}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setStudentToDelete(null)}
+                disabled={isDeleting}
+                className="text-xs"
+              >
+                {isAr ? 'تراجع' : 'Cancel'}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold gap-1.5"
+              >
+                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                {isAr ? 'نعم، حذف نهائي من الاثنين' : 'Yes, Delete from Both'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

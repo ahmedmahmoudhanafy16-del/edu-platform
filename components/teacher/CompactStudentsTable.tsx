@@ -235,18 +235,33 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     function syncStudents() {
       let baseList = initialStudents;
       try {
+        const deletedRaw = localStorage.getItem('edu_deleted_students');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed: Student[] = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
             const localMap = new Map(parsed.map((s) => [s.id, s]));
             initialStudents.forEach((s) => {
-              if (!localMap.has(s.id)) {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
                 localMap.set(s.id, s);
               }
             });
-            baseList = Array.from(localMap.values());
+            baseList = Array.from(localMap.values()).filter((s) => {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+            });
           }
+        } else if (deletedSet.size > 0) {
+          baseList = baseList.filter((s) => {
+            const sCode = String(s.studentCode || '').trim().toUpperCase();
+            const sId = String(s.id || '').trim().toUpperCase();
+            return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+          });
         }
       } catch {}
 
@@ -265,22 +280,40 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
     syncStudents();
 
+    window.addEventListener('edu_students_updated', syncStudents);
     window.addEventListener('edu_store_updated', syncStudents);
     window.addEventListener('storage', syncStudents);
 
     return () => {
+      window.removeEventListener('edu_students_updated', syncStudents);
       window.removeEventListener('edu_store_updated', syncStudents);
       window.removeEventListener('storage', syncStudents);
     };
   }, [initialStudents]);
 
-  function persistStudents(list: Student[]) {
+  function persistStudents(list: Student[], deletedId?: string) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+
+      if (deletedId) {
+        const delRaw = localStorage.getItem('edu_deleted_students');
+        const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
+        delSet.add(deletedId);
+        localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
+      }
+
+      window.dispatchEvent(new CustomEvent('edu_students_updated', {
+        detail: { students: list, deletedId },
+      }));
+      window.dispatchEvent(new Event('edu_store_updated'));
+
       fetch('/api/students/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ students: list }),
+        body: JSON.stringify({
+          students: list,
+          ...(deletedId && { deletedIds: [deletedId] }),
+        }),
       }).catch(() => {});
     } catch {}
   }
@@ -472,11 +505,20 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     setIsDeleting(true);
 
     const targetId = studentToDelete.id;
+    const targetCode = studentToDelete.studentCode;
 
-    // 1. Optimistic deletion
+    // 1. Optimistic deletion with dual ID & code tracking
     setStudents((prev) => {
-      const nextList = prev.filter((c) => c.id !== targetId);
-      persistStudents(nextList);
+      const nextList = prev.filter((c) => c.id !== targetId && (!targetCode || c.studentCode !== targetCode));
+      persistStudents(nextList, targetId);
+      if (targetCode && targetCode !== targetId) {
+        try {
+          const delRaw = localStorage.getItem('edu_deleted_students');
+          const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
+          delSet.add(targetCode);
+          localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
+        } catch {}
+      }
       return nextList;
     });
 
