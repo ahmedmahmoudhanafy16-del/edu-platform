@@ -89,7 +89,7 @@ export default async function TeacherReportsPage({
       examsCompleted: combinedResults.length,
       homeworkCompleted: s.submissions?.length ?? 0,
       attendanceCount: s.attendance?.length ?? 0,
-      status: scorePct >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Attention'),
+      status: scorePct >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up'),
     };
   });
 

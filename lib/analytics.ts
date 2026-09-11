@@ -127,15 +127,13 @@ export function getLatestStudentSubmission(
     return null;
   }
 
+  const cleanTarget = (studentId || '').trim().toUpperCase();
   const studentSubs = submissions.filter((s) => {
     if (!s) return false;
-    if (!studentId) return true;
-    const sId = s.studentId || s.studentCode || '';
-    return (
-      sId === studentId ||
-      s.studentCode === studentId ||
-      s.id === studentId
-    );
+    if (!cleanTarget) return true;
+    const sId = String(s.studentId || s.id || '').trim().toUpperCase();
+    const sCode = String(s.studentCode || '').trim().toUpperCase();
+    return sId === cleanTarget || sCode === cleanTarget;
   });
 
   if (studentSubs.length === 0) return null;
