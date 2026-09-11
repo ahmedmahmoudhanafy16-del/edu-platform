@@ -156,8 +156,8 @@ export function TeacherReportsClient({ initialReports }: { initialReports: Stude
       : (isAr ? 'لم يقم بتسليم آخر اختبار بعد' : 'No quiz submissions yet');
 
     const statusText = (student.latestPercentage ?? student.avgScore) >= 65
-      ? (isAr ? 'ممتاز ⭐' : 'Excellent ⭐')
-      : (isAr ? 'يحتاج متابعة واهتمام ⚠️' : 'Needs Follow-up ⚠️');
+      ? (isAr ? 'ممتاز' : 'Excellent')
+      : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up');
 
     if (isAr) {
       return `السلام عليكم ولي أمر الطالب/ة ${student.name}،
@@ -356,7 +356,7 @@ Thank you for your active partnership in your student's education.`;
       </div>
 
       {/* Filter and Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3.5 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
         <div className="flex flex-wrap items-center gap-2.5 flex-1">
           {/* Search Box */}
           <div className="relative w-full sm:w-64">
@@ -373,7 +373,7 @@ Thank you for your active partnership in your student's education.`;
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
             <button
               onClick={() => setStatusFilter('all')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1 rounded-md font-medium transition-all whitespace-nowrap ${
                 statusFilter === 'all'
                   ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -383,7 +383,7 @@ Thank you for your active partnership in your student's education.`;
             </button>
             <button
               onClick={() => setStatusFilter('excellent')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1 rounded-md font-medium transition-all whitespace-nowrap ${
                 statusFilter === 'excellent'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -393,7 +393,7 @@ Thank you for your active partnership in your student's education.`;
             </button>
             <button
               onClick={() => setStatusFilter('needs_attention')}
-              className={`px-3 py-1 rounded-md font-medium transition-all ${
+              className={`px-3 py-1 rounded-md font-medium transition-all whitespace-nowrap ${
                 statusFilter === 'needs_attention'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -404,28 +404,28 @@ Thank you for your active partnership in your student's education.`;
           </div>
 
           {/* Sort Selection */}
-          <div className="flex items-center gap-1.5 ms-auto sm:ms-0">
-            <ArrowUpDown className="h-3.5 w-3.5 text-slate-400" />
+          <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/70 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+            <ArrowUpDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
             <select
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
-              className="h-9 px-2.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:border-accent"
+              className="h-8 text-xs font-medium bg-transparent text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
             >
-              <option value="score_desc">{isAr ? 'ترتيب: الأعلى درجة' : 'Sort: Highest Score'}</option>
-              <option value="score_asc">{isAr ? 'ترتيب: الأقل درجة' : 'Sort: Lowest Score'}</option>
-              <option value="attendance_desc">{isAr ? 'ترتيب: الأكثر حضوراً' : 'Sort: Most Attendance'}</option>
-              <option value="name">{isAr ? 'ترتيب: أبجدياً بالاسم' : 'Sort: Name (A-Z)'}</option>
+              <option value="score_desc" className="bg-white dark:bg-slate-900">{isAr ? 'ترتيب: الأعلى درجة' : 'Sort: Highest Score'}</option>
+              <option value="score_asc" className="bg-white dark:bg-slate-900">{isAr ? 'ترتيب: الأقل درجة' : 'Sort: Lowest Score'}</option>
+              <option value="attendance_desc" className="bg-white dark:bg-slate-900">{isAr ? 'ترتيب: الأكثر حضوراً' : 'Sort: Most Attendance'}</option>
+              <option value="name" className="bg-white dark:bg-slate-900">{isAr ? 'ترتيب: أبجدياً بالاسم' : 'Sort: Name (A-Z)'}</option>
             </select>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
-          <Button onClick={exportToCSV} variant="secondary" className="text-xs font-semibold gap-1.5 h-9 flex-1 md:flex-initial">
+        <div className="flex items-center gap-2.5 w-full xl:w-auto shrink-0">
+          <Button onClick={exportToCSV} variant="secondary" className="text-xs font-semibold gap-1.5 h-9 flex-1 xl:flex-initial whitespace-nowrap">
             <FileSpreadsheet className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             {isAr ? 'تصدير كشف Excel / CSV' : 'Export Excel / CSV'}
           </Button>
-          <Button onClick={handleSendBulkWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 h-9 flex-1 md:flex-initial shadow-sm">
+          <Button onClick={handleSendBulkWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold gap-1.5 h-9 flex-1 xl:flex-initial shadow-sm whitespace-nowrap">
             <MessageSquare className="h-4 w-4" />
             {isAr ? 'بث رسائل واتساب للأولياء' : 'Broadcast to Parents'}
           </Button>
@@ -438,16 +438,16 @@ Thank you for your active partnership in your student's education.`;
           <table className="w-full text-xs text-start">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold">
               <tr>
-                <th className="py-3.5 px-4 text-start">{isAr ? 'الطالب' : 'Student'}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? 'الكود' : 'Code'}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? 'الصف الدراسي' : 'Grade'}</th>
-                <th className="py-3.5 px-4 text-start">{isAr ? 'واتساب ولي الأمر' : 'Parent WhatsApp'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'آخر امتحان' : 'Latest Quiz'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'الامتحانات' : 'Quizzes'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'الواجبات' : 'Homework'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'الحضور' : 'Attendance'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'التقييم' : 'Status'}</th>
-                <th className="py-3.5 px-4 text-center">{isAr ? 'مراسلة ولي الأمر' : 'Action'}</th>
+                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? 'الطالب' : 'Student'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الكود' : 'Code'}</th>
+                <th className="py-3.5 px-4 text-start whitespace-nowrap">{isAr ? 'الصف الدراسي' : 'Grade'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'واتساب ولي الأمر' : 'Parent WhatsApp'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'آخر امتحان' : 'Latest Quiz'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الامتحانات' : 'Quizzes'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الواجبات' : 'Homework'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'الحضور' : 'Attendance'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'التقييم' : 'Status'}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">{isAr ? 'مراسلة ولي الأمر' : 'Action'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -465,29 +465,51 @@ Thank you for your active partnership in your student's education.`;
 
                   return (
                     <tr key={s.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <span>{s.name}</span>
-                          {isTop && hasQuiz && (
-                            <span title={isAr ? 'طالب متميز' : 'Top Performer'}>⭐</span>
-                          )}
+                      {/* Student Column with Avatar */}
+                      <td className="py-3.5 px-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/80 flex items-center justify-center text-xs font-bold shrink-0 shadow-2xs">
+                            {s.name.trim().charAt(0)}
+                          </div>
+                          <span className="font-bold text-slate-900 dark:text-white">{s.name}</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-900/60">
+
+                      {/* Student Code Badge (whitespace-nowrap prevents hyphen linebreaks) */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="inline-flex items-center font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2.5 py-1 rounded-md border border-blue-200 dark:border-blue-900/60 whitespace-nowrap tracking-wider select-all">
                           {s.studentCode}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">{s.grade}</td>
-                      <td className="py-3.5 px-4 font-mono text-slate-700 dark:text-slate-300">
-                        {s.parentPhone !== '—' ? s.parentPhone : s.phone}
+
+                      {/* Grade */}
+                      <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 dark:text-slate-300 text-start">{s.grade}</td>
+
+                      {/* Parent Phone */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="inline-block font-mono text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-md border border-slate-200/60 dark:border-slate-700/60" dir="ltr">
+                          {s.parentPhone !== '—' ? s.parentPhone : s.phone}
+                        </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center font-bold text-sm text-emerald-600 dark:text-emerald-400">
+
+                      {/* Latest Quiz */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         {hasQuiz ? (
-                          <div className="flex flex-col items-center">
-                            <span dir="ltr">{s.latestPercentage}%</span>
+                          <div className="inline-flex flex-col items-center whitespace-nowrap">
+                            <span
+                              dir="ltr"
+                              className={`font-bold text-xs px-2 py-0.5 rounded ${
+                                (s.latestPercentage ?? 0) >= 65
+                                  ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40'
+                                  : (s.latestPercentage ?? 0) >= 50
+                                  ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40'
+                                  : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40'
+                              }`}
+                            >
+                              {s.latestPercentage}%
+                            </span>
                             {s.latestScore != null && s.latestMaxScore != null && (
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-normal">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono font-normal mt-0.5 whitespace-nowrap" dir="ltr">
                                 ({s.latestScore} / {s.latestMaxScore})
                               </span>
                             )}
@@ -496,29 +518,52 @@ Thank you for your active partnership in your student's education.`;
                           <span className="text-slate-400 dark:text-slate-500 font-normal text-xs">{isAr ? 'لم يختبر' : '—'}</span>
                         )}
                       </td>
-                      <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 font-semibold">{s.examsCompleted}</td>
-                      <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 font-semibold">{s.homeworkCompleted}</td>
-                      <td className="py-3.5 px-4 text-center text-slate-700 dark:text-slate-300 font-semibold">{s.attendanceCount}</td>
-                      <td className="py-3.5 px-4 text-center">
+
+                      {/* Exams Count */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="inline-block min-w-[28px] py-0.5 px-1.5 rounded bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-200/40 dark:border-slate-700/40">
+                          {s.examsCompleted}
+                        </span>
+                      </td>
+
+                      {/* Homework Count */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="inline-block min-w-[28px] py-0.5 px-1.5 rounded bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-200/40 dark:border-slate-700/40">
+                          {s.homeworkCompleted}
+                        </span>
+                      </td>
+
+                      {/* Attendance Count */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className="inline-block min-w-[28px] py-0.5 px-1.5 rounded bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 font-semibold text-xs border border-slate-200/40 dark:border-slate-700/40">
+                          {s.attendanceCount}
+                        </span>
+                      </td>
+
+                      {/* Status Badge with Dot Indicator (whitespace-nowrap prevents line break) */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <Badge
                           variant={isTop ? 'secondary' : 'outline'}
-                          className={
+                          className={`inline-flex items-center gap-1.5 font-semibold text-xs px-2.5 py-0.5 rounded-full whitespace-nowrap ${
                             isTop
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                               : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
-                          }
+                          }`}
                         >
-                          {isTop ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up')}
+                          <span className={`w-1.5 h-1.5 rounded-full ${isTop ? 'bg-emerald-500 dark:bg-emerald-400' : 'bg-amber-500 dark:bg-amber-400'}`} />
+                          <span>{isTop ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up')}</span>
                         </Badge>
                       </td>
-                      <td className="py-3.5 px-4 text-center">
+
+                      {/* Action Button */}
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
                         <button
                           onClick={() => openSingleWhatsApp(s)}
                           title={isAr ? `إرسال تقرير عبر واتساب لولي أمر ${s.name}` : `Send WhatsApp report to parent of ${s.name}`}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors font-semibold"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-colors font-semibold text-xs whitespace-nowrap shadow-2xs"
                         >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                          <span className="text-[11px]">{isAr ? 'تقرير واتساب' : 'WhatsApp'}</span>
+                          <MessageSquare className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>{isAr ? 'تقرير واتساب' : 'WhatsApp'}</span>
                         </button>
                       </td>
                     </tr>
