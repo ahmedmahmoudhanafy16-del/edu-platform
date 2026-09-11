@@ -12,36 +12,55 @@ export async function POST(req: NextRequest) {
     if (Array.isArray(students) && students.length > 0) {
       saveDynamicStudents(students);
 
-      // Upsert into DB so server queries find them
+      // Robust DB synchronization to prevent unique constraint conflicts
       for (const s of students) {
         if (s && (s.studentCode || s.id)) {
-          const code = String(s.studentCode || s.id).trim();
+          const sId = String(s.id || '').trim();
+          const sCode = String(s.studentCode || '').trim();
           const pass = String(s.defaultPassword || s.password || '').trim();
+          const grade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+
           try {
-            await prisma.user.upsert({
-              where: { id: code },
-              update: {
-                name: s.name || 'طالب',
-                phone: s.phone || null,
-                parentPhone: s.parentPhone || null,
-                parentWhatsapp: s.parentWhatsapp || null,
-                grade: s.grade || s.gradeLevel || 'الصف الثالث الإعدادي',
-                defaultPassword: pass,
-                isActive: s.isActive !== false,
-              },
-              create: {
-                id: code,
-                studentCode: code,
-                name: s.name || 'طالب',
-                phone: s.phone || null,
-                parentPhone: s.parentPhone || null,
-                parentWhatsapp: s.parentWhatsapp || null,
-                grade: s.grade || s.gradeLevel || 'الصف الثالث الإعدادي',
-                defaultPassword: pass,
-                role: 'STUDENT',
-                isActive: s.isActive !== false,
+            const existing = await prisma.user.findFirst({
+              where: {
+                OR: [
+                  ...(sId ? [{ id: sId }] : []),
+                  ...(sCode ? [{ studentCode: sCode }] : []),
+                ],
               },
             });
+
+            if (existing) {
+              await prisma.user.update({
+                where: { id: existing.id },
+                data: {
+                  name: s.name || existing.name,
+                  phone: s.phone ?? existing.phone,
+                  parentPhone: s.parentPhone ?? existing.parentPhone,
+                  parentWhatsapp: s.parentWhatsapp ?? existing.parentWhatsapp,
+                  grade: grade,
+                  gradeLevel: grade,
+                  defaultPassword: pass || existing.defaultPassword,
+                  isActive: s.isActive !== false,
+                },
+              });
+            } else {
+              await prisma.user.create({
+                data: {
+                  id: sId || undefined,
+                  studentCode: sCode || undefined,
+                  name: s.name || 'طالب',
+                  phone: s.phone || null,
+                  parentPhone: s.parentPhone || null,
+                  parentWhatsapp: s.parentWhatsapp || null,
+                  grade: grade,
+                  gradeLevel: grade,
+                  defaultPassword: pass || '1234',
+                  role: 'STUDENT',
+                  isActive: s.isActive !== false,
+                },
+              });
+            }
           } catch (dbErr) {}
         }
       }

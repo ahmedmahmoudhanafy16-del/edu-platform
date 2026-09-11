@@ -158,13 +158,27 @@ export async function createStudentAction(formData: {
     }
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    let count = 0;
+    // Query all existing student codes to calculate maximum numeric suffix and prevent collisions after deletions
+    let maxNum = 0;
     try {
-      count = await prisma.user.count({ where: { role: 'STUDENT' } });
+      const existingStudents = await prisma.user.findMany({
+        where: { role: 'STUDENT' },
+        select: { studentCode: true },
+      });
+      for (const s of existingStudents) {
+        if (s.studentCode) {
+          const match = s.studentCode.match(/\d+/);
+          if (match) {
+            const val = parseInt(match[0], 10);
+            if (!isNaN(val) && val > maxNum) maxNum = val;
+          }
+        }
+      }
     } catch (e) {
-      count = 2;
+      maxNum = 5;
     }
-    const studentCode = `STU-${String(count + 1).padStart(3, '0')}`;
+    const nextNum = maxNum + 1;
+    const studentCode = `STU-${String(nextNum).padStart(3, '0')}`;
     const studentId = studentCode;
 
     const newStudent = {

@@ -617,20 +617,20 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     );
   }
 
-  const thClass = 'px-3 py-2 text-start text-xs font-medium text-n-500 border-b border-n-200 dark:border-n-300 whitespace-nowrap';
-  const tdClass = 'px-3 py-2 text-xs text-n-700 dark:text-n-600 border-b border-n-100 dark:border-n-200 whitespace-nowrap';
+  const thClass = 'px-3.5 py-3 text-start text-xs font-bold text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800 whitespace-nowrap select-none';
+  const tdClass = 'px-3.5 py-3 text-xs text-slate-700 dark:text-slate-200 border-b border-slate-100 dark:border-slate-800/80 whitespace-nowrap';
 
   return (
-    <div className="rounded-xl border border-n-200 dark:border-n-300 overflow-hidden bg-white dark:bg-n-100 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm transition-colors">
       {/* Search & Academic Filters Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-n-200 dark:border-n-300 bg-slate-50/50 dark:bg-slate-900/50">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50">
         <div className="flex-1 min-w-[220px]">
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={isAr ? 'بحث بالاسم، الكود، الهاتف، السنة أو الفصل...' : 'Search by name, code, phone, grade or class...'}
-            className="w-full h-8 px-3 rounded-lg border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent"
+            className="w-full h-8.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-800 outline-none focus:border-accent"
           />
         </div>
 
@@ -642,7 +642,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <select
             value={filterGrade}
             onChange={(e) => setFilterGrade(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-n-200 dark:border-n-300 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
+            className="h-8.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 outline-none focus:border-accent font-medium cursor-pointer"
           >
             <option value="ALL">{isAr ? 'جميع السنوات الدراسية' : 'All Academic Grades'}</option>
             {ACADEMIC_GRADES.map((g) => (
@@ -661,7 +661,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <select
             value={filterClassroom}
             onChange={(e) => setFilterClassroom(e.target.value)}
-            className="h-8 px-2.5 rounded-lg border border-n-200 dark:border-n-300 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
+            className="h-8.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 outline-none focus:border-accent font-medium cursor-pointer"
           >
             <option value="ALL">{isAr ? 'جميع الفصول الدراسية' : 'All Classrooms'}</option>
             {availableClassrooms.map((c) => (
@@ -678,17 +678,17 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           </span>
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold border border-n-200 dark:border-n-300 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1.5 h-8.5 px-3 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors whitespace-nowrap shadow-2xs"
           >
-            <Download className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
             {isAr ? 'تصدير CSV' : 'Export CSV'}
           </button>
         </div>
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse">
-          <thead className="bg-n-50 dark:bg-n-200">
+        <table className="w-full border-collapse text-xs">
+          <thead className="bg-slate-50 dark:bg-slate-800/80">
             <tr>
               <th className={thClass}>#</th>
               <th className={thClass} onClick={() => toggleSort('name')}>{isAr ? 'الاسم' : 'Name'}</th>
@@ -709,7 +709,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={14} className="px-4 py-8 text-center text-xs text-n-400">
+                <td colSpan={14} className="px-4 py-8 text-center text-xs text-slate-400 dark:text-slate-500">
                   {isAr ? 'لا توجد نتائج مطابقة للبحث أو الفلتر' : 'No matching students found'}
                 </td>
               </tr>
@@ -729,16 +729,23 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     className={`transition-colors ${
                       isSuspended
                         ? 'bg-red-50/40 dark:bg-red-950/20 hover:bg-red-50/60'
-                        : 'hover:bg-n-50 dark:hover:bg-n-200'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                     }`}
                   >
-                    <td className={tdClass + ' text-n-400'}>{i + 1}</td>
-                    <td className={tdClass + ' font-semibold text-n-800 dark:text-n-700'}>
-                      {s.name}
+                    <td className={tdClass + ' text-slate-400 font-mono'}>{i + 1}</td>
+                    <td className={tdClass + ' font-bold text-slate-900 dark:text-white'}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-[11px] font-bold shrink-0 shadow-2xs">
+                          {s.name.trim().charAt(0)}
+                        </div>
+                        <span className="font-bold">{s.name}</span>
+                      </div>
                     </td>
                     <td className={tdClass}>
-                      <div className="inline-flex items-center gap-1">
-                        <code className="font-mono font-bold text-accent">{s.studentCode}</code>
+                      <div className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <span className="inline-flex items-center font-mono font-bold text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-900/60 whitespace-nowrap tracking-wider select-all">
+                          {s.studentCode}
+                        </span>
                         <button
                           type="button"
                           onClick={() => {
@@ -746,7 +753,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                             toast.success(isAr ? `تم نسخ كود الطالب (${s.studentCode})` : `Copied student code (${s.studentCode})`);
                           }}
                           title={isAr ? 'نسخ كود الطالب' : 'Copy code'}
-                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-accent transition-colors"
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-blue-600 transition-colors"
                         >
                           <Copy className="h-3 w-3" />
                         </button>
@@ -850,12 +857,14 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
                     <td className={tdClass}>
                       {isSuspended ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 px-2 py-0.5 rounded-full">
-                          <UserX className="h-3 w-3" /> {isAr ? 'معلّق / محظور' : 'Suspended'}
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950/60 border border-red-200 dark:border-red-800 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                          <span>{isAr ? 'معلّق / محظور' : 'Suspended'}</span>
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="h-3 w-3" /> {isAr ? 'نشط' : 'Active'}
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span>{isAr ? 'نشط' : 'Active'}</span>
                         </span>
                       )}
                     </td>
