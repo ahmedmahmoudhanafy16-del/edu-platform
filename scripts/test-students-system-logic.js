@@ -218,6 +218,15 @@ suite('2. Developer POV: Search, Filters, Sorting, PINs & CSV Export', () => {
     csvModule.includes('.replace(/"/g, \'""\')'),
     'lib/export-csv.ts escapes embedded quotes to RFC 4180 standard'
   );
+
+  // 6. Password Reset TDZ Safety Verification
+  const tableSource = fs.readFileSync(path.join(__dirname, '../components/teacher/CompactStudentsTable.tsx'), 'utf8');
+  const targetStudentIdx = tableSource.indexOf('const targetStudent = studentToResetPassword;');
+  const duplicateCheckIdx = tableSource.indexOf('const duplicate = students.find');
+  assert(
+    targetStudentIdx !== -1 && targetStudentIdx < duplicateCheckIdx,
+    'handleConfirmPasswordReset initializes targetStudent before duplicate check, eliminating TDZ ReferenceError on Confirm & Save'
+  );
 });
 
 // -----------------------------------------------------------------------------

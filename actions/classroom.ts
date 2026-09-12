@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import { addDynamicStudent } from '@/lib/dynamic-students';
+import { addDynamicStudent, updateDynamicStudent } from '@/lib/dynamic-students';
 import { generateRandomPin } from '@/lib/utils';
 
 export async function createClassroom(name: string, subject: string, teacherId?: string) {
@@ -126,9 +126,22 @@ export async function resetStudentPassword(studentId: string, newPassword?: stri
   }
 
   try {
+    updateDynamicStudent({
+      id: studentId,
+      studentCode: studentId,
+      defaultPassword: plain,
+      password: plain,
+    });
+  } catch (dynErr) {}
+
+  try {
     revalidatePath('/', 'layout');
+    revalidatePath('/[locale]/teacher/students');
+    revalidatePath('/[locale]/teacher/reports');
     revalidatePath('/ar/teacher/students');
     revalidatePath('/en/teacher/students');
+    revalidatePath('/ar/teacher/reports');
+    revalidatePath('/en/teacher/reports');
   } catch (e) {}
 
   return { success: true, newPassword: plain };

@@ -541,6 +541,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     if (e) e.preventDefault();
     if (!studentToResetPassword) return;
 
+    const targetStudent = studentToResetPassword;
     const plainPassword = newPasswordInput.trim();
     if (!plainPassword) {
       toast.error(isAr ? 'يرجى إدخال كلمة المرور الجديدة' : 'Please enter the new password');
@@ -564,7 +565,6 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     }
 
     setIsResettingPassword(true);
-    const targetStudent = studentToResetPassword;
 
     try {
       // 1. Server Action
