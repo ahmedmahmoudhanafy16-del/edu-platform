@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
@@ -26,6 +26,21 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
   const isAr = locale === 'ar';
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState(userName || '');
+
+  useEffect(() => {
+    setCurrentUserName(userName || '');
+  }, [userName]);
+
+  useEffect(() => {
+    function onTeacherUpdated(e: any) {
+      if (e?.detail?.name) {
+        setCurrentUserName(e.detail.name);
+      }
+    }
+    window.addEventListener('edu_teacher_updated', onTeacherUpdated);
+    return () => window.removeEventListener('edu_teacher_updated', onTeacherUpdated);
+  }, []);
 
   // Strict route isolation: Teacher area vs Student area
   const isTeacherArea = pathname.includes('/teacher');
@@ -53,6 +68,7 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
           { label: isAr ? 'البث المباشر' : 'Live Class',     href: `${base}/live` },
           { label: isAr ? 'الطلاب' : 'Students',          href: `${base}/students` },
           { label: isAr ? 'التقارير' : 'Reports',         href: `${base}/reports` },
+          { label: isAr ? 'الإعدادات' : 'Settings',         href: `${base}/settings` },
         ];
 
   const isActive = (href: string) => {
@@ -69,7 +85,7 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
   const displayUserName =
     effectiveRole === 'STUDENT'
       ? (userName || (isAr ? 'الطالب' : 'Student'))
-      : (userName || (isAr ? 'المعلم' : 'Teacher'));
+      : (currentUserName || userName || (isAr ? 'المعلم' : 'Teacher'));
 
   const initials =
     (displayUserName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('')) ||
@@ -118,12 +134,18 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
 
             {/* User avatar */}
             <div className="hidden sm:flex items-center gap-2 ms-1 ps-3 border-s border-slate-200 dark:border-slate-800">
-              <div className="w-7 h-7 rounded-full bg-accent-light border border-accent/20 flex items-center justify-center flex-shrink-0">
-                <span className="text-[11px] font-bold text-accent-text leading-none">{initials}</span>
-              </div>
-              <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[110px] truncate">
-                {displayUserName}
-              </span>
+              <Link
+                href={effectiveRole === 'TEACHER' ? `${base}/settings` : '#'}
+                className="flex items-center gap-2 group hover:opacity-85 transition-opacity"
+                title={effectiveRole === 'TEACHER' ? (isAr ? 'إعدادات الحساب' : 'Account Settings') : undefined}
+              >
+                <div className="w-7 h-7 rounded-full bg-accent-light border border-accent/20 flex items-center justify-center flex-shrink-0 group-hover:border-accent transition-colors">
+                  <span className="text-[11px] font-bold text-accent-text leading-none">{initials}</span>
+                </div>
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 max-w-[110px] truncate group-hover:text-accent transition-colors">
+                  {displayUserName}
+                </span>
+              </Link>
               <Link
                 href={prefix ? `${prefix}/logout` : '/logout'}
                 className="p-1.5 rounded-md text-slate-400 hover:text-bad hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors duration-150"
@@ -164,14 +186,18 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
               </Link>
             ))}
             <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between px-3 py-2">
-              <div className="flex items-center gap-2">
+              <Link
+                href={effectiveRole === 'TEACHER' ? `${base}/settings` : '#'}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 group"
+              >
                 <div className="w-7 h-7 rounded-full bg-accent-light border border-accent/20 flex items-center justify-center">
                   <span className="text-[11px] font-bold text-accent-text">{initials}</span>
                 </div>
-                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[120px]">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[120px] group-hover:text-accent">
                   {displayUserName}
                 </span>
-              </div>
+              </Link>
               <Link
                 href={prefix ? `${prefix}/logout` : '/logout'}
                 onClick={() => setMenuOpen(false)}

@@ -62,6 +62,12 @@ runTest('Product Owner', 'Parent notification channel for grades and live sessio
   assert(whatsappCode.includes('broadcastLiveSessionByGrade'), 'broadcastLiveSessionByGrade must exist');
 });
 
+runTest('Product Owner', 'Teacher profile and password management actions are established in actions/teacher.ts', () => {
+  const teacherAction = fs.readFileSync(path.join(rootDir, 'actions', 'teacher.ts'), 'utf8');
+  assert(teacherAction.includes('updateTeacherProfileAction'), 'updateTeacherProfileAction must exist');
+  assert(teacherAction.includes('updateTeacherPasswordAction'), 'updateTeacherPasswordAction must exist');
+});
+
 // 3. Business Analyst (محلل الأعمال)
 console.log('\n📈 3. Business Analyst (محلل الأعمال) — Business Logic & Math Integrity');
 runTest('Business Analyst', 'Passing score threshold defaults to 60% with boundary validation', () => {
@@ -306,6 +312,12 @@ runTest('Cybersecurity Specialist', 'Student quiz fetcher strips correctAnswer t
   const quizCode = fs.readFileSync(path.join(rootDir, 'actions', 'quiz.ts'), 'utf8');
   assert(quizCode.includes('getStudentQuizSecureAction'), 'getStudentQuizSecureAction must exist');
   assert(quizCode.includes('// ZERO correctAnswer sent to student!'), 'correctAnswer must be explicitly stripped');
+});
+
+runTest('Cybersecurity Specialist', 'Teacher password update enforces current password verification and bcrypt hashing', () => {
+  const teacherCode = fs.readFileSync(path.join(rootDir, 'actions', 'teacher.ts'), 'utf8');
+  assert(teacherCode.includes('bcrypt.compare(currentPassword'), 'Must verify current password using bcrypt.compare');
+  assert(teacherCode.includes('bcrypt.hash(newPassword'), 'Must hash new password using bcrypt.hash');
 });
 
 // 13. Copywriter / Content Writer (كاتب وصانع المحتوى)
