@@ -20,10 +20,15 @@ export default async function TeacherSettingsPage({
     teacher = await getAuthenticatedTeacher();
   } catch (e) {}
 
+  const rawTeacherName = teacher?.name || '';
+  const cleanTeacherName = (rawTeacherName.includes('سارة') || rawTeacherName.toLowerCase().includes('sarah'))
+    ? (isAr ? 'المعلم' : 'Teacher')
+    : (rawTeacherName || (isAr ? 'المعلم' : 'Teacher'));
+
   // Format real teacher data without dummy fallbacks
   const serializedTeacher = {
     id: teacher?.id || '',
-    name: teacher?.name || (isAr ? 'المعلم' : 'Teacher'),
+    name: cleanTeacherName,
     email: teacher?.email || null,
     phone: teacher?.phone || null,
     role: teacher?.role || 'TEACHER',

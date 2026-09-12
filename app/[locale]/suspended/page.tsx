@@ -37,7 +37,7 @@ export default function SuspendedAccountPage() {
           </h1>
           <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/40 text-xs font-semibold text-red-700 dark:text-red-400 leading-relaxed">
             {isAr
-              ? 'تم تعليق حسابك من قِبل إدارة المنصة. يرجى التواصل مع المعلمة لإعادة التفعيل.'
+              ? 'تم تعليق حسابك من قِبل إدارة المنصة. يرجى التواصل مع المعلم أو إدارة المنصة لإعادة التفعيل.'
               : 'Your account has been suspended by the platform administration. Please contact your teacher to reactivate.'}
           </div>
         </div>
@@ -56,8 +56,8 @@ export default function SuspendedAccountPage() {
           <a
             href={
               isAr
-                ? "https://wa.me/201011112222?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%8A%D8%B1%D8%AC%D9%89%20%D8%A5%D8%B9%D8%A7%D8%AF%D8%A9%20%D8%AA%D9%81%D8%B9%D9%8A%D9%84%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%A7%D9%84%D8%B7%D8%A7%D9%84%D8%A8%20%D8%B9%D9%84%D9%89%20%D8%A7%D9%84%D9%85%D9%86%D8%B5%D8%A9"
-                : "https://wa.me/201011112222?text=Hello%2C%20please%20reactivate%20the%20student%20account%20on%20the%20platform"
+                ? "https://wa.me/?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%20%D9%8A%D8%B1%D8%AC%D9%89%20%D8%A5%D8%B9%D8%A7%D8%AF%D8%A9%20%D8%AA%D9%81%D8%B9%D9%8A%D9%84%20%D8%AD%D8%B3%D8%A7%D8%A8%20%D8%A7%D9%84%D8%B7%D8%A7%D9%84%D8%A8%20%D8%B9%D9%84%D9%89%20%D8%A7%D9%84%D9%85%D9%86%D8%B5%D8%A9"
+                : "https://wa.me/?text=Hello%2C%20please%20reactivate%20the%20student%20account%20on%20the%20platform"
             }
             target="_blank"
             rel="noopener noreferrer"
@@ -65,7 +65,7 @@ export default function SuspendedAccountPage() {
           >
             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 rounded-xl shadow-md flex items-center justify-center gap-2">
               <PhoneCall className="h-4 w-4" />
-              {isAr ? 'تواصل مع المعلمة عبر واتساب' : 'Contact Teacher via WhatsApp'}
+              {isAr ? 'تواصل مع المعلم أو الإدارة عبر واتساب' : 'Contact Teacher / Support via WhatsApp'}
             </Button>
           </a>
 

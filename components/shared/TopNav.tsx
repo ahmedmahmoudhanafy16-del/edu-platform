@@ -24,27 +24,62 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
   const t = useTranslations('nav');
   const locale = useLocale();
   const isAr = locale === 'ar';
-  const pathname = usePathname();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [currentUserName, setCurrentUserName] = useState(userName || '');
-
-  useEffect(() => {
-    setCurrentUserName(userName || '');
-  }, [userName]);
-
-  useEffect(() => {
-    function onTeacherUpdated(e: any) {
-      if (e?.detail?.name) {
-        setCurrentUserName(e.detail.name);
-      }
+  const sanitizeName = (rawName?: string) => {
+    if (!rawName) return '';
+    if (rawName.includes('سارة') || rawName.toLowerCase().includes('sarah')) {
+      return '';
     }
-    window.addEventListener('edu_teacher_updated', onTeacherUpdated);
-    return () => window.removeEventListener('edu_teacher_updated', onTeacherUpdated);
-  }, []);
+    return rawName.trim();
+  };
+
+  const pathname = usePathname();
 
   // Strict route isolation: Teacher area vs Student area
   const isTeacherArea = pathname.includes('/teacher');
   const effectiveRole = isTeacherArea ? 'TEACHER' : 'STUDENT';
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState(() => sanitizeName(userName));
+
+  useEffect(() => {
+    // 1. Check local storage for updated teacher profile if in teacher area
+    if (typeof window !== 'undefined' && isTeacherArea) {
+      try {
+        const storedProfile = localStorage.getItem('edu_teacher_profile');
+        if (storedProfile) {
+          const parsed = JSON.parse(storedProfile);
+          if (parsed?.name && !parsed.name.includes('سارة') && !parsed.name.toLowerCase().includes('sarah')) {
+            setCurrentUserName(parsed.name.trim());
+            return;
+          }
+        }
+        const rawSession = localStorage.getItem('user_session');
+        if (rawSession) {
+          const parsedSession = JSON.parse(rawSession);
+          if (parsedSession?.name && !parsedSession.name.includes('سارة') && !parsedSession.name.toLowerCase().includes('sarah')) {
+            setCurrentUserName(parsedSession.name.trim());
+            return;
+          }
+        }
+      } catch {}
+    }
+
+    const clean = sanitizeName(userName);
+    if (clean) {
+      setCurrentUserName(clean);
+    }
+  }, [userName, isTeacherArea]);
+
+  useEffect(() => {
+    function onTeacherUpdated(e: any) {
+      if (e?.detail?.name) {
+        const clean = sanitizeName(e.detail.name);
+        setCurrentUserName(clean || (isAr ? 'المعلم' : 'Teacher'));
+      }
+    }
+    window.addEventListener('edu_teacher_updated', onTeacherUpdated);
+    return () => window.removeEventListener('edu_teacher_updated', onTeacherUpdated);
+  }, [isAr]);
 
   // In next-intl with localePrefix: 'as-needed', Arabic has NO prefix, English has '/en'
   const prefix = locale === 'en' ? '/en' : '';
@@ -84,8 +119,8 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
 
   const displayUserName =
     effectiveRole === 'STUDENT'
-      ? (userName || (isAr ? 'الطالب' : 'Student'))
-      : (currentUserName || userName || (isAr ? 'المعلم' : 'Teacher'));
+      ? (sanitizeName(userName) || (isAr ? 'الطالب' : 'Student'))
+      : (sanitizeName(currentUserName) || sanitizeName(userName) || (isAr ? 'المعلم' : 'Teacher'));
 
   const initials =
     (displayUserName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('')) ||

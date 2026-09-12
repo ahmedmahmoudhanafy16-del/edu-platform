@@ -1,10 +1,11 @@
 import { cookies } from 'next/headers';
-import { prisma } from '@/lib/prisma';
+import { prisma, memoryTeacher } from '@/lib/prisma';
 
 export interface SessionUser {
   id: string;
   name: string;
   role: 'TEACHER' | 'STUDENT' | 'ADMIN';
+  email?: string;
   studentCode?: string;
   phone?: string;
   grade?: string;
@@ -21,8 +22,19 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
 
     if (sessionCookie?.value) {
       try {
-        const parsed = JSON.parse(sessionCookie.value) as SessionUser;
+        let rawVal = sessionCookie.value;
+        if (rawVal.startsWith('%7B') || rawVal.startsWith('%7b') || rawVal.includes('%22')) {
+          try {
+            rawVal = decodeURIComponent(rawVal);
+          } catch {}
+        }
+        const parsed = JSON.parse(rawVal) as SessionUser;
         if (parsed?.id) {
+          // Purge any legacy default name from cookie
+          if (parsed.name && (parsed.name.includes('سارة') || parsed.name.toLowerCase().includes('sarah'))) {
+            parsed.name = 'المعلم';
+          }
+
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: parsed.id },
@@ -30,9 +42,12 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             });
 
             if (dbUser) {
+              const cleanDbName = (dbUser.name && (dbUser.name.includes('سارة') || dbUser.name.toLowerCase().includes('sarah')))
+                ? 'المعلم'
+                : dbUser.name;
               return {
                 id: dbUser.id,
-                name: dbUser.name,
+                name: cleanDbName,
                 role: dbUser.role as any,
                 studentCode: dbUser.studentCode || undefined,
                 phone: dbUser.phone || undefined,
@@ -42,6 +57,10 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             }
           } catch (dbErr) {
             console.warn('[Auth] DB query in getCurrentUser:', dbErr);
+          }
+
+          if (parsed.role === 'TEACHER' && memoryTeacher?.name && memoryTeacher.name !== 'المعلم') {
+            parsed.name = memoryTeacher.name;
           }
 
           return {
@@ -105,16 +124,25 @@ export async function getAuthenticatedTeacher() {
       const teacher = await prisma.user.findUnique({
         where: { id: sessionUser.id },
       });
-      if (teacher) return teacher;
+      if (teacher) {
+        if (teacher.name && (teacher.name.includes('سارة') || teacher.name.toLowerCase().includes('sarah'))) {
+          teacher.name = 'المعلم';
+        }
+        return teacher;
+      }
     } catch (err) {}
 
+    const cleanName = (sessionUser.name && (sessionUser.name.includes('سارة') || sessionUser.name.toLowerCase().includes('sarah')))
+      ? 'المعلم'
+      : (memoryTeacher?.name || sessionUser.name || 'المعلم');
+
     return {
-      id: sessionUser.id,
-      name: sessionUser.name,
+      id: sessionUser.id || 'teacher-admin-1',
+      name: cleanName,
       role: 'TEACHER',
-      email: '',
-      phone: '',
-      password: '',
+      email: memoryTeacher?.email || 'teacher@school.com',
+      phone: memoryTeacher?.phone || '',
+      password: memoryTeacher?.password || 'teacher123',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any;

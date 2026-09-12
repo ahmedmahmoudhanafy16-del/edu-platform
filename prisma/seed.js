@@ -22,7 +22,7 @@ async function main() {
       password: teacherHash,
       passwordHash: teacherHash,
       role: 'TEACHER',
-      phone: '01011112222',
+      phone: null,
     },
   });
 

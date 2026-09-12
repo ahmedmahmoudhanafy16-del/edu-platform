@@ -34,14 +34,41 @@ export function TeacherSettingsClient({
 }: {
   initialTeacher: TeacherProfile;
   locale: string;
-}) {
+}): React.JSX.Element {
   const isAr = locale === 'ar';
 
+  const cleanInitialName = (raw?: string) => {
+    if (!raw) return '';
+    if (raw.includes('سارة') || raw.toLowerCase().includes('sarah')) return '';
+    return raw.trim();
+  };
+
   // Profile Form State
-  const [name, setName] = useState(initialTeacher?.name || '');
+  const [name, setName] = useState(() => cleanInitialName(initialTeacher?.name));
   const [email, setEmail] = useState(initialTeacher?.email || '');
   const [phone, setPhone] = useState(initialTeacher?.phone || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Sync from localStorage if previously updated
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('edu_teacher_profile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed?.name && !parsed.name.includes('سارة') && !parsed.name.toLowerCase().includes('sarah')) {
+            setName(parsed.name.trim());
+          }
+          if (parsed?.email) {
+            setEmail(parsed.email.trim());
+          }
+          if (parsed?.phone) {
+            setPhone(parsed.phone.trim());
+          }
+        }
+      } catch {}
+    }
+  }, []);
 
   // Password Form State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -60,7 +87,8 @@ export function TeacherSettingsClient({
   // Handle Profile Update
   async function handleProfileSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || name.trim().length < 2) {
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
       toast.error(isAr ? 'يرجى إدخال اسم صحيح لا يقل عن حرفين' : 'Please enter a valid name (at least 2 characters)');
       return;
     }
@@ -68,7 +96,7 @@ export function TeacherSettingsClient({
     setIsSavingProfile(true);
     try {
       const res = await updateTeacherProfileAction({
-        name: name.trim(),
+        name: trimmedName,
         email: email.trim(),
         phone: phone.trim(),
       });
@@ -76,30 +104,28 @@ export function TeacherSettingsClient({
       if (res.success && res.user) {
         toast.success(isAr ? 'تم حفظ وتحديث بيانات المعلم بنجاح' : 'Teacher profile updated successfully');
 
-        // Broadcast event across UI (e.g. TopNav)
+        // Immediate client-side persistence and sync
         if (typeof window !== 'undefined') {
+          const updatedUserPayload = {
+            id: res.user.id,
+            name: res.user.name,
+            email: res.user.email,
+            phone: res.user.phone,
+            role: 'TEACHER',
+            isActive: true,
+          };
+
+          try {
+            localStorage.setItem('edu_teacher_profile', JSON.stringify(updatedUserPayload));
+            localStorage.setItem('user_session', JSON.stringify(updatedUserPayload));
+            document.cookie = `user_session=${encodeURIComponent(JSON.stringify(updatedUserPayload))}; path=/; max-age=2592000; SameSite=Lax`;
+          } catch {}
+
           window.dispatchEvent(
             new CustomEvent('edu_teacher_updated', {
-              detail: {
-                id: res.user.id,
-                name: res.user.name,
-                email: res.user.email,
-                phone: res.user.phone,
-              },
+              detail: updatedUserPayload,
             })
           );
-
-          // Update local storage session if exists
-          try {
-            const rawSession = localStorage.getItem('user_session');
-            if (rawSession) {
-              const parsed = JSON.parse(rawSession);
-              localStorage.setItem(
-                'user_session',
-                JSON.stringify({ ...parsed, name: res.user.name, email: res.user.email, phone: res.user.phone })
-              );
-            }
-          } catch {}
         }
       } else {
         toast.error(res.error || (isAr ? 'فشل تحديث البيانات' : 'Failed to update profile'));
@@ -169,7 +195,7 @@ export function TeacherSettingsClient({
               </span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono">
-              {email || 'teacher@school.com'}
+              {email || (isAr ? 'لم يُحدد بريد إلكتروني' : 'No email set')}
               {phone ? ` · ${phone}` : ''}
             </p>
           </div>

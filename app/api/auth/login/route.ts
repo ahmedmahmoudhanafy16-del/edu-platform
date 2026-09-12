@@ -25,7 +25,7 @@ const SEED_USERS: any[] = [
     id: 'teacher-admin-1',
     name: 'المعلم',
     email: 'teacher@school.com',
-    phone: '01011112222',
+    phone: '',
     role: 'TEACHER',
     password: 'teacher123',
     passwordHash: '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9',
@@ -65,11 +65,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (!user) {
-        user = SEED_USERS.find(
-          (u) =>
-            u.role === 'TEACHER' &&
-            ((u.email && u.email.toLowerCase() === cleanEmail) || u.phone === cleanEmail)
-        );
+        const memTeacher = (global as any).memoryTeacher || (global as any).prisma?.memoryTeacher;
+        if (
+          memTeacher &&
+          ((memTeacher.email && memTeacher.email.toLowerCase() === cleanEmail) ||
+            (memTeacher.phone && memTeacher.phone === cleanEmail) ||
+            cleanEmail === 'teacher@school.com')
+        ) {
+          user = memTeacher;
+        } else {
+          user = SEED_USERS.find(
+            (u) =>
+              u.role === 'TEACHER' &&
+              ((u.email && u.email.toLowerCase() === cleanEmail) ||
+                (u.phone && u.phone === cleanEmail))
+          );
+        }
       }
     } else {
       // Student lookup

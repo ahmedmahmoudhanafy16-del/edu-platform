@@ -78,31 +78,6 @@ export function LoginForm() {
     }
 
     try {
-      const isKnownTeacher =
-        (cleanEmail === 'teacher@school.com' || cleanEmail === '01011112222') &&
-        cleanPass === 'teacher123';
-
-      if (isKnownTeacher) {
-        const teacherPayload = {
-          id: 'teacher-admin-1',
-          name: 'المعلم',
-          role: 'TEACHER',
-          email: 'teacher@school.com',
-          phone: '01011112222',
-        };
-        sessionStorage.setItem('userRole', 'teacher');
-        document.cookie = `user_session=${encodeURIComponent(JSON.stringify(teacherPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-
-        fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password: cleanPass, role: 'TEACHER' }),
-        }).catch(() => {});
-
-        router.push(`/${locale}/teacher`);
-        return;
-      }
-
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -110,6 +85,32 @@ export function LoginForm() {
       });
 
       if (!res.ok) {
+        // Fallback for local/offline demo if default teacher credentials
+        if (cleanEmail === 'teacher@school.com' && cleanPass === 'teacher123') {
+          let teacherName = 'المعلم';
+          try {
+            const stored = localStorage.getItem('edu_teacher_profile');
+            if (stored) {
+              const p = JSON.parse(stored);
+              if (p?.name && !p.name.includes('سارة') && !p.name.toLowerCase().includes('sarah')) {
+                teacherName = p.name;
+              }
+            }
+          } catch {}
+
+          const teacherPayload = {
+            id: 'teacher-admin-1',
+            name: teacherName,
+            role: 'TEACHER',
+            email: 'teacher@school.com',
+            phone: '',
+          };
+          sessionStorage.setItem('userRole', 'teacher');
+          document.cookie = `user_session=${encodeURIComponent(JSON.stringify(teacherPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+          router.push(`/${locale}/teacher`);
+          return;
+        }
+
         setError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
         setLoading(false);
         return;
@@ -119,6 +120,10 @@ export function LoginForm() {
       if (data?.user) {
         sessionStorage.setItem('userRole', 'teacher');
         document.cookie = `user_session=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+        try {
+          localStorage.setItem('user_session', JSON.stringify(data.user));
+          localStorage.setItem('edu_teacher_profile', JSON.stringify(data.user));
+        } catch {}
       }
 
       router.push(`/${locale}/teacher`);

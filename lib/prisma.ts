@@ -37,6 +37,7 @@ const globalForPrisma = global as unknown as {
   memoryQuizzes?: any[];
   memoryAssignments?: any[];
   memoryRetakeCodes?: any[];
+  memoryTeacher?: any;
 };
 
 // Global singleton instance for serverless Next.js
@@ -79,6 +80,18 @@ if (!globalForPrisma.memoryRetakeCodes) {
   globalForPrisma.memoryRetakeCodes = [];
 }
 export const memoryRetakeCodes = globalForPrisma.memoryRetakeCodes;
+
+if (!globalForPrisma.memoryTeacher) {
+  globalForPrisma.memoryTeacher = {
+    id: 'teacher-admin-1',
+    name: 'المعلم',
+    email: 'teacher@school.com',
+    phone: '',
+    role: 'TEACHER',
+    password: 'teacher123',
+  };
+}
+export const memoryTeacher = globalForPrisma.memoryTeacher;
 
 /**
  * Checks if a Prisma / Database error is caused by SQLite serverless read-only filesystem (Error 14)
