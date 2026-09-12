@@ -68,10 +68,15 @@ export async function createClassroom(name: string, subject: string, teacherId?:
     }
 
     try {
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/students');
+      revalidatePath('/[locale]/teacher/reports');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
       revalidatePath('/', 'layout');
     } catch (e) {}
 

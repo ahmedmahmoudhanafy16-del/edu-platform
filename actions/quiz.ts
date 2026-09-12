@@ -935,6 +935,7 @@ export async function submitQuizAnswers(
       revalidatePath('/[locale]/(dashboard)/student/grades');
       revalidatePath('/[locale]/(dashboard)/teacher');
       revalidatePath('/[locale]/(dashboard)/teacher/students');
+      revalidatePath('/[locale]/(dashboard)/teacher/reports');
       revalidatePath('/[locale]/parent');
       revalidatePath('/[locale]/parent/dashboard');
       revalidatePath('/[locale]/parent/child-progress');
@@ -942,6 +943,8 @@ export async function submitQuizAnswers(
       revalidatePath('/ar/student/grades');
       revalidatePath('/ar/teacher');
       revalidatePath('/ar/teacher/students');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
       revalidatePath('/ar/parent/dashboard');
       revalidatePath('/ar/parent/child-progress');
     } catch (revalError) {}

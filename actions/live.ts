@@ -193,10 +193,15 @@ export async function recordLiveAttendance(roomCode: string, studentId: string, 
 
     try {
       revalidatePath('/', 'layout');
+      revalidatePath('/[locale]/student/attendance');
       revalidatePath('/ar/student/attendance');
       revalidatePath('/en/student/attendance');
+      revalidatePath('/[locale]/teacher/students');
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
+      revalidatePath('/[locale]/teacher/reports');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
     } catch (e) {}
 
     return record;

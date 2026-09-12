@@ -417,6 +417,9 @@ export async function submitAssignment(
 
   revalidatePath('/[locale]/student/assignments');
   revalidatePath('/[locale]/teacher/assignments');
+  revalidatePath('/[locale]/teacher/reports');
+  revalidatePath('/ar/teacher/reports');
+  revalidatePath('/en/teacher/reports');
   return submission;
 }
 
@@ -457,5 +460,11 @@ export async function gradeSubmission(submissionId: string, grade: number, teach
 
   revalidatePath('/[locale]/teacher/assignments');
   revalidatePath('/[locale]/student/assignments');
+  revalidatePath('/[locale]/student/grades');
+  revalidatePath('/[locale]/teacher/reports');
+  revalidatePath('/ar/teacher/reports');
+  revalidatePath('/en/teacher/reports');
+  revalidatePath('/ar/student/grades');
+  revalidatePath('/en/student/grades');
   return submission;
 }
