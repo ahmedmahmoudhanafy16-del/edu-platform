@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Master E2E Platform Integration & Logical Verification Test Suite
  * Validating the complete integration of all 16 technical engineering roles.
  */
@@ -132,6 +132,39 @@ runTest('Frontend Developer', 'Event bus dispatches edu_students_updated for cro
 
   assert(tableCode.includes('edu_students_updated'), 'CompactStudentsTable must handle edu_students_updated');
   assert(reportsCode.includes('edu_students_updated'), 'TeacherReportsClient must handle edu_students_updated');
+});
+
+runTest('Frontend Developer', 'TeacherDashboardOverviewClient dynamically synchronizes classrooms and students from store and events', () => {
+  const dashboardClient = fs.readFileSync(path.join(rootDir, 'components', 'teacher', 'TeacherDashboardOverviewClient.tsx'), 'utf8');
+  assert(dashboardClient.includes('setClassroomsCount'), 'Must maintain reactive classroomsCount state');
+  assert(dashboardClient.includes('setStudentsCount'), 'Must maintain reactive studentsCount state');
+  assert(dashboardClient.includes('edu_classrooms_updated'), 'Must listen to edu_classrooms_updated event');
+  assert(dashboardClient.includes('edu_students_updated'), 'Must listen to edu_students_updated event');
+  assert(dashboardClient.includes('getClassroomsFromStore'), 'Must read classrooms from client store');
+  assert(dashboardClient.includes('getStudentsFromStore'), 'Must read students from client store');
+});
+
+runTest('Frontend Developer', 'TeacherStudentsClient cards dynamically reflect reactive students state and pass to table', () => {
+  const studentsClient = fs.readFileSync(path.join(rootDir, 'app', '[locale]', '(dashboard)', 'teacher', 'students', 'TeacherStudentsClient.tsx'), 'utf8');
+  assert(studentsClient.includes('setStudents'), 'Must maintain reactive students state');
+  assert(studentsClient.includes('totalStudents = students.length'), 'Card 1 must compute total from reactive students');
+  assert(studentsClient.includes('activeCount = students.filter'), 'Card 2 must compute active count from reactive students');
+  assert(studentsClient.includes('students={students as any}'), 'Must pass reactive students down to CompactStudentsTable');
+  assert(studentsClient.includes('edu_students_updated'), 'Must listen to edu_students_updated');
+});
+
+runTest('Frontend Developer', 'Teacher dashboard server page has ZERO phantom fallback numbers (defaults to 0)', () => {
+  const teacherPage = fs.readFileSync(path.join(rootDir, 'app', '[locale]', '(dashboard)', 'teacher', 'page.tsx'), 'utf8');
+  assert(teacherPage.includes('let classroomsCount = 0;'), 'classroomsCount must default to 0');
+  assert(teacherPage.includes('let studentsCount = 0;'), 'studentsCount must default to 0');
+  assert(!teacherPage.includes('.catch(() => 1)'), 'Must not have phantom fallback of 1 classroom');
+  assert(!teacherPage.includes('.catch(() => 4)'), 'Must not have phantom fallback of 4 students');
+});
+
+runTest('Frontend Developer', 'getStudentsFromStore respects deleted students and empty arrays without resurrecting seeds', () => {
+  const storeCode = fs.readFileSync(path.join(rootDir, 'lib', 'store.ts'), 'utf8');
+  assert(storeCode.includes('edu_deleted_students'), 'getStudentsFromStore must filter by edu_deleted_students');
+  assert(storeCode.includes('raw === null'), 'Must only seed on true first-time visit (raw === null)');
 });
 
 runTest('Frontend Developer', 'Root layout contains hydration suppression and Cairo font definition', () => {

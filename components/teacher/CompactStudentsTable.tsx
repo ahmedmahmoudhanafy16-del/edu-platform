@@ -716,7 +716,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500 font-semibold tabular-nums">
-            {sorted.length} {isAr ? 'طالب' : 'students'}
+            {isAr ? `${sorted.length} طالب` : sorted.length === 1 ? '1 student' : `${sorted.length} students`}
           </span>
           <button
             onClick={handleExport}

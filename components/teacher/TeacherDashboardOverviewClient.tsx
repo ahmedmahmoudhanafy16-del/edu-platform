@@ -3,11 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, FileText, ClipboardList, Video, Ticket, BarChart3 } from 'lucide-react';
-import { getAssignments, getQuizzes, AssignmentData, QuizData } from '@/lib/store';
+import {
+  getAssignments,
+  getQuizzes,
+  getClassroomsFromStore,
+  getStudentsFromStore,
+  AssignmentData,
+  QuizData,
+} from '@/lib/store';
 
 export function TeacherDashboardOverviewClient({
-  initialClassroomsCount = 1,
-  initialStudentsCount = 4,
+  initialClassroomsCount = 0,
+  initialStudentsCount = 0,
   initialAssignments = [],
   locale,
 }: {
@@ -16,6 +23,30 @@ export function TeacherDashboardOverviewClient({
   initialAssignments?: AssignmentData[];
   locale: string;
 }) {
+  const [classroomsCount, setClassroomsCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('edu_classrooms');
+        if (stored) {
+          return getClassroomsFromStore().length;
+        }
+      } catch {}
+    }
+    return initialClassroomsCount;
+  });
+
+  const [studentsCount, setStudentsCount] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('edu_students');
+        if (stored) {
+          return getStudentsFromStore().length;
+        }
+      } catch {}
+    }
+    return initialStudentsCount;
+  });
+
   const [assignments, setAssignments] = useState<AssignmentData[]>(() => {
     if (typeof window !== 'undefined') {
       return getAssignments();
@@ -34,25 +65,51 @@ export function TeacherDashboardOverviewClient({
     function syncStore() {
       setAssignments(getAssignments());
       setQuizzes(getQuizzes());
+
+      try {
+        const storedClassrooms = localStorage.getItem('edu_classrooms');
+        if (storedClassrooms) {
+          setClassroomsCount(getClassroomsFromStore().length);
+        } else {
+          setClassroomsCount(initialClassroomsCount);
+        }
+      } catch {
+        setClassroomsCount(initialClassroomsCount);
+      }
+
+      try {
+        const storedStudents = localStorage.getItem('edu_students');
+        if (storedStudents) {
+          setStudentsCount(getStudentsFromStore().length);
+        } else {
+          setStudentsCount(initialStudentsCount);
+        }
+      } catch {
+        setStudentsCount(initialStudentsCount);
+      }
     }
 
     syncStore();
 
     window.addEventListener('edu_store_updated', syncStore);
+    window.addEventListener('edu_classrooms_updated', syncStore);
+    window.addEventListener('edu_students_updated', syncStore);
     window.addEventListener('storage', syncStore);
 
     return () => {
       window.removeEventListener('edu_store_updated', syncStore);
+      window.removeEventListener('edu_classrooms_updated', syncStore);
+      window.removeEventListener('edu_students_updated', syncStore);
       window.removeEventListener('storage', syncStore);
     };
-  }, []);
+  }, [initialClassroomsCount, initialStudentsCount]);
 
   const isAr = locale === 'ar';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 
   const stats = [
-    { label: isAr ? 'الفصول الدراسية' : 'Classrooms', value: initialClassroomsCount, icon: BookOpen },
-    { label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: initialStudentsCount, icon: Users },
+    { label: isAr ? 'الفصول الدراسية' : 'Classrooms', value: classroomsCount, icon: BookOpen },
+    { label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: studentsCount, icon: Users },
     { label: isAr ? 'الواجبات' : 'Assignments', value: assignments.length, icon: FileText },
     { label: isAr ? 'الامتحانات' : 'Quizzes', value: quizzes.length, icon: ClipboardList },
   ];

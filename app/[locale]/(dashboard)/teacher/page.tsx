@@ -19,15 +19,15 @@ export default async function TeacherDashboardPage({
   const teacher = await getAuthenticatedTeacher();
   const teacherId = teacher?.id ?? '';
 
-  let classroomsCount = 1;
-  let studentsCount = 4;
+  let classroomsCount = 0;
+  let studentsCount = 0;
   let activeLive: any[] = [];
   let recentAssignments: any[] = [];
 
   try {
     const [clsCount, stuCount, live, assigns] = await Promise.all([
-      prisma.classroom.count({ where: { teacherId } }).catch(() => 1),
-      prisma.user.count({ where: { role: 'STUDENT' } }).catch(() => 4),
+      prisma.classroom.count({ where: teacherId ? { teacherId } : {} }).catch(() => 0),
+      prisma.user.count({ where: { role: 'STUDENT' } }).catch(() => 0),
       prisma.liveSession.findMany({
         where: { isActive: true },
         include: { classroom: true },

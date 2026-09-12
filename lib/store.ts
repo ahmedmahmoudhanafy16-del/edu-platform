@@ -1062,19 +1062,28 @@ export const DEFAULT_INITIAL_STUDENTS = [
 export function getStudentsFromStore(): any[] {
   if (typeof window === 'undefined') return DEFAULT_INITIAL_STUDENTS;
   try {
+    const deletedRaw = localStorage.getItem('edu_deleted_students');
+    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
     const raw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_INITIAL_STUDENTS));
-      return DEFAULT_INITIAL_STUDENTS;
+    if (raw === null) {
+      const initial = DEFAULT_INITIAL_STUDENTS.filter((s: any) => {
+        const sCode = String(s?.studentCode || '').trim().toUpperCase();
+        const sId = String(s?.id || '').trim().toUpperCase();
+        return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+      });
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(initial));
+      return initial;
     }
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_INITIAL_STUDENTS));
-      return DEFAULT_INITIAL_STUDENTS;
-    }
-    return parsed;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((s: any) => {
+      const sCode = String(s?.studentCode || '').trim().toUpperCase();
+      const sId = String(s?.id || '').trim().toUpperCase();
+      return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+    });
   } catch {
-    return DEFAULT_INITIAL_STUDENTS;
+    return [];
   }
 }
 
@@ -1082,6 +1091,20 @@ export function saveStudentToStore(student: any): any {
   if (typeof window === 'undefined') return student;
   try {
     const current = getStudentsFromStore();
+
+    // Ensure student is un-deleted if re-created or updated
+    try {
+      const deletedRaw = localStorage.getItem('edu_deleted_students');
+      if (deletedRaw) {
+        const deletedSet = new Set<string>(JSON.parse(deletedRaw));
+        const sId = String(student.id || '').trim().toUpperCase();
+        const sCode = String(student.studentCode || '').trim().toUpperCase();
+        if (sId) deletedSet.delete(sId);
+        if (sCode) deletedSet.delete(sCode);
+        localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(deletedSet)));
+      }
+    } catch {}
+
     const existingPins = current.map((s: any) => s.defaultPassword || s.password);
     const cleanPassword = String(student.defaultPassword || student.password || '').trim() || generateRandomPin(existingPins);
     const formatted = {
@@ -1098,7 +1121,7 @@ export function saveStudentToStore(student: any): any {
       submissionsCount: 0,
       attendanceCount: 0,
       lastActive: new Date().toISOString(),
-      isActive: true,
+      isActive: student.isActive !== false,
       defaultPassword: cleanPassword,
       password: cleanPassword,
       createdAt: student.createdAt || new Date().toISOString(),
@@ -1118,6 +1141,9 @@ export function saveStudentToStore(student: any): any {
 
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updatedList));
     notifyStoreUpdated();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('edu_students_updated', { detail: { student: formatted } }));
+    }
     return formatted;
   } catch (err) {
     console.warn('[saveStudentToStore] LocalStorage write error:', err);

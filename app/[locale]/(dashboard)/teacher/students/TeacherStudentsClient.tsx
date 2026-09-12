@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompactStudentsTable } from '@/components/teacher/CompactStudentsTable';
 import { UserPlus, Users, CheckCircle2, School, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,19 +35,101 @@ export function TeacherStudentsClient({
   const isAr = locale === 'ar';
   const [addStudentOpen, setAddStudentOpen] = useState(false);
 
+  // Authoritative dynamic students state synchronized with localStorage and cross-tab events
+  const [students, setStudents] = useState<StudentItem[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_students');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+        const stored = localStorage.getItem('edu_students');
+        if (stored) {
+          const parsed: StudentItem[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const localMap = new Map(parsed.map((s) => [s.id, s]));
+            initialStudents.forEach((s) => {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
+                localMap.set(s.id, s);
+              }
+            });
+            return Array.from(localMap.values()).filter((s) => {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+            });
+          }
+        }
+      } catch {}
+    }
+    return initialStudents;
+  });
+
   function refresh() {
     router.refresh();
   }
 
-  // Executive Metric Calculations with Zero-Division Protection
-  const totalStudents = initialStudents.length;
-  const activeCount = initialStudents.filter((s) => s.isActive !== false).length;
+  // Reactive synchronization across all student additions, updates, suspensions, and removals
+  useEffect(() => {
+    function syncStudents() {
+      let baseList = initialStudents;
+      try {
+        const deletedRaw = localStorage.getItem('edu_deleted_students');
+        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+
+        const stored = localStorage.getItem('edu_students');
+        if (stored) {
+          const parsed: StudentItem[] = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const localMap = new Map(parsed.map((s) => [s.id, s]));
+            initialStudents.forEach((s) => {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
+                localMap.set(s.id, s);
+              }
+            });
+            baseList = Array.from(localMap.values()).filter((s) => {
+              const sCode = String(s.studentCode || '').trim().toUpperCase();
+              const sId = String(s.id || '').trim().toUpperCase();
+              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+            });
+          }
+        } else if (deletedSet.size > 0) {
+          baseList = baseList.filter((s) => {
+            const sCode = String(s.studentCode || '').trim().toUpperCase();
+            const sId = String(s.id || '').trim().toUpperCase();
+            return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
+          });
+        }
+      } catch {}
+
+      setStudents(baseList);
+    }
+
+    syncStudents();
+
+    window.addEventListener('edu_students_updated', syncStudents);
+    window.addEventListener('edu_store_updated', syncStudents);
+    window.addEventListener('storage', syncStudents);
+
+    return () => {
+      window.removeEventListener('edu_students_updated', syncStudents);
+      window.removeEventListener('edu_store_updated', syncStudents);
+      window.removeEventListener('storage', syncStudents);
+    };
+  }, [initialStudents]);
+
+  // Executive Metric Calculations with Zero-Division Protection directly from reactive students
+  const totalStudents = students.length;
+  const activeCount = students.filter((s) => s.isActive !== false).length;
   const activeRate = totalStudents > 0 ? Math.round((activeCount / totalStudents) * 100) : 0;
 
-  const assignedCount = initialStudents.filter((s) => Boolean(s.classroomId || s.classroomName)).length;
+  const assignedCount = students.filter((s) => Boolean(s.classroomId || s.classroomName)).length;
   const assignedRate = totalStudents > 0 ? Math.round((assignedCount / totalStudents) * 100) : 0;
 
-  const scoredStudents = initialStudents.filter((s) => s.avgScore != null);
+  const scoredStudents = students.filter((s) => s.avgScore != null);
   const avgPerformance = scoredStudents.length > 0
     ? Math.round(scoredStudents.reduce((acc, s) => acc + (s.avgScore || 0), 0) / scoredStudents.length)
     : 0;
@@ -137,7 +219,7 @@ export function TeacherStudentsClient({
 
       {/* Main Students Table */}
       <CompactStudentsTable
-        students={initialStudents as any}
+        students={students as any}
         classroomName={isAr ? 'الصف_الثالث_الإعدادي' : '3rd_Preparatory_Grade'}
         classrooms={classrooms}
         onRefresh={refresh}
