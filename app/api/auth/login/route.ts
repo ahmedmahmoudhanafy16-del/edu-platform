@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
-import { getDynamicStudents, addDynamicStudent } from '@/lib/dynamic-students';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,7 @@ const SEED_USERS: any[] = [
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { email, studentCode, password, role, localStudent } = body;
+    const { email, studentCode, password, role } = body;
 
     const rawPassword = toStandardDigits(String(password ?? '').trim());
 
@@ -46,15 +46,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let user: any = null;
     const cleanInput = toStandardDigits(String(studentCode ?? '').trim());
     const cleanUpper = cleanInput.toUpperCase();
     const cleanLower = cleanInput.toLowerCase();
 
-    if (role === 'TEACHER') {
+    // ── Teacher Authentication ─────────────────────────────────────────────
+    if (role === 'TEACHER' || (!cleanInput && email)) {
       const cleanEmail = String(email ?? '').trim().toLowerCase();
+      let teacherUser: any = null;
+
       try {
-        user = await prisma.user.findFirst({
+        teacherUser = await prisma.user.findFirst({
           where: {
             role: 'TEACHER',
             OR: [{ email: cleanEmail }, { phone: cleanEmail }],
@@ -64,7 +66,7 @@ export async function POST(req: NextRequest) {
         console.warn('[Teacher Login] Database query skipped:', dbErr);
       }
 
-      if (!user) {
+      if (!teacherUser) {
         const memTeacher = (global as any).memoryTeacher || (global as any).prisma?.memoryTeacher;
         if (
           memTeacher &&
@@ -72,9 +74,9 @@ export async function POST(req: NextRequest) {
             (memTeacher.phone && memTeacher.phone === cleanEmail) ||
             cleanEmail === 'teacher@school.com')
         ) {
-          user = memTeacher;
+          teacherUser = memTeacher;
         } else {
-          user = SEED_USERS.find(
+          teacherUser = SEED_USERS.find(
             (u) =>
               u.role === 'TEACHER' &&
               ((u.email && u.email.toLowerCase() === cleanEmail) ||
@@ -82,63 +84,172 @@ export async function POST(req: NextRequest) {
           );
         }
       }
-    } else {
-      // Student lookup
-      try {
-        user = await prisma.user.findFirst({
-          where: {
-            role: 'STUDENT',
-            OR: [
-              { studentCode: cleanInput },
-              { studentCode: cleanUpper },
-              { phone: cleanInput },
-              { id: cleanInput },
-              { name: cleanInput },
-            ],
-          },
-        });
-      } catch (dbErr) {
-        console.warn('[Student Login] DB query skipped:', dbErr);
-      }
 
-      if (!user && localStudent) {
-        user = localStudent;
-      }
-
-      if (!user) {
-        const dynamicList = getDynamicStudents();
-        user = dynamicList.find(
-          (u: any) =>
-            (u.studentCode?.toUpperCase() === cleanUpper ||
-              u.studentCode?.toLowerCase() === cleanLower ||
-              u.phone === cleanInput ||
-              u.id === cleanInput ||
-              u.name === cleanInput)
+      if (!teacherUser) {
+        return NextResponse.json(
+          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+          { status: 401 }
         );
       }
+
+      // Verify teacher password
+      let isTeacherPassMatch = false;
+      const tPass = String(teacherUser.password || '').trim();
+      const tHash = String(teacherUser.passwordHash || '').trim();
+
+      if (tPass && rawPassword === tPass) {
+        isTeacherPassMatch = true;
+      } else if (tHash && tHash.startsWith('$2')) {
+        try {
+          isTeacherPassMatch = await bcrypt.compare(rawPassword, tHash);
+        } catch {
+          isTeacherPassMatch = false;
+        }
+      }
+
+      if (!isTeacherPassMatch) {
+        return NextResponse.json(
+          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
+          { status: 401 }
+        );
+      }
+
+      const teacherSession = {
+        id: teacherUser.id || 'teacher-admin-1',
+        name: teacherUser.name || 'المعلم',
+        role: 'TEACHER',
+        email: teacherUser.email || 'teacher@school.com',
+        phone: teacherUser.phone || '',
+        isActive: true,
+      };
+
+      const res = NextResponse.json({
+        success: true,
+        message: 'تم تسجيل الدخول بنجاح',
+        user: teacherSession,
+      });
+
+      res.cookies.set('user_session', JSON.stringify(teacherSession), {
+        httpOnly: false,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+      });
+
+      return res;
+    }
+
+    // ── Student Authentication (Supabase Central Production Database) ──────
+    if (!cleanInput) {
+      return NextResponse.json(
+        { error: 'يرجى إدخال كود الطالب أو رقم الهاتف' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Direct query to Supabase central 'students' table
+    try {
+      const { data: student, error: sbError } = await supabase
+        .from('students')
+        .select('id, student_code, full_name, grade_level, is_active, password_hash, phone, parent_phone')
+        .or(`student_code.eq.${cleanInput},student_code.eq.${cleanUpper},student_code.eq.${cleanLower},phone.eq.${cleanInput}`)
+        .maybeSingle();
+
+      if (!sbError && student) {
+        if (student.is_active === false) {
+          return NextResponse.json(
+            { error: 'SUSPENDED', message: 'هذا الحساب معطل، يرجى مراجعة إدارة المنصة' },
+            { status: 403 }
+          );
+        }
+
+        // Verify student password (plain text or bcrypt hash)
+        let isStudentMatch = false;
+        const storedHash = String(student.password_hash || '').trim();
+
+        if (storedHash === rawPassword) {
+          isStudentMatch = true;
+        } else if (storedHash.startsWith('$2')) {
+          try {
+            isStudentMatch = await bcrypt.compare(rawPassword, storedHash);
+          } catch {
+            isStudentMatch = false;
+          }
+        }
+
+        if (!isStudentMatch) {
+          return NextResponse.json(
+            { error: 'كلمة المرور غير صحيحة' },
+            { status: 401 }
+          );
+        }
+
+        const sessionPayload = {
+          id: student.id,
+          name: student.full_name,
+          role: 'STUDENT',
+          studentCode: student.student_code,
+          phone: student.phone || '',
+          parentPhone: student.parent_phone || '',
+          grade: student.grade_level || '',
+          isActive: true,
+        };
+
+        const response = NextResponse.json({
+          success: true,
+          message: 'تم تسجيل الدخول بنجاح',
+          user: sessionPayload,
+        });
+
+        response.cookies.set('user_session', JSON.stringify(sessionPayload), {
+          httpOnly: false,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 60 * 60 * 24 * 30,
+        });
+
+        return response;
+      }
+    } catch (sbErr: any) {
+      console.warn('[Student Login] Supabase query notice:', sbErr?.message);
+    }
+
+    // 2. Secondary fallback: Local/Relational Prisma Database
+    let user: any = null;
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          role: 'STUDENT',
+          OR: [
+            { studentCode: cleanInput },
+            { studentCode: cleanUpper },
+            { phone: cleanInput },
+            { id: cleanInput },
+          ],
+        },
+      });
+    } catch (dbErr) {
+      console.warn('[Student Login] DB query skipped:', dbErr);
     }
 
     if (!user) {
       return NextResponse.json(
-        { error: 'بيانات الدخول غير صحيحة' },
-        { status: 401 }
+        { error: 'كود الطالب غير صحيح أو غير مسجل' },
+        { status: 404 }
       );
     }
 
-    // Check suspension status
-    if (user.role === 'STUDENT' && user.isActive === false) {
+    if (user.isActive === false) {
       return NextResponse.json(
-        {
-          error: 'SUSPENDED',
-          message: 'تم تعليق هذا الحساب. يرجى مراجعة المعلمة.',
-        },
+        { error: 'SUSPENDED', message: 'هذا الحساب معطل، يرجى مراجعة إدارة المنصة' },
         { status: 403 }
       );
     }
 
-    // Password verification: Plain text match OR bcrypt match
+    // Password verification for fallback user
     let isMatch = false;
-
     const userPass = String(user.password ?? '').trim();
     const userDefPass = String(user.defaultPassword ?? '').trim();
 
@@ -147,11 +258,6 @@ export async function POST(req: NextRequest) {
       (userDefPass && rawPassword === userDefPass)
     ) {
       isMatch = true;
-    } else if (localStudent) {
-      const localPass = String(localStudent.password || localStudent.defaultPassword || '').trim();
-      if (localPass && rawPassword === localPass) {
-        isMatch = true;
-      }
     } else if (user.password && String(user.password).startsWith('$2')) {
       try {
         isMatch = await bcrypt.compare(rawPassword, String(user.password));

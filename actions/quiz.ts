@@ -8,6 +8,7 @@ import {
   memoryRetakeCodes,
   isDatabaseReadOnlyError,
 } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { requireStudentOwnership, requireRole } from '@/lib/auth';
@@ -45,6 +46,55 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
 
     if (!quiz && memoryQuizzes && memoryQuizzes.length > 0) {
       quiz = memoryQuizzes.find((m: any) => m.id === cleanId || m.accessCode === cleanId);
+    }
+
+    // ── Supabase Production Exams Lookup ──────────────────────────────────
+    if (!quiz) {
+      try {
+        const { data: examData } = await supabase
+          .from('exams')
+          .select('id, title, description, duration_minutes, passing_score, total_marks, is_published')
+          .eq('id', cleanId)
+          .maybeSingle();
+
+        if (examData) {
+          const { data: sbQuestions } = await supabase
+            .from('questions')
+            .select('id, question_text, options, score, order_index')
+            .eq('exam_id', examData.id)
+            .order('order_index', { ascending: true });
+
+          quiz = {
+            id: examData.id,
+            title: examData.title,
+            type: 'EXAM',
+            duration: examData.duration_minutes || 30,
+            passingScore: Number(examData.passing_score) || 50,
+            isPublished: examData.is_published,
+            isCodeRequired: false,
+            questions: (sbQuestions || []).map((q) => {
+              let parsedOpts: string[] = [];
+              if (Array.isArray(q.options)) parsedOpts = q.options;
+              else if (typeof q.options === 'string') {
+                try {
+                  parsedOpts = JSON.parse(q.options);
+                } catch {
+                  parsedOpts = [q.options];
+                }
+              }
+              return {
+                id: q.id,
+                text: q.question_text,
+                type: 'MCQ',
+                options: parsedOpts,
+                maxScore: Number(q.score) || 1,
+              };
+            }),
+          };
+        }
+      } catch (sbErr: any) {
+        console.warn('[getStudentQuizSecureAction] Supabase lookup notice:', sbErr?.message);
+      }
     }
 
     if (!quiz) {
@@ -696,6 +746,57 @@ export async function submitQuizAnswers(
       }
     }
 
+    // ── Supabase Production Exam Lookup for Auto-Grading ──────────────────
+    let isSupabaseExam = false;
+    if (!quiz) {
+      try {
+        const { data: sbExam } = await supabase
+          .from('exams')
+          .select('id, title, duration_minutes, passing_score, total_marks')
+          .eq('id', quizId)
+          .maybeSingle();
+
+        if (sbExam) {
+          isSupabaseExam = true;
+          // Fetch questions WITH correct_answer for secure server-side grading
+          const { data: sbQuestions } = await supabase
+            .from('questions')
+            .select('id, question_text, options, correct_answer, score, order_index')
+            .eq('exam_id', sbExam.id);
+
+          if (sbQuestions && sbQuestions.length > 0) {
+            quiz = {
+              id: sbExam.id,
+              title: sbExam.title,
+              duration: sbExam.duration_minutes || 30,
+              passingScore: Number(sbExam.passing_score) || 50,
+              questions: sbQuestions.map((q) => {
+                let parsedOpts: string[] = [];
+                if (Array.isArray(q.options)) parsedOpts = q.options;
+                else if (typeof q.options === 'string') {
+                  try {
+                    parsedOpts = JSON.parse(q.options);
+                  } catch {
+                    parsedOpts = [q.options];
+                  }
+                }
+                return {
+                  id: q.id,
+                  text: q.question_text,
+                  type: 'MCQ',
+                  options: parsedOpts,
+                  correctAnswer: q.correct_answer,
+                  maxScore: Number(q.score) || 1,
+                };
+              }),
+            };
+          }
+        }
+      } catch (sbErr: any) {
+        console.warn('[submitQuizAnswers] Supabase exam lookup notice:', sbErr?.message);
+      }
+    }
+
     // Custom questions passed from active client instance
     if ((!quiz || !quiz.questions || quiz.questions.length === 0) && Array.isArray(customQuestions) && customQuestions.length > 0) {
       quiz = {
@@ -882,6 +983,29 @@ export async function submitQuizAnswers(
       }
     } catch (dbError) {
       console.warn('[submitQuizAnswers] DB write skipped or failed in serverless staging:', dbError);
+    }
+
+    // 5b. Persist to Supabase central 'exam_attempts' table for cross-device sync
+    try {
+      const answersMap: Record<string, any> = {};
+      answersList.forEach((a) => {
+        answersMap[a.questionId] = a.answerText;
+      });
+
+      const finalCalculatedScore = hasEssay ? autoScore : (resultPayload.totalScore ?? autoScore);
+
+      await supabase
+        .from('exam_attempts')
+        .upsert({
+          student_id: studentId,
+          exam_id: quizId,
+          student_answers: answersMap,
+          final_score: finalCalculatedScore,
+          status: 'completed',
+          completed_at: new Date().toISOString(),
+        }, { onConflict: 'student_id,exam_id' });
+    } catch (sbAttemptErr: any) {
+      console.warn('[submitQuizAnswers] Supabase exam_attempts upsert notice:', sbAttemptErr?.message);
     }
 
     // 6. Update global memory store

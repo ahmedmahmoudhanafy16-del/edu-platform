@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { ClipboardList } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { StudentQuizzesListClient } from '@/components/student/StudentQuizzesListClient';
@@ -27,6 +28,48 @@ export default async function StudentQuizzesPage({
   let quizzes: any[] = [];
   let dbResults: any[] = [];
 
+  // 1. Fetch published exams from central Supabase database
+  try {
+    const { data: sbExams } = await supabase
+      .from('exams')
+      .select('id, title, description, duration_minutes, passing_score, total_marks, is_published, created_at')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false });
+
+    if (sbExams && sbExams.length > 0) {
+      quizzes = sbExams.map((e) => ({
+        id: e.id,
+        title: e.title,
+        type: 'EXAM',
+        duration: e.duration_minutes || 30,
+        passingScore: Number(e.passing_score) || 50,
+        isCodeRequired: false,
+        classroom: { name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
+      }));
+    }
+
+    if (studentId) {
+      const { data: sbAttempts } = await supabase
+        .from('exam_attempts')
+        .select('id, exam_id, final_score, status, completed_at')
+        .eq('student_id', studentId);
+
+      if (sbAttempts && sbAttempts.length > 0) {
+        dbResults = sbAttempts.map((a) => ({
+          quizId: a.exam_id,
+          totalScore: Number(a.final_score) || 0,
+          autoScore: Number(a.final_score) || 0,
+          maxScore: 100,
+          isPassed: Number(a.final_score) >= 50,
+          status: a.status === 'completed' ? 'GRADED' : 'IN_PROGRESS',
+        }));
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Student Quizzes] Supabase query notice:', sbErr);
+  }
+
+  // 2. Secondary fallback: Local/Relational Prisma Database
   try {
     const res = await Promise.allSettled([
       prisma.quiz.findMany({
@@ -58,8 +101,22 @@ export default async function StudentQuizzesPage({
       }),
     ]);
 
-    if (res[0].status === 'fulfilled') quizzes = res[0].value || [];
-    if (res[1].status === 'fulfilled') dbResults = res[1].value || [];
+    if (res[0].status === 'fulfilled' && res[0].value?.length > 0) {
+      const existingIds = new Set(quizzes.map((q) => q.id));
+      for (const pq of res[0].value) {
+        if (!existingIds.has(pq.id)) {
+          quizzes.push(pq);
+        }
+      }
+    }
+    if (res[1].status === 'fulfilled' && res[1].value?.length > 0) {
+      const existingResultIds = new Set(dbResults.map((r) => r.quizId));
+      for (const pr of res[1].value) {
+        if (!existingResultIds.has(pr.quizId)) {
+          dbResults.push(pr);
+        }
+      }
+    }
   } catch (err) {
     console.warn('[Student Quizzes] DB query skipped:', err);
   }

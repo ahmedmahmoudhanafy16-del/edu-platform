@@ -1,4 +1,5 @@
 import { prisma, memoryQuizResults } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { StudentGradesClient, GradeResultItem } from '@/components/student/StudentGradesClient';
 
@@ -22,6 +23,46 @@ export default async function StudentGradesPage({
   const studentId = student?.id || '';
   const studentName = student?.name || (isAr ? 'طالب' : 'Student');
 
+  let sbResults: any[] = [];
+  // 1. Fetch completed exam attempts from central Supabase database
+  try {
+    if (studentId) {
+      const { data: sbAttempts } = await supabase
+        .from('exam_attempts')
+        .select('id, exam_id, final_score, status, completed_at, exams(id, title, total_marks, passing_score)')
+        .eq('student_id', studentId)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false });
+
+      if (sbAttempts && sbAttempts.length > 0) {
+        sbResults = sbAttempts.map((a: any) => {
+          const examInfo = Array.isArray(a.exams) ? a.exams[0] : a.exams;
+          const totalMarks = Number(examInfo?.total_marks) || 100;
+          const finalScore = Number(a.final_score) || 0;
+          const passingScore = Number(examInfo?.passing_score) || 50;
+
+          return {
+            id: a.id,
+            quizId: a.exam_id,
+            totalScore: finalScore,
+            autoScore: finalScore,
+            maxScore: totalMarks,
+            percentage: totalMarks > 0 ? Math.round((finalScore / totalMarks) * 100) : 0,
+            isPassed: finalScore >= passingScore,
+            submittedAt: a.completed_at ? new Date(a.completed_at) : new Date(),
+            quiz: {
+              id: a.exam_id,
+              title: examInfo?.title || (isAr ? 'امتحان مركزي' : 'Central Exam'),
+              type: 'EXAM',
+            },
+          };
+        });
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Student Grades] Supabase lookup notice:', sbErr);
+  }
+
   let dbResults: any[] = [];
   try {
     dbResults = await prisma.quizResult.findMany({
@@ -33,10 +74,13 @@ export default async function StudentGradesPage({
     console.warn('[Student Grades] DB query skipped:', err);
   }
 
-  // Merge database quiz results with in-memory store
-  const dbResultIds = new Set(dbResults.map((r) => r.id || r.quizId));
+  // Merge database quiz results with in-memory and Supabase stores
+  const existingIds = new Set(sbResults.map((r) => r.quizId));
+  const filteredDbResults = dbResults.filter((r) => !existingIds.has(r.quizId));
+  filteredDbResults.forEach((r) => existingIds.add(r.id || r.quizId));
+
   const memoryStudentResults = (memoryQuizResults || [])
-    .filter((m: any) => m.studentId === studentId && !dbResultIds.has(m.id) && !dbResultIds.has(m.quizId))
+    .filter((m: any) => m.studentId === studentId && !existingIds.has(m.id) && !existingIds.has(m.quizId))
     .map((m: any) => ({
       id: m.id || `mem-${Math.random()}`,
       quizId: m.quizId,
@@ -53,7 +97,7 @@ export default async function StudentGradesPage({
       },
     }));
 
-  const allResults = [...dbResults, ...memoryStudentResults];
+  const allResults = [...sbResults, ...filteredDbResults, ...memoryStudentResults];
 
   const formattedResults: GradeResultItem[] = (allResults || []).map((r) => {
     const s = r.totalScore ?? r.autoScore ?? 0;
