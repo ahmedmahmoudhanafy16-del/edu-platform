@@ -102,32 +102,44 @@ export default async function StudentLeaderboardPage({
           </span>
         </div>
 
-        <div className="divide-y divide-n-100 dark:divide-n-200">
-          {ranked.map((s, idx) => (
-            <div key={s.id} className="p-4 px-6 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <span className="w-6 font-bold text-xs text-n-400 font-mono text-center">{idx + 1}</span>
-                <div>
-                  <p className="text-sm font-bold text-n-800 dark:text-n-700">{s.name}</p>
-                  <p className="text-xs font-mono text-n-400">{s.studentCode}</p>
+        {ranked.length === 0 ? (
+          <div className="p-12 text-center text-n-400 space-y-2">
+            <Award className="h-10 w-10 mx-auto text-n-300 opacity-60" />
+            <p className="text-sm font-semibold text-n-600 dark:text-n-400">
+              {isAr ? 'لا يوجد طلاب مسجلين في لوحة الشرف حتى الآن' : 'No students ranked on the honor board yet'}
+            </p>
+            <p className="text-xs text-n-400">
+              {isAr ? 'ستظهر أسماء وترتيب الطلاب فور إتمامهم لأول اختبار أو واجب' : 'Student rankings will appear once exams or assignments are completed'}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-n-100 dark:divide-n-200">
+            {ranked.map((s, idx) => (
+              <div key={s.id} className="p-4 px-6 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="w-6 font-bold text-xs text-n-400 font-mono text-center">{idx + 1}</span>
+                  <div>
+                    <p className="text-sm font-bold text-n-800 dark:text-n-700">{s.name}</p>
+                    <p className="text-xs font-mono text-n-400">{s.studentCode}</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-6">
-                <div className="text-end">
-                  <p className="text-xs text-n-400">{isAr ? 'الواجبات' : 'Assignments'}</p>
-                  <p className="text-xs font-bold text-n-700">{s.submissionsCount}</p>
-                </div>
-                <div className="text-end min-w-[80px]">
-                  <p className="text-xs text-n-400">{isAr ? 'إجمالي النقاط' : 'Total Points'}</p>
-                  <p className="text-sm font-bold text-accent font-mono">
-                    {s.totalScore} {isAr ? 'نقطة' : 'pts'}
-                  </p>
+                <div className="flex items-center gap-6">
+                  <div className="text-end">
+                    <p className="text-xs text-n-400">{isAr ? 'الواجبات' : 'Assignments'}</p>
+                    <p className="text-xs font-bold text-n-700">{s.submissionsCount}</p>
+                  </div>
+                  <div className="text-end min-w-[80px]">
+                    <p className="text-xs text-n-400">{isAr ? 'إجمالي النقاط' : 'Total Points'}</p>
+                    <p className="text-sm font-bold text-accent font-mono">
+                      {s.totalScore} {isAr ? 'نقطة' : 'pts'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

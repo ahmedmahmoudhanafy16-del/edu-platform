@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
           expiresAt: memMatch.expiresAt,
           liveSession: {
             id: memMatch.liveSessionId,
-            title: memMatch.liveSessionTitle || 'مراجعة شاملة للوحدة الأولى والبث المباشر',
-            roomCode: memMatch.roomCode || 'LIVE-MATH1',
+            title: memMatch.liveSessionTitle || 'حصة دراسية تفاعلية',
+            roomCode: memMatch.roomCode || 'LIVE-ROOM',
             isActive: true,
-            classroom: { name: 'الصف الرابع الابتدائي' },
+            classroom: { name: memMatch.classroomName || 'الفصل التعليمي' },
           },
         };
         isMemoryCode = true;

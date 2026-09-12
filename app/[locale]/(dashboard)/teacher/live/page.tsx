@@ -52,25 +52,13 @@ export default async function TeacherLivePage({
     console.warn('[Teacher Live] DB query skipped:', err);
   }
 
-  // Fallback default classrooms if none exist
-  if (!classrooms || classrooms.length === 0) {
-    classrooms = [
-      {
-        id: 'class-science-4',
-        name: 'الصف الرابع الابتدائي',
-        subject: 'Science',
-        code: 'LX2WJS',
-        teacherId,
-        isActive: true,
-      },
-    ];
-  }
+  const isAr = locale === 'ar';
 
-  const serializedClassrooms = classrooms.map((c) => ({
-    id: String(c.id || 'class-science-4'),
-    name: String(c.name || 'الصف الرابع الابتدائي'),
-    subject: String(c.subject || 'Science'),
-    code: String(c.code || 'LX2WJS'),
+  const serializedClassrooms = (classrooms || []).map((c) => ({
+    id: String(c.id || ''),
+    name: String(c.name || (isAr ? 'فصل دراسي' : 'Classroom')),
+    subject: String(c.subject || ''),
+    code: String(c.code || ''),
     isActive: c.isActive !== false,
   }));
 
@@ -86,27 +74,25 @@ export default async function TeacherLivePage({
   }
 
   const serializedActive = (activeSessions || []).map((s) => ({
-    id: s.id || 'act-1',
-    title: s.title || 'حصة البث المباشر',
+    id: s.id || '',
+    title: s.title || (isAr ? 'حصة البث المباشر' : 'Live Session'),
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: Boolean(s.isActive),
-    classroomId: s.classroomId || serializedClassrooms[0]?.id || 'class-science-4',
-    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || 'الصف الرابع الابتدائي' },
+    classroomId: s.classroomId || serializedClassrooms[0]?.id || '',
+    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || (isAr ? 'عام' : 'General') },
     startedAt: safeIsoString(s.startedAt),
   }));
 
   const serializedPast = (pastSessions || []).map((s) => ({
-    id: s.id || 'past-1',
-    title: s.title || 'حصة سابقة',
+    id: s.id || '',
+    title: s.title || (isAr ? 'حصة سابقة' : 'Past Session'),
     roomCode: s.roomCode || 'LIVE-ROOM',
     isActive: false,
-    classroomId: s.classroomId || serializedClassrooms[0]?.id || 'class-science-4',
-    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || 'الصف الرابع الابتدائي' },
+    classroomId: s.classroomId || serializedClassrooms[0]?.id || '',
+    classroom: { name: s.classroom?.name || serializedClassrooms[0]?.name || (isAr ? 'عام' : 'General') },
     startedAt: safeIsoString(s.startedAt),
     endedAt: s.endedAt ? safeIsoString(s.endedAt) : null,
   }));
-
-  const isAr = locale === 'ar';
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>

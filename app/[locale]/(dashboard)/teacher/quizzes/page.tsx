@@ -18,7 +18,7 @@ export default async function TeacherQuizzesPage({
     teacher = await getAuthenticatedTeacher();
   } catch (e) {}
 
-  const teacherId = teacher?.id || 'demo-teacher-1';
+  const teacherId = teacher?.id || '';
 
   let classrooms: any[] = [];
   let quizzes: any[] = [];
@@ -45,9 +45,8 @@ export default async function TeacherQuizzesPage({
     console.warn('[Teacher Quizzes] DB query skipped:', err);
   }
 
-  if (!classrooms || classrooms.length === 0) {
-    classrooms = [{ id: 'class-science-4', name: 'الصف الرابع الابتدائي' }];
-  }
+  // Clean classrooms
+  classrooms = classrooms || [];
 
   const formatted = (quizzes || []).map((q) => {
     const questionsList = (q.questions || []).map((qn: any) => ({

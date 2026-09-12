@@ -46,11 +46,11 @@ export async function UnlockedSessions({
       code: m.code,
       usedAt: m.usedAt ? new Date(m.usedAt) : new Date(),
       liveSession: {
-        id: m.liveSessionId || 'session-1',
-        title: m.liveSessionTitle || (isAr ? 'مراجعة شاملة للوحدة الأولى والبث المباشر' : 'Unit 1 Comprehensive Review & Live Stream'),
-        roomCode: m.roomCode || 'LIVE-MATH1',
+        id: m.liveSessionId || '',
+        title: m.liveSessionTitle || (isAr ? 'حصة دراسية تفاعلية' : 'Interactive Session'),
+        roomCode: m.roomCode || 'LIVE-ROOM',
         isActive: true,
-        classroom: { name: isAr ? 'الصف الرابع الابتدائي' : 'Grade 4 (Primary 4)' },
+        classroom: { name: m.classroomName || (isAr ? 'الفصل التعليمي' : 'Classroom') },
       },
     }));
 

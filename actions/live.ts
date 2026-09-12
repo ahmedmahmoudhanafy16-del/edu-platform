@@ -11,17 +11,17 @@ import crypto from 'crypto';
  * Requires and saves targeted Academic Grade (e.g. "الصف الثالث الإعدادي").
  * Automatically triggers WhatsApp broadcast alerts exclusively to parents of students in that grade.
  */
-export async function startLiveSession(classroomId: string, title: string, targetGrade: string = 'الصف الرابع الابتدائي') {
+export async function startLiveSession(classroomId: string, title: string, targetGrade: string = '') {
   try {
     // Cryptographically secure unguessable UUID
     const secureUuid = crypto.randomUUID();
     const roomCode = `live-${secureUuid}`;
 
     // 1. Ensure classroom exists in DB
-    let validClassroomId = classroomId || 'class-science-4';
-    let classroomName = targetGrade || 'الصف الرابع الابتدائي';
+    let validClassroomId = classroomId;
+    let classroomName = targetGrade || 'البث المباشر';
 
-    let defaultTeacherId = 'teacher-1';
+    let defaultTeacherId = '';
     try {
       const teacher = await prisma.user.findFirst({
         where: { role: 'TEACHER' },
@@ -30,25 +30,40 @@ export async function startLiveSession(classroomId: string, title: string, targe
       if (teacher?.id) defaultTeacherId = teacher.id;
     } catch {}
 
-    try {
-      const cls = await prisma.classroom.upsert({
-        where: { id: validClassroomId },
-        update: { isActive: true },
-        create: {
-          id: validClassroomId,
-          name: classroomName,
-          subject: 'Science',
-          code: 'LX2WJS',
-          teacherId: defaultTeacherId,
-          isActive: true,
-        },
-      });
-      validClassroomId = cls.id;
-      classroomName = cls.name;
-    } catch (dbErr) {
-      console.warn('[startLiveSession] Classroom validation note:', dbErr);
-      const fallbackCls = await prisma.classroom.findFirst();
-      if (fallbackCls) validClassroomId = fallbackCls.id;
+    if (validClassroomId) {
+      try {
+        const cls = await prisma.classroom.findUnique({
+          where: { id: validClassroomId },
+        });
+        if (cls) {
+          classroomName = cls.name;
+        }
+      } catch (err) {
+        console.warn('[startLiveSession] Classroom lookup note:', err);
+      }
+    } else {
+      try {
+        const existingCls = await prisma.classroom.findFirst({
+          where: defaultTeacherId ? { teacherId: defaultTeacherId } : {},
+        });
+        if (existingCls) {
+          validClassroomId = existingCls.id;
+          classroomName = existingCls.name;
+        } else if (defaultTeacherId) {
+          const newCls = await prisma.classroom.create({
+            data: {
+              name: targetGrade ? `${targetGrade}` : 'الفصل الدراسي الرئيسي',
+              grade: targetGrade || null,
+              teacherId: defaultTeacherId,
+              isActive: true,
+            },
+          });
+          validClassroomId = newCls.id;
+          classroomName = newCls.name;
+        }
+      } catch (dbErr) {
+        console.warn('[startLiveSession] Classroom resolution note:', dbErr);
+      }
     }
 
     let session: any = null;
@@ -84,7 +99,7 @@ export async function startLiveSession(classroomId: string, title: string, targe
           targetGrade,
           title,
           roomCode,
-          classroomName: classroomName || 'الصف الرابع الابتدائي',
+          classroomName: classroomName || targetGrade || 'الفصل التعليمي',
         });
         broadcastStats = { totalTargeted: res.totalTargeted, sentCount: res.sentCount };
       } catch (err) {

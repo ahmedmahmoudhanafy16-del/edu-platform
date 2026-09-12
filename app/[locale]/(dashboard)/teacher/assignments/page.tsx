@@ -18,7 +18,7 @@ export default async function TeacherAssignmentsPage({
     teacher = await getAuthenticatedTeacher();
   } catch (e) {}
 
-  const teacherId = teacher?.id || 'demo-teacher-1';
+  const teacherId = teacher?.id || '';
 
   let classrooms: any[] = [];
   let assignments: any[] = [];

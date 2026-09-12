@@ -51,7 +51,7 @@ export default async function StudentAttendancePage({
 
   const attendedCount = attendances.length;
   const totalPossible = Math.max(1, totalSessions);
-  const attendanceRate = Math.min(100, Math.round((attendedCount / totalPossible) * 100)) || 100;
+  const attendanceRate = attendedCount > 0 ? Math.min(100, Math.round((attendedCount / totalPossible) * 100)) : 0;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6" dir={isAr ? 'rtl' : 'ltr'}>
@@ -94,7 +94,13 @@ export default async function StudentAttendancePage({
               {isAr ? 'الالتزام والمواظبة' : 'Commitment & Regularity'}
             </p>
             <p className="text-2xl font-bold text-blue-600 mt-1">
-              {isAr ? 'ممتاز' : 'Excellent'}
+              {attendanceRate >= 85
+                ? (isAr ? 'ممتاز' : 'Excellent')
+                : attendanceRate >= 65
+                ? (isAr ? 'جيد جداً' : 'Very Good')
+                : attendanceRate > 0
+                ? (isAr ? 'مقبول' : 'Acceptable')
+                : (isAr ? 'لا يوجد' : 'None')}
             </p>
           </div>
           <ShieldCheck className="h-8 w-8 text-blue-600" />

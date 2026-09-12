@@ -78,7 +78,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
       });
 
       const studentPin = String(student.defaultPassword || student.password || '').trim();
-      const studentGrade = student.grade || student.gradeLevel || 'الصف الثالث الإعدادي';
+      const studentGrade = student.grade || student.gradeLevel || '';
 
       return {
         ...student,
@@ -97,7 +97,7 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
   } catch {
     return studentList.map((s) => {
       const pin = String(s.defaultPassword || s.password || '').trim();
-      const studentGrade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+      const studentGrade = s.grade || s.gradeLevel || '';
       return {
         ...s,
         grade: studentGrade,

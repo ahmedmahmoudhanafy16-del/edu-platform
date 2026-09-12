@@ -71,12 +71,9 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
       ? (userName || (isAr ? 'الطالب' : 'Student'))
       : (userName || (isAr ? 'المعلم' : 'Teacher'));
 
-  const initials = displayUserName
-    .trim()
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join('');
+  const initials =
+    (displayUserName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('')) ||
+    (effectiveRole === 'STUDENT' ? (isAr ? 'ط' : 'S') : (isAr ? 'م' : 'T'));
 
   const resolvedBrandName = brandName || (isAr ? 'منصة التعليم' : 'EduPlatform');
 

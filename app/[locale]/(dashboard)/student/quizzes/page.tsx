@@ -107,7 +107,7 @@ export default async function StudentQuizzesPage({
     duration: q.duration ?? 20,
     passingScore: q.passingScore ?? 60,
     isCodeRequired: q.isCodeRequired !== false,
-    classroomName: q.classroom?.name || 'الصف الرابع الابتدائي',
+    classroomName: q.classroom?.name || (isAr ? 'عام' : 'General'),
   }));
 
   const completedQuizIds = allResults

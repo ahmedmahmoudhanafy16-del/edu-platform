@@ -81,7 +81,7 @@ export default async function TeacherStudentsPage({
     const latestQuiz = s.quizResults?.[0];
     const avgScore = calcStudentAvg(s.quizResults || []);
     const enrollment = s.enrollments?.[0];
-    const studentGrade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+    const studentGrade = s.grade || s.gradeLevel || '';
     const studentClassroomId = enrollment?.classroom?.id || '';
     const studentClassroomName = enrollment?.classroom?.name || '';
 

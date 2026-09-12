@@ -141,7 +141,7 @@ export default async function StudentDashboardPage({
       submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
       quiz: {
         id: m.quizId,
-        title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
+        title: isAr ? 'اختبار تقييمي' : 'Evaluation Quiz',
         type: 'WEEKLY',
       },
     }));
@@ -174,7 +174,7 @@ export default async function StudentDashboardPage({
           <p className="text-xs text-n-500 dark:text-n-400 mt-1">
             {isAr ? `مرحباً ${studentName} — الصف الدراسي: ` : `Welcome back, ${studentName} — Grade: `}
             <span className="font-semibold text-accent">
-              {isAr ? (student?.grade || 'الصف الثالث الإعدادي') : (GRADE_NAMES_EN[student?.grade] || student?.grade || 'Grade 9 (Prep 3)')}
+              {isAr ? (student?.grade || 'عام') : (GRADE_NAMES_EN[student?.grade] || student?.grade || 'General')}
             </span>
           </p>
         </div>
@@ -310,36 +310,50 @@ export default async function StudentDashboardPage({
           </span>
         </div>
 
-        <div className={`${card} divide-y divide-n-100 dark:divide-n-200`}>
-          {(resources || []).map((r) => (
-            <div key={r.id} className="flex items-center justify-between px-5 py-4 gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border ${
-                  r.type === 'SUMMARY'
-                    ? 'text-ok border-ok/30 bg-ok-light'
-                    : r.type === 'HOMEWORK_SOLUTION'
-                    ? 'text-warn border-warn/30 bg-warn-light'
-                    : 'text-accent border-accent/30 bg-accent-light'
-                }`}>
-                  {r.type === 'SUMMARY'
-                    ? (isAr ? 'ملخص' : 'Summary')
-                    : r.type === 'HOMEWORK_SOLUTION'
-                    ? (isAr ? 'حل' : 'Solution')
-                    : 'PDF'}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-n-800 dark:text-n-700 truncate">{r.title}</p>
-                  <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || ''}</p>
-                </div>
-              </div>
-              <a href={r.fileUrl || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">
-                <Button size="sm" variant="secondary">
-                  <Download className="h-3.5 w-3.5" />
-                  {isAr ? 'تحميل' : 'Download'}
-                </Button>
-              </a>
+        <div className={`${card} overflow-hidden`}>
+          {(!resources || resources.length === 0) ? (
+            <div className="p-8 text-center text-n-400 space-y-1">
+              <Layers className="h-8 w-8 mx-auto text-n-300 opacity-60 mb-2" />
+              <p className="text-sm font-semibold text-n-600 dark:text-n-400">
+                {isAr ? 'لا توجد مذكرات أو ملخصات مرفوعة حالياً' : 'No notes or summaries uploaded yet'}
+              </p>
+              <p className="text-xs text-n-400">
+                {isAr ? 'ستظهر المذكرات والملفات التعليمية هنا فور رفعها من قبل المعلم' : 'Study materials will appear here once uploaded by the teacher'}
+              </p>
             </div>
-          ))}
+          ) : (
+            <div className="divide-y divide-n-100 dark:divide-n-200">
+              {resources.map((r) => (
+                <div key={r.id} className="flex items-center justify-between px-5 py-4 gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className={`flex-shrink-0 text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      r.type === 'SUMMARY'
+                        ? 'text-ok border-ok/30 bg-ok-light'
+                        : r.type === 'HOMEWORK_SOLUTION'
+                        ? 'text-warn border-warn/30 bg-warn-light'
+                        : 'text-accent border-accent/30 bg-accent-light'
+                    }`}>
+                      {r.type === 'SUMMARY'
+                        ? (isAr ? 'ملخص' : 'Summary')
+                        : r.type === 'HOMEWORK_SOLUTION'
+                        ? (isAr ? 'حل' : 'Solution')
+                        : 'PDF'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-n-800 dark:text-n-700 truncate">{r.title}</p>
+                      <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || ''}</p>
+                    </div>
+                  </div>
+                  <a href={r.fileUrl || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">
+                    <Button size="sm" variant="secondary">
+                      <Download className="h-3.5 w-3.5" />
+                      {isAr ? 'تحميل' : 'Download'}
+                    </Button>
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

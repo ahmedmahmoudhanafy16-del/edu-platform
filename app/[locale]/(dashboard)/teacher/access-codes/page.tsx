@@ -27,18 +27,8 @@ export default async function TeacherAccessCodesPage({
     console.warn('[Teacher Access Codes] DB query failed for sessions:', err);
   }
 
-  // Fallback sample session if database is empty/cold
-  if (liveSessions.length === 0) {
-    liveSessions = [
-      {
-        id: 'session-math-1',
-        title: 'مراجعة شاملة للوحدة الأولى والبث المباشر',
-        roomCode: 'LIVE-MATH1',
-        isActive: true,
-        classroom: { name: 'الصف الرابع الابتدائي' },
-      },
-    ];
-  }
+  // Clean live sessions
+  liveSessions = liveSessions || [];
 
   // 2. Fetch All Existing Access Codes
   let codes: any[] = [];
