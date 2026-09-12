@@ -161,10 +161,10 @@ runTest('Frontend Developer', 'Teacher dashboard server page has ZERO phantom fa
   assert(!teacherPage.includes('.catch(() => 4)'), 'Must not have phantom fallback of 4 students');
 });
 
-runTest('Frontend Developer', 'getStudentsFromStore respects deleted students and empty arrays without resurrecting seeds', () => {
+runTest('Frontend Developer', 'getStudentsFromStore returns real students and respects deleted set without resurrecting seeds', () => {
   const storeCode = fs.readFileSync(path.join(rootDir, 'lib', 'store.ts'), 'utf8');
   assert(storeCode.includes('edu_deleted_students'), 'getStudentsFromStore must filter by edu_deleted_students');
-  assert(storeCode.includes('raw === null'), 'Must only seed on true first-time visit (raw === null)');
+  assert(storeCode.includes('DEFAULT_INITIAL_STUDENTS') && storeCode.includes('DEFAULT_INITIAL_STUDENTS: any[] = [];'), 'DEFAULT_INITIAL_STUDENTS must be empty array (pure real data only)');
 });
 
 runTest('Frontend Developer', 'Root layout contains hydration suppression and Cairo font definition', () => {

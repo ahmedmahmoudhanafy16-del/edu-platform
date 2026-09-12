@@ -19,7 +19,7 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
   const locale = useLocale();
   const isAr = locale === 'ar';
   const [name, setName] = useState('');
-  const [subject, setSubject] = useState(isAr ? 'الرياضيات والجبر' : 'Mathematics');
+  const [subject, setSubject] = useState('');
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;

@@ -336,14 +336,14 @@ function runMasterElementsTestSuite() {
   // Default display names
   function resolveDisplayName(role, userName) {
     if (role === 'STUDENT') {
-      return userName && !userName.includes('سارة') ? userName : 'الطالب';
+      return userName || 'الطالب';
     }
-    return userName || 'أ/ سارة أحمد';
+    return userName || 'المعلم';
   }
   assert(resolveDisplayName('STUDENT', 'عمر خالد') === 'عمر خالد', 'Student uses actual name when provided');
   assert(resolveDisplayName('STUDENT', '') === 'الطالب', 'Student falls back to "الطالب" when name is empty');
   assert(resolveDisplayName('TEACHER', 'أ/ محمد علي') === 'أ/ محمد علي', 'Teacher uses actual title and name');
-  assert(resolveDisplayName('TEACHER', '') === 'أ/ سارة أحمد', 'Teacher falls back to default teacher name');
+  assert(resolveDisplayName('TEACHER', '') === 'المعلم', 'Teacher falls back to generic teacher title');
 
   // =========================================================================
   // SUITE 7: Hydration Purity & Prevention of React Error #425

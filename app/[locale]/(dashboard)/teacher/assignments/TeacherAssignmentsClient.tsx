@@ -161,8 +161,8 @@ export function TeacherAssignmentsClient({
     if (savedAssign && savedAssign.id) {
       const clsName =
         classrooms.find((c) => c.id === savedAssign.classroomId)?.name ||
-        classrooms[0]?.name ||
-        'فصل الرياضيات';
+        savedAssign.classroomName ||
+        '';
 
       const formatted: AssignmentItem = {
         id: savedAssign.id,
@@ -172,7 +172,7 @@ export function TeacherAssignmentsClient({
         maxScore: Number(savedAssign.maxScore) || 10,
         isClosed: Boolean(savedAssign.isClosed),
         classroomName: clsName,
-        classroomId: savedAssign.classroomId || classrooms[0]?.id || 'class-1',
+        classroomId: savedAssign.classroomId || '',
         submissions: (savedAssign.submissions || []).map((s: any) => ({
           id: s.id || `sub-${Date.now()}`,
           studentName: s.studentName || s.student?.name || 'طالب',

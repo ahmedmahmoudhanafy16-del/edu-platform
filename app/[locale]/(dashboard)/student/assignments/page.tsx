@@ -43,12 +43,12 @@ export default async function StudentAssignmentsPage({
   }
 
   const serialized = (assignments || []).map((a) => ({
-    id: a.id || 'assign-1',
+    id: a.id,
     title: a.title || (isAr ? 'الواجب المنزلي' : 'Homework Assignment'),
     description: a.description || '',
     dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
     maxScore: a.maxScore ?? 10,
-    classroomName: a.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Math Classroom'),
+    classroomName: a.classroom?.name || '',
     submission: a.submissions && a.submissions[0]
       ? {
           id: a.submissions[0].id,

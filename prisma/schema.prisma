@@ -2,9 +2,8 @@
 // SQLite for Local Development & Vercel Preview (dev.db)
 
 datasource db {
-  provider  = "postgresql"
+  provider = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
 }
 
 generator client {
@@ -26,8 +25,8 @@ model User {
   phone         String?
   parentPhone   String?
   parentWhatsapp String?
-  governorate   String?  @default("Cairo")
-  grade         String?  @default("الصف الثالث الإعدادي")
+  governorate   String?
+  grade         String?
   gradeLevel    String?
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -52,8 +51,8 @@ model Classroom {
   id          String   @id @default(cuid())
   name        String   // e.g. "الصف الثالث الإعدادي - رياضيات"
   code        String?  // e.g. "MATH-101"
-  grade       String   @default("PREP_3")
-  subject     String   @default("Math")
+  grade       String?
+  subject     String?
   teacherId   String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -90,7 +89,7 @@ model Assignment {
   dueDate     DateTime
   maxScore    Float                  @default(10)
   fileUrl     String?
-  grade       String?                @default("الصف الثالث الإعدادي")
+  grade       String?
   isClosed    Boolean                @default(false)
   classroomId String?
   createdAt   DateTime               @default(now())
@@ -130,9 +129,9 @@ model Quiz {
   maxViolations    Int          @default(2)
   shuffleQuestions Boolean      @default(true)
   isPublished      Boolean      @default(true)
-  accessCode       String?      @default("QUIZ-MATH-2026") // Passcode to unlock the quiz
+  accessCode       String?      // Passcode to unlock the quiz
   isCodeRequired   Boolean      @default(false)
-  grade            String?      @default("الصف الثالث الإعدادي")
+  grade            String?
   classroomId      String?
   createdAt        DateTime     @default(now())
 

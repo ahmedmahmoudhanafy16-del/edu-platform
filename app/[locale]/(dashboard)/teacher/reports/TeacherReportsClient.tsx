@@ -136,7 +136,7 @@ export function TeacherReportsClient({
                   studentCode: s.studentCode || s.id,
                   phone: s.phone || '—',
                   parentPhone: s.parentPhone || s.parentWhatsapp || '—',
-                  grade: s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Preparatory Grade'),
+                  grade: s.grade || s.gradeLevel || '—',
                   classroomId: s.classroomId || s.classroom || '',
                   classroomName: s.classroomName || '',
                   avgScore: 0,

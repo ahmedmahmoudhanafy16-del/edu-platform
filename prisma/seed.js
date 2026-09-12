@@ -4,28 +4,20 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial production data for Vercel/Local deployment...');
+  console.log('Seeding clean platform with real-data only...');
 
   const teacherHash = bcrypt.hashSync('teacher123', 10);
-  const pin001 = '4829';
-  const pin633 = '9715';
-  const pin777 = '6341';
-  const student1Hash = bcrypt.hashSync(pin001, 10);
-  const student633Hash = bcrypt.hashSync(pin633, 10);
-  const student777Hash = bcrypt.hashSync(pin777, 10);
 
-  // 1. Teacher Account
-  const teacher = await prisma.user.upsert({
+  // 1. Base Teacher Login Account (required for teacher authentication)
+  await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
     update: {
       password: teacherHash,
       passwordHash: teacherHash,
-      name: 'أ/ سارة أحمد',
       role: 'TEACHER',
-      phone: '01011112222',
     },
     create: {
-      name: 'أ/ سارة أحمد',
+      name: 'المعلم',
       email: 'teacher@school.com',
       password: teacherHash,
       passwordHash: teacherHash,
@@ -34,290 +26,50 @@ async function main() {
     },
   });
 
-  // 2. Student 1 (أحمد محمد علي) - PIN: 4829
-  const student1 = await prisma.user.upsert({
-    where: { studentCode: 'STU-001' },
-    update: {
-      password: student1Hash,
-      passwordHash: student1Hash,
-      defaultPassword: pin001,
-      name: 'أحمد محمد علي',
-      role: 'STUDENT',
-      phone: '01099998888',
-      parentPhone: '01012345678',
-      grade: 'الصف الثالث الإعدادي',
-    },
-    create: {
-      name: 'أحمد محمد علي',
-      studentCode: 'STU-001',
-      password: student1Hash,
-      passwordHash: student1Hash,
-      defaultPassword: pin001,
-      role: 'STUDENT',
-      phone: '01099998888',
-      parentPhone: '01012345678',
-      grade: 'الصف الثالث الإعدادي',
-    },
-  });
+  // 2. Clean up any legacy dummy / mock sample data from previous runs
+  const dummyStudentCodes = ['STU-001', 'STU-633', 'STU-777', 'STU-645', 'STU-003'];
+  const dummyQuizIds = ['sample-quiz-1', 'sample-q1', 'sample-q2'];
+  const dummyAssignmentIds = ['sample-hw-1'];
+  const dummyClassroomIds = ['class-science-4', 'class-math-3', 'class-math-3a', 'class-math-3b'];
 
-  // 2.5 Student STU-633 (أحمد محمود أحمد) - PIN: 9715
-  const student633 = await prisma.user.upsert({
-    where: { studentCode: 'STU-633' },
-    update: {
-      password: student633Hash,
-      passwordHash: student633Hash,
-      defaultPassword: pin633,
-      name: 'أحمد محمود أحمد',
-      role: 'STUDENT',
-      phone: '01012345678',
-      parentPhone: '01012345678',
-      grade: 'الصف الثالث الإعدادي',
-    },
-    create: {
-      name: 'أحمد محمود أحمد',
-      studentCode: 'STU-633',
-      password: student633Hash,
-      passwordHash: student633Hash,
-      defaultPassword: pin633,
-      role: 'STUDENT',
-      phone: '01012345678',
-      parentPhone: '01012345678',
-      grade: 'الصف الثالث الإعدادي',
-    },
-  });
-
-  // 3. Student 2 (زياد طارق) - PIN: 6341
-  const student2 = await prisma.user.upsert({
-    where: { studentCode: 'STU-777' },
-    update: {
-      password: student777Hash,
-      passwordHash: student777Hash,
-      defaultPassword: pin777,
-      name: 'زياد طارق إبراهيم',
-      role: 'STUDENT',
-      phone: '01055554444',
-      parentPhone: '01099998888',
-      grade: 'الصف الثالث الإعدادي',
-    },
-    create: {
-      name: 'زياد طارق إبراهيم',
-      studentCode: 'STU-777',
-      password: student777Hash,
-      passwordHash: student777Hash,
-      defaultPassword: pin777,
-      role: 'STUDENT',
-      phone: '01055554444',
-      parentPhone: '01099998888',
-      grade: 'الصف الثالث الإعدادي',
-    },
-  });
-
-  // 3.5 Student 3 (علي حسين) - PIN: 5192
-  const pin645 = '5192';
-  const student645Hash = bcrypt.hashSync(pin645, 10);
-  const student645 = await prisma.user.upsert({
-    where: { studentCode: 'STU-645' },
-    update: {
-      password: student645Hash,
-      passwordHash: student645Hash,
-      defaultPassword: pin645,
-      name: 'علي حسين',
-      role: 'STUDENT',
-      phone: '01066667777',
-      parentPhone: '01066667777',
-      grade: 'الصف الثالث الإعدادي',
-    },
-    create: {
-      name: 'علي حسين',
-      studentCode: 'STU-645',
-      password: student645Hash,
-      passwordHash: student645Hash,
-      defaultPassword: pin645,
-      role: 'STUDENT',
-      phone: '01066667777',
-      parentPhone: '01066667777',
-      grade: 'الصف الثالث الإعدادي',
-    },
-  });
-
-  // 3.6 Student STU-003 (أحمد محمود) - PIN: 7490
-  const pin003 = '7490';
-  const student003Hash = bcrypt.hashSync(pin003, 10);
-  const student003 = await prisma.user.upsert({
-    where: { studentCode: 'STU-003' },
-    update: {
-      password: student003Hash,
-      passwordHash: student003Hash,
-      defaultPassword: pin003,
-      name: 'أحمد محمود',
-      role: 'STUDENT',
-      phone: '01550128663',
-      parentPhone: '0118848617',
-      grade: 'الصف الرابع الابتدائي',
-    },
-    create: {
-      name: 'أحمد محمود',
-      studentCode: 'STU-003',
-      password: student003Hash,
-      passwordHash: student003Hash,
-      defaultPassword: pin003,
-      role: 'STUDENT',
-      phone: '01550128663',
-      parentPhone: '0118848617',
-      grade: 'الصف الرابع الابتدائي',
-    },
-  });
-
-  // Clean up any legacy phantom math classrooms
-  await prisma.liveSession.deleteMany({
-    where: { classroom: { name: { contains: 'رياضيات' } } },
+  await prisma.question.deleteMany({
+    where: { OR: [{ id: { in: dummyQuizIds } }, { quizId: { in: dummyQuizIds } }] },
   }).catch(() => null);
-  await prisma.assignment.deleteMany({
-    where: { classroom: { name: { contains: 'رياضيات' } } },
+
+  await prisma.quizResult.deleteMany({
+    where: { quizId: { in: dummyQuizIds } },
   }).catch(() => null);
+
   await prisma.quiz.deleteMany({
-    where: { classroom: { name: { contains: 'رياضيات' } } },
+    where: { id: { in: dummyQuizIds } },
   }).catch(() => null);
+
+  await prisma.assignmentSubmission.deleteMany({
+    where: { assignmentId: { in: dummyAssignmentIds } },
+  }).catch(() => null);
+
+  await prisma.assignment.deleteMany({
+    where: { id: { in: dummyAssignmentIds } },
+  }).catch(() => null);
+
   await prisma.enrollment.deleteMany({
-    where: { classroom: { name: { contains: 'رياضيات' } } },
-  }).catch(() => null);
-  await prisma.classroom.deleteMany({
     where: {
       OR: [
-        { id: { in: ['class-math-3a', 'class-math-3b', 'class-math-3', 'cmt61lblz0003imjgkclvkfdr'] } },
-        { name: { contains: 'رياضيات' } },
+        { classroomId: { in: dummyClassroomIds } },
+        { user: { studentCode: { in: dummyStudentCodes } } },
       ],
     },
   }).catch(() => null);
 
-  // 4. Primary Classroom: الصف الرابع الابتدائي (Science)
-  const classScience4 = await prisma.classroom.upsert({
-    where: { id: 'class-science-4' },
-    update: {
-      name: 'الصف الرابع الابتدائي',
-      subject: 'Science',
-      code: 'LX2WJS',
-      teacherId: teacher.id,
-    },
-    create: {
-      id: 'class-science-4',
-      name: 'الصف الرابع الابتدائي',
-      subject: 'Science',
-      code: 'LX2WJS',
-      teacherId: teacher.id,
-    },
-  });
+  await prisma.classroom.deleteMany({
+    where: { id: { in: dummyClassroomIds } },
+  }).catch(() => null);
 
-  // 5. Enrollments in الصف الرابع الابتدائي
-  const studentsToEnroll = [student003, student1, student633, student2, student645];
-  for (const s of studentsToEnroll) {
-    if (s && s.id) {
-      await prisma.enrollment.upsert({
-        where: {
-          userId_classroomId: {
-            userId: s.id,
-            classroomId: classScience4.id,
-          },
-        },
-        update: {},
-        create: {
-          userId: s.id,
-          classroomId: classScience4.id,
-        },
-      }).catch(() => null);
-    }
-  }
+  await prisma.user.deleteMany({
+    where: { studentCode: { in: dummyStudentCodes } },
+  }).catch(() => null);
 
-  // 6. Sample Quiz
-  const quiz = await prisma.quiz.upsert({
-    where: { id: 'sample-quiz-1' },
-    update: {
-      title: 'امتحان الساينس',
-      type: 'WEEKLY',
-      duration: 20,
-      passingScore: 60,
-      isPublished: true,
-      accessCode: 'MATH2026',
-      classroomId: classScience4.id,
-    },
-    create: {
-      id: 'sample-quiz-1',
-      title: 'امتحان الساينس',
-      type: 'WEEKLY',
-      duration: 20,
-      passingScore: 60,
-      isPublished: true,
-      accessCode: 'MATH2026',
-      classroomId: classScience4.id,
-    },
-  });
-
-  // 7. Questions
-  await prisma.question.upsert({
-    where: { id: 'sample-q1' },
-    update: {
-      text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-      type: 'MCQ',
-      options: JSON.stringify(['6', '8', '10', '12']),
-      correctAnswer: '8',
-      maxScore: 5,
-      order: 1,
-      quizId: quiz.id,
-    },
-    create: {
-      id: 'sample-q1',
-      text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-      type: 'MCQ',
-      options: JSON.stringify(['6', '8', '10', '12']),
-      correctAnswer: '8',
-      maxScore: 5,
-      order: 1,
-      quizId: quiz.id,
-    },
-  });
-
-  await prisma.question.upsert({
-    where: { id: 'sample-q2' },
-    update: {
-      text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-      type: 'MCQ',
-      options: JSON.stringify(['{3}', '{-3}', '{3, -3}', '∅']),
-      correctAnswer: '{3, -3}',
-      maxScore: 5,
-      order: 2,
-      quizId: quiz.id,
-    },
-    create: {
-      id: 'sample-q2',
-      text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-      type: 'MCQ',
-      options: JSON.stringify(['{3}', '{-3}', '{3, -3}', '∅']),
-      correctAnswer: '{3, -3}',
-      maxScore: 5,
-      order: 2,
-      quizId: quiz.id,
-    },
-  });
-
-  // 8. Sample Assignment
-  await prisma.assignment.upsert({
-    where: { id: 'sample-hw-1' },
-    update: {
-      title: 'واجب مادة الساينس الأسبوعي',
-      description: 'حل تدريبات الدرس وإرفاق صورة للحل.',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      classroomId: classScience4.id,
-    },
-    create: {
-      id: 'sample-hw-1',
-      title: 'واجب مادة الساينس الأسبوعي',
-      description: 'حل تدريبات الدرس وإرفاق صورة للحل.',
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      classroomId: classScience4.id,
-    },
-  });
-
-  console.log('✅ Production Seeding Completed with Unique Student Passwords!');
+  console.log('✅ Real-Data Platform Ready: 0 fake students, 0 fake classrooms, 0 fake quizzes.');
 }
 
 main()

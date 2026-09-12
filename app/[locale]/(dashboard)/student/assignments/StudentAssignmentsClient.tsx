@@ -53,7 +53,7 @@ export function StudentAssignmentsClient({ initialAssignments }: { initialAssign
           description: a.description || '',
           dueDate: a.dueDate,
           maxScore: a.maxScore ?? 10,
-          classroomName: a.classroomName || (isAr ? 'فصل الرياضيات' : 'Math Classroom'),
+          classroomName: a.classroomName || '',
           submission: sub
             ? {
                 id: sub.id,

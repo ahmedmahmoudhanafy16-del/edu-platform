@@ -118,10 +118,10 @@ export default async function StudentAttendancePage({
               <div key={a.id} className="p-4 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                    {a.liveSession?.title || (isAr ? 'حصة الرياضيات التفاعلية' : 'Interactive Math Session')}
+                    {a.liveSession?.title || (isAr ? 'حصة دراسية تفاعلية' : 'Interactive Live Session')}
                   </h3>
                   <p className="text-slate-500 mt-0.5">
-                    {a.liveSession?.classroom?.name || (isAr ? 'الفصل التعليمي' : 'Classroom')} — {isAr ? 'كود الغرفة' : 'Room Code'}: {a.liveSession?.roomCode || 'LIVE-MATH1'}
+                    {a.liveSession?.classroom?.name || (isAr ? 'الفصل التعليمي' : 'Classroom')} — {isAr ? 'كود الغرفة' : 'Room Code'}: {a.liveSession?.roomCode || ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-4">

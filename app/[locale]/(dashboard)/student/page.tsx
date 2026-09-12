@@ -213,7 +213,7 @@ export default async function StudentDashboardPage({
               <p className="font-bold text-accent-text flex items-center gap-1.5 text-base">
                 <Wifi className="h-4 w-4" strokeWidth={2} />
                 {isAr ? 'بث مباشر تفاعلي نشط: ' : 'Active Interactive Live Stream: '}
-                {activeLive[0].title || (isAr ? 'حصة الرياضيات' : 'Live Class')}
+                {activeLive[0].title || (isAr ? 'بث مباشر تفاعلي' : 'Live Session')}
               </p>
               <p className="text-sm text-accent-text/70 mt-1">
                 {isAr ? 'الفصل: ' : 'Classroom: '}
@@ -288,7 +288,7 @@ export default async function StudentDashboardPage({
             description: a.description || '',
             dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
             maxScore: a.maxScore ?? 10,
-            classroomName: a.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Classroom'),
+            classroomName: a.classroom?.name || '',
             submissions: a.submissions || [],
           }))}
           studentId={studentId}
@@ -329,7 +329,7 @@ export default async function StudentDashboardPage({
                 </span>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-n-800 dark:text-n-700 truncate">{r.title}</p>
-                  <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || (isAr ? 'فصل الرياضيات' : 'Classroom')}</p>
+                  <p className="text-xs text-n-400 mt-0.5 truncate">{r.classroom?.name || ''}</p>
                 </div>
               </div>
               <a href={r.fileUrl || '#'} target="_blank" rel="noopener noreferrer" download className="flex-shrink-0">

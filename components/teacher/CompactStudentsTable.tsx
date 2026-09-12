@@ -621,8 +621,8 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         studentCode: s.studentCode,
         password: String(s.defaultPassword || s.password || '1234').trim(),
         phone: s.phone || '',
-        grade: s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Prep'),
-        classroom: s.classroomName || (isAr ? 'عام' : 'General'),
+        grade: s.grade || s.gradeLevel || '—',
+        classroom: s.classroomName || '—',
         status: s.isActive === false ? (isAr ? 'معلّق / محظور' : 'Suspended') : (isAr ? 'نشط' : 'Active'),
         avgScore: s.avgScore != null ? `${s.avgScore}%` : (isAr ? 'لا توجد نتائج' : 'No results'),
         submissionsCount: s.submissionsCount,
@@ -759,7 +759,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
               sorted.map((s, i) => {
                 const isSuspended = s.isActive === false;
                 const plainPin = String(s.defaultPassword || s.password || '1234').trim();
-                const studentGrade = s.grade || s.gradeLevel || (isAr ? 'الصف الثالث الإعدادي' : '3rd Prep');
+                const studentGrade = s.grade || s.gradeLevel || '—';
                 const classroomDisplayName =
                   s.classroomName ||
                   availableClassrooms.find((c) => c.id === s.classroomId || c.id === s.classroom)?.name ||

@@ -20,8 +20,8 @@ export default async function TeacherLivePage({
     console.warn('[Teacher Live] Auth fallback:', e);
   }
 
-  const teacherId = teacher?.id || 'demo-teacher-1';
-  const teacherName = teacher?.name || 'أ/ سارة أحمد';
+  const teacherId = teacher?.id || '';
+  const teacherName = teacher?.name || 'المعلم';
 
   let classrooms: any[] = [];
   let activeSessions: any[] = [];

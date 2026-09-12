@@ -85,7 +85,7 @@ export async function verifyStudentCredentialsAction(
       role: 'STUDENT',
       studentCode: user.studentCode,
       phone: user.phone,
-      grade: user.grade || 'الصف الثالث الإعدادي',
+      grade: user.grade || '',
       isActive: true,
     };
 

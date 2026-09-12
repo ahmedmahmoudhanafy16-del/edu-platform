@@ -44,19 +44,15 @@ export default async function TeacherAssignmentsPage({
     console.warn('[Teacher Assignments] DB query skipped:', err);
   }
 
-  if (!classrooms || classrooms.length === 0) {
-    classrooms = [{ id: 'class-science-4', name: 'الصف الرابع الابتدائي' }];
-  }
-
   const serialized = (assignments || []).map((a) => ({
-    id: a.id || 'assign-1',
-    title: a.title || 'الواجب المنزلي',
+    id: a.id,
+    title: a.title || '',
     description: a.description || '',
     dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
     maxScore: a.maxScore ?? 10,
     isClosed: Boolean(a.isClosed),
-    classroomName: a.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
-    classroomId: a.classroomId || classrooms[0]?.id || 'class-1',
+    classroomName: a.classroom?.name || '',
+    classroomId: a.classroomId || '',
     submissions: (a.submissions || []).map((s: any) => ({
       id: s.id || 'sub-1',
       studentName: s.student?.name || 'طالب',

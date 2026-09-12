@@ -86,7 +86,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
             role: 'STUDENT',
             studentCode: student.studentCode,
             phone: student.phone,
-            grade: student.grade || 'الصف الثالث الإعدادي',
+            grade: student.grade || '',
             isActive: true,
           };
           document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
@@ -142,7 +142,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
               role: 'STUDENT',
               studentCode: seedMatch.studentCode,
               phone: seedMatch.phone,
-              grade: seedMatch.grade || 'الصف الثالث الإعدادي',
+              grade: seedMatch.grade || '',
               isActive: true,
             };
             document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
@@ -232,7 +232,7 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
           role: 'STUDENT',
           studentCode: matchedStudent.studentCode || matchedStudent.code,
           phone: matchedStudent.phone,
-          grade: matchedStudent.grade || matchedStudent.gradeLevel || 'الصف الثالث الإعدادي',
+          grade: matchedStudent.grade || matchedStudent.gradeLevel || '',
           isActive: true,
         };
         document.cookie = `user_session=${encodeURIComponent(JSON.stringify(sessionPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;

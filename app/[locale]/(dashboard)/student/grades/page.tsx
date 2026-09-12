@@ -48,7 +48,7 @@ export default async function StudentGradesPage({
       submittedAt: m.submittedAt ? new Date(m.submittedAt) : new Date(),
       quiz: {
         id: m.quizId,
-        title: m.quizTitle || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
+        title: m.quizTitle || (isAr ? 'امتحان تقييمي' : 'Evaluation Quiz'),
         type: 'WEEKLY',
       },
     }));
@@ -71,7 +71,7 @@ export default async function StudentGradesPage({
       submittedAt: r.submittedAt ? new Date(r.submittedAt) : new Date(),
       quiz: {
         id: r.quiz?.id || r.quizId,
-        title: r.quiz?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
+        title: r.quiz?.title || (isAr ? 'امتحان تقييمي' : 'Evaluation Quiz'),
         type: r.quiz?.type || 'WEEKLY',
       },
     };

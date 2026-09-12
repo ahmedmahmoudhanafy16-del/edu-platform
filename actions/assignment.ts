@@ -28,7 +28,7 @@ export async function createAssignment(data: {
     const description = (data.description || '').trim();
     const maxScore = Math.max(1, Number(data.maxScore) || 10);
     const dueDate = data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 7 * 86400000);
-    const grade = data.grade || 'الصف الثالث الإعدادي';
+    const grade = data.grade || '';
 
     let validClassroomId: string | null = null;
     if (data.classroomId) {

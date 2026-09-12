@@ -49,7 +49,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             name: parsed.name,
             role: parsed.role,
             studentCode: parsed.studentCode,
-            grade: parsed.grade || 'الصف الثالث الإعدادي',
+            grade: parsed.grade || '',
             isActive: parsed.isActive !== false,
           };
         }
@@ -83,7 +83,7 @@ export async function getAuthenticatedStudent() {
       role: 'STUDENT',
       studentCode: sessionUser.studentCode,
       phone: sessionUser.phone,
-      grade: sessionUser.grade || 'الصف الثالث الإعدادي',
+      grade: sessionUser.grade || '',
       isActive: sessionUser.isActive !== false,
       password: '',
       email: null,

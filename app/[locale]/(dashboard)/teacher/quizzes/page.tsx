@@ -63,16 +63,16 @@ export default async function TeacherQuizzesPage({
       : 10;
 
     return {
-      id: q.id || 'quiz-1',
-      title: q.title || 'اختبار تقييمي',
+      id: q.id,
+      title: q.title || '',
       type: q.type || 'WEEKLY',
       duration: q.duration ?? 20,
       passingScore: q.passingScore ?? 60,
-      accessCode: q.accessCode || 'QUIZ-MATH-2026',
-      isCodeRequired: q.isCodeRequired !== false,
+      accessCode: q.accessCode || '',
+      isCodeRequired: Boolean(q.isCodeRequired),
       isPublished: q.isPublished !== false,
-      classroomName: q.classroom?.name || classrooms[0]?.name || 'فصل الرياضيات',
-      classroomId: q.classroomId || classrooms[0]?.id || 'class-1',
+      classroomName: q.classroom?.name || '',
+      classroomId: q.classroomId || '',
       questionsCount: questionsList.length,
       resultsCount: q.results?.length ?? 0,
       totalScore,

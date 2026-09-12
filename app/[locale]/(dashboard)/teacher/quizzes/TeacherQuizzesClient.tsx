@@ -190,8 +190,8 @@ export function TeacherQuizzesClient({
     if (savedQuiz && savedQuiz.id) {
       const clsName =
         classrooms.find((c) => c.id === savedQuiz.classroomId)?.name ||
-        classrooms[0]?.name ||
-        'فصل الرياضيات';
+        savedQuiz.classroomName ||
+        '';
 
       const formattedQuestions = (savedQuiz.questions || []).map((qn: any, idx: number) => {
         let stringifiedOpts = '[]';
@@ -222,11 +222,11 @@ export function TeacherQuizzesClient({
         type: savedQuiz.type || 'WEEKLY',
         duration: Number(savedQuiz.duration) || 20,
         passingScore: Number(savedQuiz.passingScore) || 60,
-        accessCode: savedQuiz.accessCode || 'QUIZ-MATH-2026',
-        isCodeRequired: savedQuiz.isCodeRequired !== false,
+        accessCode: savedQuiz.accessCode || '',
+        isCodeRequired: Boolean(savedQuiz.isCodeRequired),
         isPublished: savedQuiz.isPublished !== false,
         classroomName: clsName,
-        classroomId: savedQuiz.classroomId || classrooms[0]?.id || 'class-1',
+        classroomId: savedQuiz.classroomId || '',
         questionsCount: formattedQuestions.length,
         resultsCount: savedQuiz.results?.length || 0,
         totalScore: computedTotal,

@@ -20,65 +20,15 @@ function toStandardDigits(str: string): string {
     .replace(/[٩۹]/g, '9');
 }
 
-const SEED_USERS = [
+const SEED_USERS: any[] = [
   {
     id: 'teacher-admin-1',
-    name: 'أ/ سارة أحمد',
+    name: 'المعلم',
     email: 'teacher@school.com',
     phone: '01011112222',
     role: 'TEACHER',
     password: 'teacher123',
     passwordHash: '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9',
-  },
-  {
-    id: 'STU-633',
-    name: 'أحمد محمود أحمد',
-    studentCode: 'STU-633',
-    phone: '01012345678',
-    role: 'STUDENT',
-    password: '9715',
-    defaultPassword: '9715',
-    grade: 'الصف الثالث الإعدادي',
-  },
-  {
-    id: 'STU-001',
-    name: 'أحمد محمد علي',
-    studentCode: 'STU-001',
-    phone: '01099998888',
-    role: 'STUDENT',
-    password: '4829',
-    defaultPassword: '4829',
-    grade: 'الصف الثالث الإعدادي',
-  },
-  {
-    id: 'STU-777',
-    name: 'زياد طارق إبراهيم',
-    studentCode: 'STU-777',
-    phone: '01055554444',
-    role: 'STUDENT',
-    password: '6341',
-    defaultPassword: '6341',
-    grade: 'الصف الثالث الإعدادي',
-  },
-  {
-    id: 'STU-645',
-    name: 'علي حسين',
-    studentCode: 'STU-645',
-    phone: '01066667777',
-    role: 'STUDENT',
-    password: '5192',
-    defaultPassword: '5192',
-    grade: 'الصف الثالث الإعدادي',
-  },
-  {
-    id: 'STU-003',
-    name: 'أحمد محمود',
-    studentCode: 'STU-003',
-    phone: '01550128663',
-    role: 'STUDENT',
-    password: '7490',
-    defaultPassword: '7490',
-    grade: 'الصف الرابع الابتدائي',
   },
 ];
 
@@ -155,20 +105,6 @@ export async function POST(req: NextRequest) {
               u.name === cleanInput)
         );
       }
-
-      if (!user) {
-        user = SEED_USERS.find(
-          (u) =>
-            u.role === 'STUDENT' &&
-            (u.studentCode?.toUpperCase() === cleanUpper ||
-              u.studentCode?.toLowerCase() === cleanLower ||
-              u.phone === cleanInput ||
-              u.id === cleanInput ||
-              u.name === cleanInput)
-        );
-      }
-
-
     }
 
     if (!user) {
@@ -236,7 +172,7 @@ export async function POST(req: NextRequest) {
       studentCode: user.studentCode || undefined,
       email: user.email || undefined,
       phone: user.phone || undefined,
-      grade: user.grade || 'الصف الثالث الإعدادي',
+      grade: user.grade || '',
       isActive: user.isActive !== false,
     };
 

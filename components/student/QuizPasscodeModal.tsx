@@ -102,12 +102,10 @@ export function QuizPasscodeModal({
               setLoading(false);
               return;
             }
-            const expected = (matchedQuiz.accessCode || 'QUIZ-MATH-2026').trim().toUpperCase();
+            const expected = (matchedQuiz.accessCode || '').trim().toUpperCase();
             if (
               !matchedQuiz.isCodeRequired ||
-              cleanCode === expected ||
-              cleanCode === 'QUIZ-MATH-2026' ||
-              cleanCode === '1234'
+              (expected && cleanCode === expected)
             ) {
               clientMatched = true;
             }
@@ -199,7 +197,7 @@ export function QuizPasscodeModal({
                   setCode(e.target.value.toUpperCase());
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder={isAr ? 'مثال: QUIZ-MATH-2026' : 'e.g. QUIZ-MATH-2026'}
+                placeholder={isAr ? 'مثال: QZ-8492' : 'e.g. QZ-8492'}
                 className="font-mono text-center font-bold tracking-widest text-base uppercase py-5 border-2 focus:border-accent"
                 autoComplete="off"
               />

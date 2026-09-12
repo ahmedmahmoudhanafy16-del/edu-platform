@@ -162,7 +162,7 @@ export async function createStudentAction(formData: {
     const cleanName = formData.name?.trim() || '';
     const cleanPhone = formData.phone?.trim() || '';
     const cleanParent = formData.parentPhone?.trim() || formData.parentWhatsapp?.trim() || cleanPhone;
-    const cleanGrade = formData.grade || formData.gradeLevel || 'الصف الثالث الإعدادي';
+    const cleanGrade = formData.grade || formData.gradeLevel || '';
     const targetClassroomId = formData.classroom || formData.classroomId || '';
     
     let plainPassword = (formData.password?.toString() || '').trim();

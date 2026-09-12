@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
           const sId = String(s.id || '').trim();
           const sCode = String(s.studentCode || '').trim();
           const pass = String(s.defaultPassword || s.password || '').trim();
-          const grade = s.grade || s.gradeLevel || 'الصف الثالث الإعدادي';
+          const grade = s.grade || s.gradeLevel || '';
 
           try {
             const existing = await prisma.user.findFirst({

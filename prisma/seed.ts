@@ -1,122 +1,75 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Seeding initial data...');
+  console.log('Seeding clean platform with real-data only...');
 
-  // 1. Teacher
-  const teacher = await prisma.user.upsert({
+  const teacherHash = bcrypt.hashSync('teacher123', 10);
+
+  // 1. Base Teacher Login Account (required for teacher authentication)
+  await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
-    update: {},
+    update: {
+      password: teacherHash,
+      passwordHash: teacherHash,
+      role: 'TEACHER',
+    },
     create: {
-      name: 'سارة أحمد',
+      name: 'المعلم',
       email: 'teacher@school.com',
-      password: 'teacher123',
+      password: teacherHash,
+      passwordHash: teacherHash,
       role: 'TEACHER',
       phone: '01011112222',
     },
   });
 
-  // 2. Student (أحمد محمد علي) - PIN: 4829
-  const student = await prisma.user.upsert({
-    where: { studentCode: 'STU-001' },
-    update: {
-      defaultPassword: '4829',
-      password: '4829',
-    },
-    create: {
-      name: 'أحمد محمد علي',
-      studentCode: 'STU-001',
-      password: '4829',
-      defaultPassword: '4829',
-      role: 'STUDENT',
-      phone: '01099998888',
-    },
-  });
+  // 2. Clean up any legacy dummy / mock sample data from previous runs
+  const dummyStudentCodes = ['STU-001', 'STU-633', 'STU-777', 'STU-645', 'STU-003'];
+  const dummyQuizIds = ['sample-quiz-1', 'sample-q1', 'sample-q2'];
+  const dummyAssignmentIds = ['sample-hw-1'];
+  const dummyClassroomIds = ['class-science-4', 'class-math-3', 'class-math-3a', 'class-math-3b'];
 
-  // 3. Classroom
-  const classroom = await prisma.classroom.upsert({
-    where: { id: 'class-math-3' },
-    update: {},
-    create: {
-      id: 'class-math-3',
-      name: 'الصف الثالث الإعدادي - رياضيات',
-      subject: 'الرياضيات والجبر',
-      grade: 'PREP_3',
-      teacherId: teacher.id,
-    },
-  });
+  await prisma.question.deleteMany({
+    where: { OR: [{ id: { in: dummyQuizIds } }, { quizId: { in: dummyQuizIds } }] },
+  }).catch(() => null);
 
-  // 4. Enrollment
-  await prisma.enrollment.upsert({
+  await prisma.quizResult.deleteMany({
+    where: { quizId: { in: dummyQuizIds } },
+  }).catch(() => null);
+
+  await prisma.quiz.deleteMany({
+    where: { id: { in: dummyQuizIds } },
+  }).catch(() => null);
+
+  await prisma.assignmentSubmission.deleteMany({
+    where: { assignmentId: { in: dummyAssignmentIds } },
+  }).catch(() => null);
+
+  await prisma.assignment.deleteMany({
+    where: { id: { in: dummyAssignmentIds } },
+  }).catch(() => null);
+
+  await prisma.enrollment.deleteMany({
     where: {
-      userId_classroomId: {
-        userId: student.id,
-        classroomId: classroom.id,
-      },
+      OR: [
+        { classroomId: { in: dummyClassroomIds } },
+        { user: { studentCode: { in: dummyStudentCodes } } },
+      ],
     },
-    update: {},
-    create: {
-      userId: student.id,
-      classroomId: classroom.id,
-    },
-  });
+  }).catch(() => null);
 
-  // 5. Quiz with MCQ Questions
-  await prisma.quiz.upsert({
-    where: { id: 'sample-quiz-1' },
-    update: {
-      accessCode: 'QUIZ-MATH-2026',
-      isCodeRequired: true,
-    },
-    create: {
-      id: 'sample-quiz-1',
-      title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-      type: 'WEEKLY',
-      duration: 20,
-      passingScore: 60,
-      accessCode: 'QUIZ-MATH-2026',
-      isCodeRequired: true,
-      classroomId: classroom.id,
-      questions: {
-        create: [
-          {
-            text: 'إذا كانت س + 5 = 12، فإن قيمة س تساوي:',
-            type: 'MCQ',
-            options: JSON.stringify(['5', '7', '12', '17']),
-            correctAnswer: '7',
-            maxScore: 5,
-            order: 1,
-            difficulty: 'EASY',
-          },
-          {
-            text: 'المعادلة 2س - 4 = 10، حل المعادلة هو:',
-            type: 'MCQ',
-            options: JSON.stringify(['3', '5', '7', '8']),
-            correctAnswer: '7',
-            maxScore: 5,
-            order: 2,
-            difficulty: 'MEDIUM',
-          },
-        ],
-      },
-    },
-  });
+  await prisma.classroom.deleteMany({
+    where: { id: { in: dummyClassroomIds } },
+  }).catch(() => null);
 
-  // 7. Live Session
-  await prisma.liveSession.upsert({
-    where: { roomCode: 'LIVE-MATH1' },
-    update: {},
-    create: {
-      title: 'مراجعة شاملة للوحدة الأولى والبث المباشر',
-      roomCode: 'LIVE-MATH1',
-      isActive: true,
-      classroomId: classroom.id,
-    },
-  });
+  await prisma.user.deleteMany({
+    where: { studentCode: { in: dummyStudentCodes } },
+  }).catch(() => null);
 
-  console.log('✅ Seeding completed successfully!');
+  console.log('✅ Real-Data Platform Ready: 0 fake students, 0 fake classrooms, 0 fake quizzes.');
 }
 
 main()

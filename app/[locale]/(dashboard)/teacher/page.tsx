@@ -53,7 +53,7 @@ export default async function TeacherDashboardPage({
     dueDate: a.dueDate ? new Date(a.dueDate).toISOString() : new Date().toISOString(),
     maxScore: a.maxScore ?? 10,
     isClosed: Boolean(a.isClosed),
-    classroomName: a.classroom?.name || 'فصل الرياضيات',
+    classroomName: a.classroom?.name || '',
   }));
 
   const isAr = locale === 'ar';
@@ -68,8 +68,8 @@ export default async function TeacherDashboardPage({
           </h1>
           <p className="text-sm text-n-500 dark:text-n-400 mt-1">
             {isAr
-              ? `مرحباً أ/ ${teacher?.name ?? 'سارة أحمد'} — إليك ملخص نشاط فصولك اليوم`
-              : `Welcome back, ${teacher?.name ?? 'Ms. Sarah Ahmed'} — Here is your classrooms overview today`}
+              ? `مرحباً ${teacher?.name ? `أ/ ${teacher.name}` : 'بك'} — إليك ملخص نشاط فصولك اليوم`
+              : `Welcome back${teacher?.name ? `, ${teacher.name}` : ''} — Here is your classrooms overview today`}
           </p>
         </div>
         <Link href={`/${locale}/teacher/access-codes`}>

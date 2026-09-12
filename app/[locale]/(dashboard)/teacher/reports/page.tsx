@@ -78,7 +78,7 @@ export default async function TeacherReportsPage({
       studentCode: s.studentCode,
       phone: s.phone || '—',
       parentPhone: s.parentPhone || s.phone || '—',
-      grade: s.grade || (isAr ? 'الصف الثالث الإعدادي' : '3rd Preparatory Grade'),
+      grade: s.grade || '—',
       classroomId: s.enrollments?.[0]?.classroom?.id || '',
       classroomName: s.enrollments?.[0]?.classroom?.name || '',
       avgScore: scorePct,

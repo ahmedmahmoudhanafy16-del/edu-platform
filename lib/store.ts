@@ -75,46 +75,8 @@ export const STORAGE_KEYS = {
   DELETED_CLASSROOMS: 'edu_deleted_classrooms',
 } as const;
 
-// Default Seed Quizzes
-export const INITIAL_SEED_QUIZZES: QuizData[] = [
-  {
-    id: 'sample-q1',
-    title: 'الاختبار الأسبوعي الأول - الجبر والإحصاء',
-    type: 'WEEKLY',
-    duration: 20,
-    passingScore: 60,
-    accessCode: 'QUIZ-MATH-2026',
-    isCodeRequired: true,
-    isPublished: true,
-    isHidden: false,
-    classroomName: 'فصل الرياضيات (3ع - أ)',
-    classroomId: 'cls-math-1',
-    questionsCount: 2,
-    resultsCount: 0,
-    questions: [
-      {
-        id: 'q-sample-1',
-        text: 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:',
-        type: 'MCQ',
-        options: ['6', '8', '10', '12'],
-        correctAnswer: '8',
-        maxScore: 5,
-        order: 1,
-      },
-      {
-        id: 'q-sample-2',
-        text: 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:',
-        type: 'MCQ',
-        options: ['{3}', '{-3}', '{3, -3}', '∅'],
-        correctAnswer: '{3, -3}',
-        maxScore: 5,
-        order: 2,
-      },
-    ],
-    totalScore: 10,
-    createdAt: new Date().toISOString(),
-  },
-];
+// Zero fake default seed quizzes - platform starts clean with real data only
+export const INITIAL_SEED_QUIZZES: QuizData[] = [];
 
 const EVENT_STORE_UPDATED = 'edu_store_updated';
 
@@ -129,7 +91,7 @@ function notifyStoreUpdated() {
  * 1. Retrieves all active quizzes from localStorage
  */
 export function getQuizzes(): QuizData[] {
-  if (typeof window === 'undefined') return INITIAL_SEED_QUIZZES;
+  if (typeof window === 'undefined') return [];
 
   try {
     const deletedRaw = localStorage.getItem(STORAGE_KEYS.DELETED_QUIZZES);
@@ -143,14 +105,9 @@ export function getQuizzes(): QuizData[] {
 
     if (storedRaw) {
       const parsed = JSON.parse(storedRaw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         list = parsed;
       }
-    }
-
-    if (list.length === 0) {
-      list = INITIAL_SEED_QUIZZES.filter((q) => !deletedSet.has(q.id));
-      localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(list));
     }
 
     // Filter out any tombstoned / deleted IDs and quizzes belonging to deleted classrooms
@@ -162,7 +119,7 @@ export function getQuizzes(): QuizData[] {
     });
   } catch (err) {
     console.warn('[getQuizzes] LocalStorage error:', err);
-    return INITIAL_SEED_QUIZZES;
+    return [];
   }
 }
 
@@ -270,12 +227,12 @@ export function saveQuiz(quiz: Partial<QuizData> & { id: string; title: string }
     type: quiz.type || 'WEEKLY',
     duration: Number(quiz.duration) || 20,
     passingScore: Number(quiz.passingScore) || 60,
-    accessCode: quiz.accessCode || 'QUIZ-MATH-2026',
-    isCodeRequired: quiz.isCodeRequired !== false,
+    accessCode: quiz.accessCode || '',
+    isCodeRequired: Boolean(quiz.isCodeRequired),
     isPublished: quiz.isPublished !== false,
     isHidden: Boolean(quiz.isHidden),
-    classroomName: quiz.classroomName || 'فصل الرياضيات',
-    classroomId: quiz.classroomId || 'cls-1',
+    classroomName: quiz.classroomName || '',
+    classroomId: quiz.classroomId || '',
     questionsCount: quiz.questions?.length ?? quiz.questionsCount ?? 0,
     resultsCount: quiz.resultsCount ?? 0,
     questions: quiz.questions || [],
@@ -891,8 +848,8 @@ export function saveAssignment(assignment: Partial<AssignmentData> & { id: strin
     dueDate: assignment.dueDate || new Date(Date.now() + 7 * 86400000).toISOString(),
     maxScore: Number(assignment.maxScore) || 10,
     isClosed: Boolean(assignment.isClosed),
-    classroomName: assignment.classroomName || 'فصل الرياضيات',
-    classroomId: assignment.classroomId || 'class-1',
+    classroomName: assignment.classroomName || '',
+    classroomId: assignment.classroomId || '',
     fileUrl: assignment.fileUrl || null,
     submissions: assignment.submissions || [],
   };
@@ -955,126 +912,17 @@ export function toggleAssignmentLock(assignmentId: string, isClosed: boolean): b
   return isClosed;
 }
 
-export const DEFAULT_INITIAL_STUDENTS = [
-  {
-    id: 'STU-633',
-    name: 'أحمد محمود أحمد',
-    studentCode: 'STU-633',
-    code: 'STU-633',
-    phone: '01012345678',
-    parentPhone: '01012345678',
-    parentWhatsapp: '01012345678',
-    grade: 'الصف الثالث الإعدادي',
-    gradeLevel: 'الصف الثالث الإعدادي',
-    classroomId: 'class-math-3',
-    avgScore: null,
-    submissionsCount: 0,
-    attendanceCount: 0,
-    lastActive: new Date().toISOString(),
-    isActive: true,
-    defaultPassword: '9715',
-    password: '9715',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'STU-001',
-    name: 'أحمد محمد علي',
-    studentCode: 'STU-001',
-    code: 'STU-001',
-    phone: '01099998888',
-    parentPhone: '01012345678',
-    parentWhatsapp: '01012345678',
-    grade: 'الصف الثالث الإعدادي',
-    gradeLevel: 'الصف الثالث الإعدادي',
-    classroomId: 'class-math-3',
-    avgScore: null,
-    submissionsCount: 0,
-    attendanceCount: 0,
-    lastActive: new Date().toISOString(),
-    isActive: true,
-    defaultPassword: '4829',
-    password: '4829',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'STU-645',
-    name: 'علي حسين',
-    studentCode: 'STU-645',
-    code: 'STU-645',
-    phone: '01066667777',
-    parentPhone: '01066667777',
-    parentWhatsapp: '01066667777',
-    grade: 'الصف الثالث الإعدادي',
-    gradeLevel: 'الصف الثالث الإعدادي',
-    classroomId: 'class-math-3',
-    avgScore: null,
-    submissionsCount: 0,
-    attendanceCount: 0,
-    lastActive: new Date().toISOString(),
-    isActive: true,
-    defaultPassword: '5192',
-    password: '5192',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'STU-777',
-    name: 'زياد طارق إبراهيم',
-    studentCode: 'STU-777',
-    code: 'STU-777',
-    phone: '01055554444',
-    parentPhone: '01099998888',
-    parentWhatsapp: '01099998888',
-    grade: 'الصف الثالث الإعدادي',
-    gradeLevel: 'الصف الثالث الإعدادي',
-    classroomId: 'class-math-3',
-    avgScore: null,
-    submissionsCount: 0,
-    attendanceCount: 0,
-    lastActive: new Date().toISOString(),
-    isActive: true,
-    defaultPassword: '6341',
-    password: '6341',
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 'STU-003',
-    name: 'أحمد محمود',
-    studentCode: 'STU-003',
-    code: 'STU-003',
-    phone: '01550128663',
-    parentPhone: '0118848617',
-    parentWhatsapp: '0118848617',
-    grade: 'الصف الرابع الابتدائي',
-    gradeLevel: 'الصف الرابع الابتدائي',
-    classroomId: 'class-science-4',
-    classroomName: 'الصف الرابع الابتدائي',
-    avgScore: null,
-    submissionsCount: 0,
-    attendanceCount: 0,
-    lastActive: new Date().toISOString(),
-    isActive: true,
-    defaultPassword: '7490',
-    password: '7490',
-    createdAt: new Date().toISOString(),
-  },
-];
+// Zero fake default seed students - platform starts clean with real data only
+export const DEFAULT_INITIAL_STUDENTS: any[] = [];
 
 export function getStudentsFromStore(): any[] {
-  if (typeof window === 'undefined') return DEFAULT_INITIAL_STUDENTS;
+  if (typeof window === 'undefined') return [];
   try {
     const deletedRaw = localStorage.getItem('edu_deleted_students');
     const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
 
     const raw = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    if (raw === null) {
-      const initial = DEFAULT_INITIAL_STUDENTS.filter((s: any) => {
-        const sCode = String(s?.studentCode || '').trim().toUpperCase();
-        const sId = String(s?.id || '').trim().toUpperCase();
-        return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-      });
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(initial));
-      return initial;
-    }
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((s: any) => {
@@ -1114,8 +962,8 @@ export function saveStudentToStore(student: any): any {
       phone: student.phone || null,
       parentPhone: student.parentPhone || student.parentWhatsapp || null,
       parentWhatsapp: student.parentWhatsapp || student.parentPhone || null,
-      grade: student.grade || student.gradeLevel || 'الصف الثالث الإعدادي',
-      gradeLevel: student.gradeLevel || student.grade || 'الصف الثالث الإعدادي',
+      grade: student.grade || student.gradeLevel || '',
+      gradeLevel: student.gradeLevel || student.grade || '',
       classroomId: student.classroom || student.classroomId || '',
       avgScore: null,
       submissionsCount: 0,

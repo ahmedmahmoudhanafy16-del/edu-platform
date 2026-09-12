@@ -85,7 +85,7 @@ export function LoginForm() {
       if (isKnownTeacher) {
         const teacherPayload = {
           id: 'teacher-admin-1',
-          name: 'أ/ سارة أحمد',
+          name: 'المعلم',
           role: 'TEACHER',
           email: 'teacher@school.com',
           phone: '01011112222',

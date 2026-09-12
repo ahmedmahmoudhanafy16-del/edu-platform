@@ -68,8 +68,8 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
 
   const displayUserName =
     effectiveRole === 'STUDENT'
-      ? (userName && !userName.includes('سارة') ? userName : (isAr ? 'الطالب' : 'Student'))
-      : (userName || (isAr ? 'أ/ سارة أحمد' : 'Ms. Sarah Ahmed'));
+      ? (userName || (isAr ? 'الطالب' : 'Student'))
+      : (userName || (isAr ? 'المعلم' : 'Teacher'));
 
   const initials = displayUserName
     .trim()

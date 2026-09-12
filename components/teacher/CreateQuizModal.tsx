@@ -50,7 +50,7 @@ export function CreateQuizModal({
   const [type, setType] = useState('WEEKLY');
   const [duration, setDuration] = useState(20);
   const [passingScore, setPassingScore] = useState(60);
-  const [accessCode, setAccessCode] = useState('QUIZ-MATH-2026');
+  const [accessCode, setAccessCode] = useState('');
   const [isCodeRequired, setIsCodeRequired] = useState(true);
   const [totalScore, setTotalScore] = useState<number>(10);
   const [loading, setLoading] = useState(false);
@@ -73,7 +73,7 @@ export function CreateQuizModal({
         setType(quizToEdit.type || 'WEEKLY');
         setDuration(quizToEdit.duration || 20);
         setPassingScore(quizToEdit.passingScore || 60);
-        setAccessCode(quizToEdit.accessCode || 'QUIZ-MATH-2026');
+        setAccessCode(quizToEdit.accessCode || '');
         setIsCodeRequired(quizToEdit.isCodeRequired !== false);
 
         if (quizToEdit.questions && quizToEdit.questions.length > 0) {
@@ -119,7 +119,7 @@ export function CreateQuizModal({
         setDuration(20);
         setPassingScore(60);
         const randomNum = Math.floor(1000 + Math.random() * 9000);
-        setAccessCode(`QUIZ-MATH-${randomNum}`);
+        setAccessCode(`QZ-${randomNum}`);
         setIsCodeRequired(true);
         setTotalScore(10);
         setQuestions([
@@ -139,7 +139,7 @@ export function CreateQuizModal({
 
   function generateRandomCode() {
     const randomNum = Math.floor(1000 + Math.random() * 9000);
-    const code = `QUIZ-MATH-${randomNum}`;
+    const code = `QZ-${randomNum}`;
     setAccessCode(code);
     toast.info(isAr ? `تم توليد كود جديد: ${code}` : `New passcode generated: ${code}`);
   }
@@ -270,7 +270,7 @@ export function CreateQuizModal({
         type,
         duration: Number(duration) || 20,
         passingScore: Number(passingScore) || 60,
-        accessCode: accessCode ? accessCode.trim().toUpperCase() : 'QUIZ-MATH-2026',
+        accessCode: accessCode ? accessCode.trim().toUpperCase() : '',
         isCodeRequired,
         totalScore: computedTotalScore,
         questions: validQuestions,
@@ -493,7 +493,7 @@ export function CreateQuizModal({
                     required={isCodeRequired}
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'مثال: QUIZ-MATH-2026' : 'e.g. QUIZ-MATH-2026'}
+                    placeholder={isAr ? 'مثال: QZ-8492' : 'e.g. QZ-8492'}
                     className="font-mono font-bold tracking-wider text-xs uppercase"
                   />
                 </div>

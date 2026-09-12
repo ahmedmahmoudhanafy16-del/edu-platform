@@ -43,7 +43,7 @@ export default async function TeacherSettingsPage({
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              {teacher?.name || (isAr ? 'أ/ سارة أحمد' : 'Ms. Sarah Ahmed')}
+              {teacher?.name || (isAr ? 'المعلم' : 'Teacher')}
             </h2>
             <p className="text-xs text-slate-500">
               {teacher?.email || 'teacher@school.com'} {isAr ? '(حساب المعلم الأساسي)' : '(Primary Teacher Account)'}
@@ -58,7 +58,7 @@ export default async function TeacherSettingsPage({
                 {isAr ? 'الاسم الظاهر للطلاب:' : 'Display Name for Students:'}
               </label>
               <div className="relative">
-                <Input defaultValue={teacher?.name || (isAr ? 'أ/ سارة أحمد' : 'Ms. Sarah Ahmed')} className="pe-8 h-10" />
+                <Input defaultValue={teacher?.name || (isAr ? 'المعلم' : 'Teacher')} className="pe-8 h-10" />
                 <User className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               </div>
             </div>

@@ -136,7 +136,7 @@ async function runAllTests() {
     teacher = await prisma.user.create({
       data: {
         id: 'teacher-test-1',
-        name: 'أ/ سارة أحمد',
+        name: 'المعلم',
         email: 'teacher.qa@school.com',
         phone: '01011112222',
         role: 'TEACHER',

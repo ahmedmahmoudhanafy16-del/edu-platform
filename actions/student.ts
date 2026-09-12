@@ -155,7 +155,7 @@ export async function updateStudentAcademicAction(
   classroomId?: string
 ) {
   try {
-    const cleanGrade = grade ? grade.trim() : 'الصف الثالث الإعدادي';
+    const cleanGrade = grade ? grade.trim() : '';
     const targetClassroomId = classroomId ? classroomId.trim() : '';
 
     try {

@@ -432,21 +432,17 @@ export async function verifyQuizAccessCode(
     );
   }
 
-  // 4. Fallback for sample / client-generated quizzes
+  // 4. Fallback for client-generated quizzes
   if (!quiz) {
     if (
-      quizId === 'sample-q1' ||
-      quizId.startsWith('sample-') ||
       quizId.startsWith('quiz-') ||
       cleanCode.startsWith('QUIZ-') ||
-      cleanCode === '1234' ||
-      cleanCode === 'QUIZ-MATH-2026' ||
       isRetakeFormat
     ) {
       quiz = {
         id: quizId,
-        title: 'الاختبار الأسبوعي التفاعلي',
-        accessCode: cleanCode || 'QUIZ-MATH-2026',
+        title: 'اختبار تقييمي',
+        accessCode: cleanCode || '',
         isCodeRequired: true,
         isPublished: true,
       };
@@ -463,13 +459,11 @@ export async function verifyQuizAccessCode(
   }
 
   // 5. Validate Code matching
-  const expectedCode = (quiz.accessCode || 'QUIZ-MATH-2026').trim().toUpperCase();
+  const expectedCode = (quiz.accessCode || '').trim().toUpperCase();
 
   if (
     quiz.isCodeRequired &&
     cleanCode !== expectedCode &&
-    cleanCode !== 'QUIZ-MATH-2026' &&
-    cleanCode !== '1234' &&
     !isRetakeFormat
   ) {
     return { success: false, error: 'الكود غير صحيح أو منتهي الصلاحية' };
@@ -1014,9 +1008,9 @@ export async function createQuiz(data: {
     const type = data.type || 'WEEKLY';
     const duration = Math.max(1, Number(data.duration) || 20);
     const passingScore = Math.max(1, Math.min(100, Number(data.passingScore) || 60));
-    const accessCode = data.accessCode ? String(data.accessCode).trim().toUpperCase() : 'QUIZ-MATH-2026';
+    const accessCode = data.accessCode ? String(data.accessCode).trim().toUpperCase() : '';
     const isCodeRequired = Boolean(data.isCodeRequired);
-    const grade = data.grade || 'الصف الثالث الإعدادي';
+    const grade = data.grade || '';
 
     // 3. Resolve classroom safely (if provided classroomId doesn't exist in DB, handle gracefully)
     let validClassroomId: string | null = null;
@@ -1213,9 +1207,9 @@ export async function updateQuiz(
     const type = data.type || 'WEEKLY';
     const duration = Math.max(1, Number(data.duration) || 20);
     const passingScore = Math.max(1, Math.min(100, Number(data.passingScore) || 60));
-    const accessCode = data.accessCode ? String(data.accessCode).trim().toUpperCase() : 'QUIZ-MATH-2026';
+    const accessCode = data.accessCode ? String(data.accessCode).trim().toUpperCase() : '';
     const isCodeRequired = Boolean(data.isCodeRequired);
-    const grade = data.grade || 'الصف الثالث الإعدادي';
+    const grade = data.grade || '';
 
     // 3. Resolve classroomId if present
     let validClassroomId: string | null = null;

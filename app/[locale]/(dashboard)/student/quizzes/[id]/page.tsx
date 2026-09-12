@@ -104,42 +104,11 @@ export default function StudentQuizPage() {
         }
       }
 
-      // 3. Fallback default quiz structure if still not found
+      // 3. Handle quiz not found
       if (!resolvedQuiz) {
-        resolvedQuiz = {
-          id: quizId,
-          title: isAr
-            ? (quizId === 'sample-q1' ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'الاختبار الأسبوعي التفاعلي')
-            : (quizId === 'sample-q1' ? 'First Weekly Quiz - Algebra & Statistics' : 'Weekly Interactive Quiz'),
-          duration: 20,
-          passingScore: 60,
-          accessCode: 'QUIZ-MATH-2026',
-          isCodeRequired: true,
-          isPublished: true,
-          questions: [
-            {
-              id: `q-${quizId}-1`,
-              text: isAr ? 'إذا كان س + 3 = 7، فإن قيمة 2س تساوي:' : 'If x + 3 = 7, then the value of 2x is:',
-              type: 'MCQ',
-              options: ['6', '8', '10', '12'],
-              maxScore: 5,
-            },
-            {
-              id: `q-${quizId}-2`,
-              text: isAr ? 'مجموعة حل المعادلة س² - 9 = 0 في ح هي:' : 'The solution set of x² - 9 = 0 in R is:',
-              type: 'MCQ',
-              options: ['{3}', '{-3}', '{3, -3}', '∅'],
-              maxScore: 5,
-            },
-            {
-              id: `q-${quizId}-3`,
-              text: isAr ? 'اشرح باختصار طريقة حل معادلتين من الدرجة الأولى في متغيرين بيانياً.' : 'Briefly explain the graphical method to solve a system of two linear equations in two variables.',
-              type: 'ESSAY',
-              options: [],
-              maxScore: 10,
-            },
-          ],
-        };
+        setError(isAr ? 'لم يتم العثور على هذا الاختبار' : 'Quiz not found');
+        setLoading(false);
+        return;
       }
 
       if (!isSubscribed) return;
