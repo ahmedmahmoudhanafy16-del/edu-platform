@@ -195,7 +195,7 @@ export function CreateAssignmentModal({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={isAr ? 'مثال: حل تدريبات درس التحليل التبادلي' : 'e.g. Unit 3 Homework Exercises'}
+              placeholder={isAr ? 'أدخل عنوان الواجب المنزلي' : 'Enter assignment title'}
             />
           </div>
 

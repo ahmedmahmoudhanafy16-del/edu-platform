@@ -112,7 +112,7 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isAr ? 'مثال: الصف الأول الثانوي - مجموعة الأحد' : 'e.g. Grade 10 - Sunday Group'}
+              placeholder={isAr ? 'أدخل اسم الفصل أو المجموعة' : 'Enter classroom or group name'}
             />
           </div>
 
@@ -125,7 +125,7 @@ export function CreateClassroomModal({ teacherId, isOpen, onClose, onSuccess }: 
               required
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder={isAr ? 'مثال: الرياضيات / الفيزياء / اللغة الإنجليزية' : 'e.g. Mathematics / Physics / English'}
+              placeholder={isAr ? 'أدخل اسم المادة الدراسية' : 'Enter subject name'}
             />
           </div>
 

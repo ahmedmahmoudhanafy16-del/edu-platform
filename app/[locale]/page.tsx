@@ -190,7 +190,7 @@ export default function RootLoginPage() {
                     required
                     value={studentCode}
                     onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'كود الطالب (مثل STU-003) أو رقم الهاتف' : 'Student code (e.g. STU-003) or phone'}
+                    placeholder={isAr ? 'أدخل كود الطالب أو رقم الهاتف المسجل' : 'Enter student code or registered phone'}
                     className="pe-9 font-mono font-bold tracking-wider text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -241,7 +241,7 @@ export default function RootLoginPage() {
                     required
                     value={teacherEmail}
                     onChange={(e) => setTeacherEmail(e.target.value)}
-                    placeholder={isAr ? 'teacher@school.com أو 010...' : 'teacher@school.com or 010...'}
+                    placeholder={isAr ? 'أدخل البريد الإلكتروني أو رقم الهاتف' : 'Enter email or phone'}
                     className="pe-9 font-medium"
                   />
                   <Mail className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />

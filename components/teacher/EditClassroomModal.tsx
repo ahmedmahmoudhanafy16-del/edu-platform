@@ -121,7 +121,7 @@ export function EditClassroomModal({ classroom, isOpen, onClose, onSuccess }: Ed
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={isAr ? 'مثال: الصف الرابع الابتدائي' : 'e.g. Grade 4 Elementary'}
+              placeholder={isAr ? 'أدخل اسم الفصل' : 'Enter classroom name'}
             />
           </div>
 
@@ -134,7 +134,7 @@ export function EditClassroomModal({ classroom, isOpen, onClose, onSuccess }: Ed
               required
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder={isAr ? 'مثال: Science / الرياضيات / اللغة العربية' : 'e.g. Science / Mathematics / English'}
+              placeholder={isAr ? 'أدخل اسم المادة' : 'Enter subject name'}
             />
           </div>
 
@@ -146,7 +146,7 @@ export function EditClassroomModal({ classroom, isOpen, onClose, onSuccess }: Ed
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="مثال: LX2WJS"
+              placeholder={isAr ? 'كود الانضمام' : 'Join code'}
               className="font-mono font-bold tracking-wider uppercase"
             />
           </div>

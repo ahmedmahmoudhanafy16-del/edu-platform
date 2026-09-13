@@ -217,7 +217,7 @@ export function AddStudentModal({
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={isAr ? 'مثال: يوسف محمود حسن' : 'e.g. Youssef Mahmoud Hassan'}
+                placeholder={isAr ? 'أدخل اسم الطالب ثلاثياً' : 'Enter student full name'}
                 className="pe-8"
               />
               <User className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -235,7 +235,7 @@ export function AddStudentModal({
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="01012345678"
+                  placeholder={isAr ? 'أدخل رقم هاتف الطالب' : 'Enter student phone'}
                   className="pe-8 font-mono text-xs"
                 />
                 <Phone className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -251,7 +251,7 @@ export function AddStudentModal({
                   type="tel"
                   value={parentWhatsapp}
                   onChange={(e) => setParentWhatsapp(e.target.value)}
-                  placeholder="01099998888"
+                  placeholder={isAr ? 'أدخل رقم واتساب ولي الأمر' : 'Enter parent WhatsApp'}
                   className="pe-8 font-mono text-xs"
                 />
                 <MessageSquare className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-ok" />
@@ -293,7 +293,7 @@ export function AddStudentModal({
                     </option>
                   ))
                 ) : (
-                  <option value="">{isAr ? '(فصل افتراضي - عام)' : '(Default - General Classroom)'}</option>
+                  <option value="">{isAr ? '(عام - بدون فصل محدد)' : '(General - No specific class)'}</option>
                 )}
               </select>
             </div>
@@ -324,7 +324,7 @@ export function AddStudentModal({
                 maxLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="مثال: 1234"
+                placeholder={isAr ? 'رمز الدخول (4 أرقام)' : 'PIN (4 digits)'}
                 className="pe-8 font-mono text-center text-sm tracking-widest font-bold bg-n-50 dark:bg-n-200"
               />
               <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />

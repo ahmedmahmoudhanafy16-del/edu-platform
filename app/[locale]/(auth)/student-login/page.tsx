@@ -75,7 +75,7 @@ function StudentLoginForm() {
                 autoFocus
                 value={studentIdentifier}
                 onChange={(e) => setStudentIdentifier(e.target.value)}
-                placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter name, STU-001, or phone number...'}
+                placeholder={isAr ? 'أدخل كود الطالب، أو الاسم، أو رقم الهاتف' : 'Enter student code, name, or phone number'}
                 className="pe-8 font-medium text-center"
               />
               <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" strokeWidth={1.75} />

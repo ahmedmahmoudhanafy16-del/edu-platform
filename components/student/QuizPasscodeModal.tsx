@@ -197,7 +197,8 @@ export function QuizPasscodeModal({
                   setCode(e.target.value.toUpperCase());
                   if (errorMsg) setErrorMsg('');
                 }}
-                placeholder={isAr ? 'مثال: QZ-8492' : 'e.g. QZ-8492'}
+                maxLength={10}
+                placeholder={isAr ? 'أدخل كود المرور للاختبار' : 'Enter exam passcode'}
                 className="font-mono text-center font-bold tracking-widest text-base uppercase py-5 border-2 focus:border-accent"
                 autoComplete="off"
               />

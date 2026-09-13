@@ -191,7 +191,7 @@ export function LoginForm() {
                 autoFocus
                 value={studentIdentifier}
                 onChange={(e) => setStudentIdentifier(e.target.value)}
-                placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter Name, STU-001, or Phone...'}
+                placeholder={isAr ? 'أدخل كود الطالب، أو الاسم، أو رقم الهاتف' : 'Enter Student Code, Name, or Phone'}
                 className="pe-10 font-medium"
               />
               <KeyRound className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -247,7 +247,7 @@ export function LoginForm() {
                 autoFocus
                 value={teacherEmail}
                 onChange={(e) => setTeacherEmail(e.target.value)}
-                placeholder="teacher@school.com"
+                placeholder={isAr ? 'أدخل البريد الإلكتروني الخاص بحسابك' : 'Enter your registered email'}
                 className="pe-10 font-medium"
               />
               <Mail className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

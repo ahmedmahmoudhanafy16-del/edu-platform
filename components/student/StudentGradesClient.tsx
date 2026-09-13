@@ -97,7 +97,7 @@ export function StudentGradesClient({
             const normTarget = currentTargetId.trim().toUpperCase();
             const matched = allSubs.filter((s: any) => {
               const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
-              return !normTarget || sId === normTarget || sId === 'STU-003' || s.name === studentName;
+              return !normTarget || sId === normTarget || s.name === studentName;
             });
             storedSubmissions = matched.length > 0 ? matched : allSubs;
           }
@@ -126,7 +126,7 @@ export function StudentGradesClient({
               submittedAt: p.submittedAt ? new Date(p.submittedAt) : new Date(),
               quiz: {
                 id: p.quizId,
-                title: p.quizTitle || quizMatch?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics'),
+                title: p.quizTitle || quizMatch?.title || (isAr ? 'اختبار تقييمي' : 'Assessment Quiz'),
                 type: quizMatch?.type || 'WEEKLY',
               },
             };
@@ -254,7 +254,7 @@ export function StudentGradesClient({
                       {r.quiz?.type === 'WEEKLY' ? (isAr ? 'اختبار أسبوعي' : 'Weekly Quiz') : (isAr ? 'امتحان شهري' : 'Monthly Exam')}
                     </span>
                     <h3 className="text-sm font-bold text-n-800 dark:text-n-700 mt-1.5">
-                      {r.quiz?.title || (isAr ? 'الاختبار الأسبوعي الأول - الجبر والإحصاء' : 'First Weekly Quiz - Algebra & Statistics')}
+                      {r.quiz?.title || (isAr ? 'اختبار تقييمي' : 'Assessment Quiz')}
                     </h3>
                     <p className="text-xs text-n-400 mt-0.5">
                       {isAr ? 'تاريخ التسليم:' : 'Submitted Date:'}{' '}

@@ -98,7 +98,7 @@ export function QuizRunner({
     phone: string;
   }>({
     name: isAr ? 'طالب مسجل' : 'Enrolled Student',
-    studentCode: studentId || 'STU-001',
+    studentCode: studentId || '',
     phone: '',
   });
 
@@ -139,7 +139,7 @@ export function QuizRunner({
         if (parsed) {
           setStudentInfo({
             name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
-            studentCode: parsed.studentCode || parsed.id || studentId || 'STU-001',
+            studentCode: parsed.studentCode || parsed.id || studentId || '',
             phone: parsed.phone || '',
           });
         }

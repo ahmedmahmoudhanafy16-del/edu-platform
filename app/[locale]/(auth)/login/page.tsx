@@ -178,7 +178,7 @@ export default function LoginPage() {
                     required
                     value={studentIdentifier}
                     onChange={(e) => setStudentIdentifier(e.target.value)}
-                    placeholder={isAr ? 'أدخل الاسم أو STU-001 أو رقم الهاتف...' : 'Enter Name, STU-001, or Phone...'}
+                    placeholder={isAr ? 'أدخل كود الطالب، أو الاسم، أو رقم الهاتف' : 'Enter Student Code, Name, or Phone'}
                     className="pe-9 font-medium text-center"
                   />
                   <KeyRound className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />
@@ -229,7 +229,7 @@ export default function LoginPage() {
                     required
                     value={teacherEmail}
                     onChange={(e) => setTeacherEmail(e.target.value)}
-                    placeholder={isAr ? 'teacher@school.com أو 010...' : 'teacher@school.com or 010...'}
+                    placeholder={isAr ? 'أدخل البريد الإلكتروني أو رقم الهاتف' : 'Enter email or phone'}
                     className="pe-9 font-medium"
                   />
                   <Mail className="absolute end-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-n-400" />

@@ -69,7 +69,7 @@ export default function QuizReviewPage() {
     phone: string;
   }>({
     name: isAr ? 'طالب مسجل' : 'Enrolled Student',
-    studentCode: 'STU-001',
+    studentCode: '',
     phone: '',
   });
 
@@ -82,7 +82,7 @@ export default function QuizReviewPage() {
         if (parsed) {
           setStudentInfo({
             name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
-            studentCode: parsed.studentCode || parsed.id || 'STU-001',
+            studentCode: parsed.studentCode || parsed.id || '',
             phone: parsed.phone || '',
           });
         }
@@ -111,7 +111,7 @@ export default function QuizReviewPage() {
         // 1.1 Fallback to server PostgreSQL if not in localStorage (cross-device review support)
         if (!foundResult) {
           try {
-            const currentStudentId = studentInfo?.studentCode || studentInfo?.phone || 'STU-001';
+            const currentStudentId = studentInfo?.studentCode || studentInfo?.phone || '';
             const serverRes = await getStudentQuizResultAction(quizId, currentStudentId);
             if (serverRes.success && serverRes.result) {
               foundResult = {

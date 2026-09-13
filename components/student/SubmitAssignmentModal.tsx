@@ -105,7 +105,11 @@ export function SubmitAssignmentModal({
           }
         } catch {}
       }
-      if (!currentStudentId) currentStudentId = 'STU-001';
+      if (!currentStudentId) {
+        toast.error(isAr ? 'يرجى تسجيل الدخول كطالب أولاً' : 'Please log in as a student first');
+        setLoading(false);
+        return;
+      }
 
       const fullAnswer = uploadedFiles.length > 0
         ? `${answerText}\n\n[${isAr ? 'مرفق' : 'Attached'} ${uploadedFiles.length} ${isAr ? 'ملف/صورة من حل الطالب' : 'file(s)/image(s) of student solution'}]`

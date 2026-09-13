@@ -394,7 +394,7 @@ export function CreateQuizModal({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={isAr ? 'مثال: الاختبار التراكمي للوحدة الأولى والثانية' : 'e.g. Unit 1 & 2 Comprehensive Exam'}
+              placeholder={isAr ? 'أدخل عنوان الاختبار' : 'Enter exam title'}
             />
           </div>
 
@@ -417,25 +417,18 @@ export function CreateQuizModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1 flex items-center justify-between">
-                <span>{isAr ? 'الدرجة الكلية للامتحان:' : 'Total Exam Score:'}</span>
+              <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
+                {isAr ? 'نوع الاختبار:' : 'Type:'}
               </label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  step="0.5"
-                  required
-                  value={totalScore}
-                  onChange={(e) => handleTotalScoreChange(Number(e.target.value))}
-                  className={`font-bold text-emerald-600 dark:text-emerald-400 h-9 text-xs ${isAr ? 'pl-12' : 'pr-12'}`}
-                  placeholder="10"
-                />
-                <span className={`absolute ${isAr ? 'left-2.5' : 'right-2.5'} top-2 text-[11px] font-bold text-slate-400 pointer-events-none`}>
-                  {isAr ? 'درجة' : 'pts'}
-                </span>
-              </div>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent"
+              >
+                <option value="WEEKLY">{isAr ? 'اختبار أسبوعي' : 'Weekly Quiz'}</option>
+                <option value="MONTHLY">{isAr ? 'امتحان شهري' : 'Monthly Exam'}</option>
+                <option value="FINAL">{isAr ? 'امتحان نهائي' : 'Final Exam'}</option>
+              </select>
             </div>
 
             <div>
@@ -444,11 +437,11 @@ export function CreateQuizModal({
               </label>
               <Input
                 type="number"
-                min="5"
-                max="180"
+                min={1}
+                max={300}
+                required
                 value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className="h-9 text-xs"
+                onChange={(e) => setDuration(Math.max(1, parseInt(e.target.value) || 1))}
               />
             </div>
 
@@ -458,30 +451,32 @@ export function CreateQuizModal({
               </label>
               <Input
                 type="number"
-                min="10"
-                max="100"
+                min={1}
+                max={100}
+                required
                 value={passingScore}
-                onChange={(e) => setPassingScore(Number(e.target.value))}
-                className="h-9 text-xs"
+                onChange={(e) => setPassingScore(Math.min(100, Math.max(1, parseInt(e.target.value) || 50)))}
               />
             </div>
           </div>
 
-          {/* Exam Passcode Protection Box */}
-          <div className="p-4 rounded-xl border border-accent/30 bg-accent-light/50 space-y-3">
+          {/* Access Code Settings */}
+          <div className="p-4 rounded-xl bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-accent-text flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <KeyRound className="h-4 w-4 text-accent" />
-                {isAr ? 'كود دخول الامتحان (Passcode Protection)' : 'Exam Access Passcode'}
-              </span>
-              <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-accent-text">
+                <span className="text-xs font-bold text-n-800 dark:text-n-700">
+                  {isAr ? 'كود الدخول للاختبار' : 'Exam Access Code'}
+                </span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-n-600 dark:text-n-400">
                 <input
                   type="checkbox"
                   checked={isCodeRequired}
                   onChange={(e) => setIsCodeRequired(e.target.checked)}
-                  className="rounded text-accent focus:ring-accent"
+                  className="rounded border-n-300 text-accent focus:ring-accent"
                 />
-                {isAr ? 'طلب الكود للدخول' : 'Require Passcode'}
+                {isAr ? 'طلب كود لبدء الاختبار' : 'Require Code'}
               </label>
             </div>
 
@@ -493,7 +488,7 @@ export function CreateQuizModal({
                     required={isCodeRequired}
                     value={accessCode}
                     onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
-                    placeholder={isAr ? 'مثال: QZ-8492' : 'e.g. QZ-8492'}
+                    placeholder={isAr ? 'أدخل كود الدخول' : 'Enter access code'}
                     className="font-mono font-bold tracking-wider text-xs uppercase"
                   />
                 </div>
@@ -609,8 +604,8 @@ export function CreateQuizModal({
                       onChange={(e) => updateQuestionText(qIdx, e.target.value)}
                       placeholder={
                         isAr
-                          ? 'اكتب نص السؤال هنا (مثال: ما قيمة س إذا كان 2س = 10؟)'
-                          : 'Enter question text here (e.g. Solve for x: 2x = 10)'
+                          ? 'اكتب نص السؤال هنا...'
+                          : 'Enter question text here...'
                       }
                       className="text-xs font-medium"
                     />

@@ -619,7 +619,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
       sorted.map((s) => ({
         name: s.name,
         studentCode: s.studentCode,
-        password: String(s.defaultPassword || s.password || '1234').trim(),
+        password: String(s.defaultPassword || s.password || '').trim(),
         phone: s.phone || '',
         grade: s.grade || s.gradeLevel || '—',
         classroom: s.classroomName || '—',
@@ -758,7 +758,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             ) : (
               sorted.map((s, i) => {
                 const isSuspended = s.isActive === false;
-                const plainPin = String(s.defaultPassword || s.password || '1234').trim();
+                const plainPin = String(s.defaultPassword || s.password || '').trim();
                 const studentGrade = s.grade || s.gradeLevel || '—';
                 const classroomDisplayName =
                   s.classroomName ||

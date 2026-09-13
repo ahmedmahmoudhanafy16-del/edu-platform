@@ -233,7 +233,7 @@ export function TeacherSettingsClient({
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder={isAr ? 'مثال: أ/ أحمد محمود' : 'e.g. Mr. Ahmed Mahmoud'}
+                  placeholder={isAr ? 'أدخل اسمك الكريم' : 'Enter your name'}
                   required
                   className="pe-9 h-11 text-sm bg-slate-50/50 dark:bg-slate-800/50"
                 />
@@ -255,7 +255,7 @@ export function TeacherSettingsClient({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="teacher@school.com"
+                  placeholder={isAr ? 'أدخل بريدك الإلكتروني' : 'Enter your email'}
                   className="pe-9 h-11 text-sm font-mono bg-slate-50/50 dark:bg-slate-800/50"
                 />
                 <Mail className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -271,7 +271,7 @@ export function TeacherSettingsClient({
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder={isAr ? 'مثال: 01012345678' : 'e.g. +201012345678'}
+                  placeholder={isAr ? 'أدخل رقم الهاتف للتواصل' : 'Enter contact phone number'}
                   className="pe-9 h-11 text-sm font-mono bg-slate-50/50 dark:bg-slate-800/50"
                 />
                 <Phone className="absolute end-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />

@@ -16,7 +16,7 @@ interface ExamSecurityShieldProps {
 
 export function ExamSecurityShield({
   studentName = 'طالب مسجل',
-  studentCode = 'STU-001',
+  studentCode = '',
   studentPhone = '',
   quizId = 'default_quiz',
   maxViolations = 2,

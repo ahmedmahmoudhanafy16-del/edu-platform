@@ -312,7 +312,7 @@ export function TeacherLiveClient({
               {isAr ? 'عنوان الحصة التفاعلية:' : 'Interactive Session Title:'}
             </label>
             <Input
-              placeholder={isAr ? 'مثال: مراجعة ليلة الامتحان وحل بنك الأسئلة' : 'e.g. Final exam review & question bank solving'}
+              placeholder={isAr ? 'أدخل عنوان الحصة المباشرة' : 'Enter live session title'}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="h-10"

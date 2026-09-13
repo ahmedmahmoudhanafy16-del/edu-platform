@@ -133,7 +133,7 @@
       "start": "Start live session",
       "end": "End session",
       "sessionTitle": "Session title",
-      "titlePlaceholder": "e.g. Chapter 3 review",
+      "titlePlaceholder": "Enter live session title",
       "classroom": "Classroom",
       "activeNow": "Active now",
       "studentCode": "Student code",

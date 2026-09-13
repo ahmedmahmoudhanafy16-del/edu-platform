@@ -933,7 +933,7 @@ Best wishes for excellence and success.`;
                 <p className="font-bold flex items-center gap-1">
                   <Ticket className="h-3.5 w-3.5" /> {isAr ? 'تنسيق الكود الناتج:' : 'Generated Code Format:'}
                 </p>
-                <p className="font-mono text-xs font-bold text-accent">EDU-XXXX-XXXX (e.g. EDU-A8K2-9B7C)</p>
+                <p className="font-mono text-xs font-bold text-accent">EDU-XXXX-XXXX</p>
                 <p>
                   {isAr
                     ? 'كل كود صالح للاستخدام لمرة واحدة فقط ويرتبط فوراً بحساب الطالب عند التفعيل.'
@@ -1045,7 +1045,7 @@ Best wishes for excellence and success.`;
                   type="text"
                   value={retakeReason}
                   onChange={(e) => setRetakeReason(e.target.value)}
-                  placeholder={isAr ? 'مثال: انقطاع الكهرباء / عطل بالجهاز / إعادة تقييم' : 'e.g. Power outage / technical issue / re-evaluation'}
+                  placeholder={isAr ? 'أدخل سبب إعادة المحاولة' : 'Enter retake reason'}
                   className="w-full text-xs bg-n-50 dark:bg-n-200 border border-n-200 dark:border-n-300 text-n-800 dark:text-n-700 rounded-lg px-3 py-2.5 focus:outline-none focus:border-accent"
                 />
               </div>

@@ -190,7 +190,7 @@ export function GradeSubmissionsModal({
                       type="text"
                       value={note}
                       onChange={(e) => setNote(e.target.value)}
-                      placeholder={isAr ? 'مثال: إجابة ممتازة وخطوات واضحة!' : 'e.g. Excellent work and clear steps!'}
+                      placeholder={isAr ? 'أدخل ملاحظاتك للطالب (اختياري)' : 'Enter feedback for student (optional)'}
                     />
                   </div>
                 </div>
