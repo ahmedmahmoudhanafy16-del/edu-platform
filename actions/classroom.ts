@@ -30,10 +30,10 @@ export async function createClassroom(name: string, subject: string, teacherId?:
       } else {
         const newTeacher = await prisma.user.create({
           data: {
-            name: 'أ/ المعلم الأكاديمي',
-            email: 'teacher.admin@school.com',
+            name: 'أ/ رشا',
+            email: 'Rasha@yahoo.com',
             role: 'TEACHER',
-            password: 'teacher123',
+            password: 'Rasha1900',
           },
         });
         validTeacherId = newTeacher.id;

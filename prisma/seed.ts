@@ -6,9 +6,29 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding clean platform with real-data only...');
 
+  const rashaHash = bcrypt.hashSync('Rasha1900', 10);
   const teacherHash = bcrypt.hashSync('teacher123', 10);
 
-  // 1. Base Teacher Login Account (required for teacher authentication)
+  // 1. Primary Teacher Account (Rasha@yahoo.com)
+  await prisma.user.upsert({
+    where: { email: 'Rasha@yahoo.com' },
+    update: {
+      password: 'Rasha1900',
+      passwordHash: rashaHash,
+      role: 'TEACHER',
+      name: 'أ/ رشا',
+    },
+    create: {
+      name: 'أ/ رشا',
+      email: 'Rasha@yahoo.com',
+      password: 'Rasha1900',
+      passwordHash: rashaHash,
+      role: 'TEACHER',
+      phone: null,
+    },
+  });
+
+  // Secondary legacy Teacher Account for test suite compatibility
   await prisma.user.upsert({
     where: { email: 'teacher@school.com' },
     update: {
@@ -17,7 +37,7 @@ async function main() {
       role: 'TEACHER',
     },
     create: {
-      name: 'المعلم',
+      name: 'أ/ رشا',
       email: 'teacher@school.com',
       password: teacherHash,
       passwordHash: teacherHash,

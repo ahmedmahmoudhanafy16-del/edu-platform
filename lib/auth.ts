@@ -133,16 +133,16 @@ export async function getAuthenticatedTeacher() {
     } catch (err) {}
 
     const cleanName = (sessionUser.name && (sessionUser.name.includes('سارة') || sessionUser.name.toLowerCase().includes('sarah')))
-      ? 'المعلم'
-      : (memoryTeacher?.name || sessionUser.name || 'المعلم');
+      ? 'أ/ رشا'
+      : (memoryTeacher?.name || sessionUser.name || 'أ/ رشا');
 
     return {
       id: sessionUser.id || 'teacher-admin-1',
       name: cleanName,
       role: 'TEACHER',
-      email: memoryTeacher?.email || 'teacher@school.com',
+      email: memoryTeacher?.email || 'Rasha@yahoo.com',
       phone: memoryTeacher?.phone || '',
-      password: memoryTeacher?.password || 'teacher123',
+      password: memoryTeacher?.password || 'Rasha1900',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any;

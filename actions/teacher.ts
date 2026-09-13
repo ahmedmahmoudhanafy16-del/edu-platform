@@ -99,7 +99,7 @@ export async function updateTeacherProfileAction(
           create: {
             id: targetId,
             name: cleanName,
-            email: cleanEmail || 'teacher@school.com',
+            email: cleanEmail || 'Rasha@yahoo.com',
             phone: cleanPhone || null,
             role: 'TEACHER',
           },
@@ -121,7 +121,7 @@ export async function updateTeacherProfileAction(
       updatedUser = {
         id: user.id || 'teacher-admin-1',
         name: cleanName,
-        email: cleanEmail || user.email || 'teacher@school.com',
+        email: cleanEmail || user.email || 'Rasha@yahoo.com',
         phone: cleanPhone || null,
         role: 'TEACHER',
       };

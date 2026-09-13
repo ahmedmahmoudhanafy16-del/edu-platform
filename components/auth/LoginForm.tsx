@@ -85,9 +85,12 @@ export function LoginForm() {
       });
 
       if (!res.ok) {
-        // Fallback for local/offline demo if default teacher credentials
-        if (cleanEmail === 'teacher@school.com' && cleanPass === 'teacher123') {
-          let teacherName = 'المعلم';
+        // Fallback for local/offline demo if teacher credentials
+        if (
+          (cleanEmail === 'rasha@yahoo.com' && cleanPass === 'Rasha1900') ||
+          (cleanEmail === 'teacher@school.com' && cleanPass === 'teacher123')
+        ) {
+          let teacherName = 'أ/ رشا';
           try {
             const stored = localStorage.getItem('edu_teacher_profile');
             if (stored) {
@@ -102,7 +105,7 @@ export function LoginForm() {
             id: 'teacher-admin-1',
             name: teacherName,
             role: 'TEACHER',
-            email: 'teacher@school.com',
+            email: 'Rasha@yahoo.com',
             phone: '',
           };
           sessionStorage.setItem('userRole', 'teacher');

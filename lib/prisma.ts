@@ -84,11 +84,11 @@ export const memoryRetakeCodes = globalForPrisma.memoryRetakeCodes;
 if (!globalForPrisma.memoryTeacher) {
   globalForPrisma.memoryTeacher = {
     id: 'teacher-admin-1',
-    name: 'المعلم',
-    email: 'teacher@school.com',
+    name: 'أ/ رشا',
+    email: 'Rasha@yahoo.com',
     phone: '',
     role: 'TEACHER',
-    password: 'teacher123',
+    password: 'Rasha1900',
   };
 }
 export const memoryTeacher = globalForPrisma.memoryTeacher;
