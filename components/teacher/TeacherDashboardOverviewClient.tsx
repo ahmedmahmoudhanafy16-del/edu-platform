@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, FileText, ClipboardList, Video, Ticket, BarChart3 } from 'lucide-react';
-import { AssignmentData } from '@/lib/store';
+import { AssignmentData, getClassroomsFromStore, getStudentsFromStore } from '@/lib/store';
 
 export function TeacherDashboardOverviewClient({
   initialClassroomsCount = 0,
@@ -28,6 +28,24 @@ export function TeacherDashboardOverviewClient({
     setStudentsCount(initialStudentsCount);
     setQuizzesCount(initialQuizzesCount);
     setAssignments(initialAssignments || []);
+
+    const handleClassroomsUpdated = () => {
+      const cls = getClassroomsFromStore();
+      if (cls && cls.length > 0) setClassroomsCount(cls.length);
+    };
+
+    const handleStudentsUpdated = () => {
+      const stu = getStudentsFromStore();
+      if (stu && stu.length > 0) setStudentsCount(stu.length);
+    };
+
+    window.addEventListener('edu_classrooms_updated', handleClassroomsUpdated);
+    window.addEventListener('edu_students_updated', handleStudentsUpdated);
+
+    return () => {
+      window.removeEventListener('edu_classrooms_updated', handleClassroomsUpdated);
+      window.removeEventListener('edu_students_updated', handleStudentsUpdated);
+    };
   }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount, initialAssignments]);
 
   const isAr = locale === 'ar';

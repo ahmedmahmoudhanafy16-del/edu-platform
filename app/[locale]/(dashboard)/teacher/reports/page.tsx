@@ -3,6 +3,7 @@ import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { BarChart3 } from 'lucide-react';
 import { TeacherReportsClient } from './TeacherReportsClient';
 import { getLatestStudentSubmission } from '@/lib/analytics';
+import { getClassroomsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -52,9 +53,23 @@ export default async function TeacherReportsPage({
 
   let classrooms: any[] = [];
   try {
-    classrooms = await prisma.classroom.findMany({
+    const dbClassrooms = await prisma.classroom.findMany({
       select: { id: true, name: true },
     });
+    if (dbClassrooms) classrooms = dbClassrooms;
+  } catch (e) {}
+
+  try {
+    const sbClassrooms = await getClassroomsFromSupabase();
+    if (sbClassrooms && sbClassrooms.length > 0) {
+      const existingIds = new Set(classrooms.map((c) => c.id));
+      for (const sb of sbClassrooms) {
+        if (!existingIds.has(sb.id)) {
+          classrooms.push({ id: sb.id, name: sb.name });
+          existingIds.add(sb.id);
+        }
+      }
+    }
   } catch (e) {}
 
   const isAr = locale === 'ar';

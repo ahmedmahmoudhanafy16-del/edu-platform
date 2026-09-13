@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherClassroomsClient } from './TeacherClassroomsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
+import { getClassroomsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,6 +34,32 @@ export default async function TeacherClassroomsPage({
     });
   } catch (err) {
     console.warn('[Teacher Classrooms] DB query skipped:', err);
+  }
+
+  // Authoritative Supabase Cloud Classrooms
+  try {
+    const sbClassrooms = await getClassroomsFromSupabase();
+    if (Array.isArray(sbClassrooms) && sbClassrooms.length > 0) {
+      const existingIds = new Set(classrooms.map((c) => c.id));
+      for (const sbc of sbClassrooms) {
+        if (!existingIds.has(sbc.id)) {
+          classrooms.push({
+            id: sbc.id,
+            name: sbc.name,
+            subject: sbc.subject || 'عام',
+            code: sbc.code || '',
+            isActive: sbc.isActive !== false,
+            createdAt: sbc.createdAt ? new Date(sbc.createdAt) : new Date(),
+            enrollments: [],
+            quizzes: [],
+            assignments: [],
+          });
+          existingIds.add(sbc.id);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Classrooms] Supabase lookup notice:', sbErr);
   }
 
   let allStudents: any[] = [];

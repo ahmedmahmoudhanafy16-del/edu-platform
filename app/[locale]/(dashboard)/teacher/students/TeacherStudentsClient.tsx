@@ -40,6 +40,14 @@ export function TeacherStudentsClient({
 
   useEffect(() => {
     setStudents(initialStudents);
+
+    const handleStudentsUpdated = () => {
+      refresh();
+    };
+    window.addEventListener('edu_students_updated', handleStudentsUpdated);
+    return () => {
+      window.removeEventListener('edu_students_updated', handleStudentsUpdated);
+    };
   }, [initialStudents]);
 
   function refresh() {

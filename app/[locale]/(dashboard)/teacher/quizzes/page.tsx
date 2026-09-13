@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
 import { TeacherQuizzesClient } from './TeacherQuizzesClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 
@@ -46,6 +46,19 @@ export default async function TeacherQuizzesPage({
   } catch (err) {
     console.warn('[Teacher Quizzes] DB query skipped:', err);
   }
+
+  try {
+    const sbClassrooms = await getClassroomsFromSupabase();
+    if (sbClassrooms && sbClassrooms.length > 0) {
+      const existingIds = new Set(classrooms.map((c) => c.id));
+      for (const sb of sbClassrooms) {
+        if (!existingIds.has(sb.id)) {
+          classrooms.push({ id: sb.id, name: sb.name });
+          existingIds.add(sb.id);
+        }
+      }
+    }
+  } catch (e) {}
 
   // Primary Authoritative Cloud Sync: Fetch exams from Supabase
   try {

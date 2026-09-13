@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma, memoryAccessCodes } from '@/lib/prisma';
+import { getClassroomsFromSupabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
@@ -83,6 +84,24 @@ export async function POST(req: NextRequest) {
         });
       } catch (e) {}
 
+      if (!classroomMatch) {
+        try {
+          const sbClassrooms = await getClassroomsFromSupabase();
+          const found = sbClassrooms.find((c) => c.code && c.code.trim().toUpperCase() === cleanCode);
+          if (found) {
+            classroomMatch = {
+              id: found.id,
+              name: found.name,
+              code: found.code,
+              grade: found.grade,
+              subject: found.subject,
+              isActive: found.isActive !== false,
+              teacher: { name: 'المعلم' },
+            };
+          }
+        } catch (e) {}
+      }
+
       if (classroomMatch) {
         if (classroomMatch.isActive === false) {
           return NextResponse.json(
@@ -107,12 +126,34 @@ export async function POST(req: NextRequest) {
         }).catch(() => null);
 
         if (!existing) {
-          await prisma.enrollment.create({
-            data: {
-              userId: realStudentId,
-              classroomId: classroomMatch.id,
-            },
-          }).catch(() => null);
+          try {
+            const dbTeacher = await prisma.user.findFirst({
+              where: { role: 'TEACHER' },
+              select: { id: true },
+            });
+            if (dbTeacher?.id) {
+              await prisma.classroom.upsert({
+                where: { id: classroomMatch.id },
+                update: {},
+                create: {
+                  id: classroomMatch.id,
+                  name: classroomMatch.name,
+                  code: classroomMatch.code,
+                  subject: classroomMatch.subject || '',
+                  grade: classroomMatch.grade || '',
+                  teacherId: dbTeacher.id,
+                  isActive: classroomMatch.isActive !== false,
+                },
+              }).catch(() => null);
+
+              await prisma.enrollment.create({
+                data: {
+                  userId: realStudentId,
+                  classroomId: classroomMatch.id,
+                },
+              }).catch(() => null);
+            }
+          } catch (e) {}
         }
 
         return NextResponse.json({

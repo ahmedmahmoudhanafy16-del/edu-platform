@@ -413,3 +413,309 @@ export async function toggleStudentStatusInSupabase(studentIdOrCode: string, isA
   }
 }
 
+export interface SupabaseClassroom {
+  id: string;
+  name: string;
+  grade?: string;
+  subject?: string;
+  code?: string;
+  teacherId?: string;
+  isActive?: boolean;
+  createdAt?: string;
+}
+
+/**
+ * Retrieves all classrooms from Supabase.
+ * Checks native public.classrooms table first; falls back to cloud store __SYSTEM_CLASSROOMS_STORE__.
+ */
+export async function getClassroomsFromSupabase(): Promise<SupabaseClassroom[]> {
+  if (!isSupabaseConfigured()) return [];
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    const { data, error } = await client.from('classrooms').select('*').order('created_at', { ascending: false });
+    if (!error && Array.isArray(data)) {
+      return data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        grade: c.grade || '',
+        subject: c.subject || 'عام',
+        code: c.code || '',
+        teacherId: c.teacher_id || c.teacherId || '',
+        isActive: c.is_active !== false,
+        createdAt: c.created_at || c.createdAt || new Date().toISOString(),
+      }));
+    }
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const { data, error } = await client
+      .from('students')
+      .select('password_hash')
+      .eq('student_code', '__SYSTEM_CLASSROOMS_STORE__')
+      .maybeSingle();
+
+    if (!error && data?.password_hash) {
+      const parsed = JSON.parse(data.password_hash);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] getClassroomsFromSupabase notice:', err?.message);
+  }
+
+  return [];
+}
+
+/**
+ * Saves or updates a classroom in Supabase.
+ */
+export async function syncClassroomToSupabase(classroom: SupabaseClassroom): Promise<boolean> {
+  if (!isSupabaseConfigured() || !classroom?.id) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: Try native table
+  try {
+    const { error } = await client.from('classrooms').upsert({
+      id: classroom.id,
+      name: classroom.name,
+      subject: classroom.subject || 'عام',
+      code: classroom.code || '',
+      teacher_id: classroom.teacherId || null,
+      is_active: classroom.isActive !== false,
+      updated_at: new Date().toISOString(),
+    });
+    if (!error) return true;
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getClassroomsFromSupabase();
+    const idx = existing.findIndex((c) => c.id === classroom.id || c.code === classroom.code);
+    const updated = {
+      ...classroom,
+      isActive: classroom.isActive !== false,
+      createdAt: classroom.createdAt || new Date().toISOString(),
+    };
+    if (idx >= 0) {
+      existing[idx] = { ...existing[idx], ...updated };
+    } else {
+      existing.unshift(updated);
+    }
+
+    const jsonStr = JSON.stringify(existing);
+
+    // Update existing row
+    const { data: updateRes } = await client
+      .from('students')
+      .update({
+        full_name: 'System Classrooms Store',
+        password_hash: jsonStr,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_CLASSROOMS_STORE__')
+      .select();
+
+    if (!updateRes || updateRes.length === 0) {
+      await client.from('students').insert({
+        student_code: '__SYSTEM_CLASSROOMS_STORE__',
+        full_name: 'System Classrooms Store',
+        password_hash: jsonStr,
+        grade_level: 'SYSTEM',
+        is_active: true,
+      });
+    }
+
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncClassroomToSupabase notice:', err?.message);
+    return false;
+  }
+}
+
+/**
+ * Deletes a classroom from Supabase.
+ */
+export async function deleteClassroomFromSupabase(classroomId: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !classroomId) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    await client.from('classrooms').delete().eq('id', classroomId);
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getClassroomsFromSupabase();
+    const filtered = existing.filter((c) => c.id !== classroomId && c.code !== classroomId);
+    await client
+      .from('students')
+      .update({
+        password_hash: JSON.stringify(filtered),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_CLASSROOMS_STORE__');
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] deleteClassroomFromSupabase notice:', err?.message);
+    return false;
+  }
+}
+
+export interface SupabaseAssignment {
+  id: string;
+  title: string;
+  description?: string;
+  dueDate?: string;
+  maxScore?: number;
+  grade?: string;
+  classroomId?: string;
+  classroomName?: string;
+  classroom?: { name?: string };
+  submissions?: any[];
+  isClosed?: boolean;
+  createdAt?: string;
+}
+
+/**
+ * Retrieves all assignments from Supabase.
+ */
+export async function getAssignmentsFromSupabase(): Promise<SupabaseAssignment[]> {
+  if (!isSupabaseConfigured()) return [];
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    const { data, error } = await client.from('assignments').select('*').order('created_at', { ascending: false });
+    if (!error && Array.isArray(data)) {
+      return data.map((a: any) => ({
+        id: a.id,
+        title: a.title,
+        description: a.description || '',
+        dueDate: a.due_date || a.dueDate || new Date().toISOString(),
+        maxScore: Number(a.max_score ?? a.maxScore ?? 10),
+        grade: a.grade || '',
+        classroomId: a.classroom_id || a.classroomId || '',
+        isClosed: Boolean(a.is_closed ?? a.isClosed),
+        createdAt: a.created_at || a.createdAt || new Date().toISOString(),
+      }));
+    }
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const { data, error } = await client
+      .from('students')
+      .select('password_hash')
+      .eq('student_code', '__SYSTEM_ASSIGNMENTS_STORE__')
+      .maybeSingle();
+
+    if (!error && data?.password_hash) {
+      const parsed = JSON.parse(data.password_hash);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] getAssignmentsFromSupabase notice:', err?.message);
+  }
+
+  return [];
+}
+
+/**
+ * Saves or updates an assignment in Supabase.
+ */
+export async function syncAssignmentToSupabase(assignment: SupabaseAssignment): Promise<boolean> {
+  if (!isSupabaseConfigured() || !assignment?.id) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    const { error } = await client.from('assignments').upsert({
+      id: assignment.id,
+      title: assignment.title,
+      description: assignment.description || '',
+      due_date: assignment.dueDate || new Date().toISOString(),
+      max_score: assignment.maxScore ?? 10,
+      grade: assignment.grade || null,
+      classroom_id: assignment.classroomId || null,
+      is_closed: Boolean(assignment.isClosed),
+      updated_at: new Date().toISOString(),
+    });
+    if (!error) return true;
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getAssignmentsFromSupabase();
+    const idx = existing.findIndex((a) => a.id === assignment.id);
+    const updated = {
+      ...assignment,
+      createdAt: assignment.createdAt || new Date().toISOString(),
+    };
+    if (idx >= 0) {
+      existing[idx] = { ...existing[idx], ...updated };
+    } else {
+      existing.unshift(updated);
+    }
+
+    const jsonStr = JSON.stringify(existing);
+
+    const { data: updateRes } = await client
+      .from('students')
+      .update({
+        full_name: 'System Assignments Store',
+        password_hash: jsonStr,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_ASSIGNMENTS_STORE__')
+      .select();
+
+    if (!updateRes || updateRes.length === 0) {
+      await client.from('students').insert({
+        student_code: '__SYSTEM_ASSIGNMENTS_STORE__',
+        full_name: 'System Assignments Store',
+        password_hash: jsonStr,
+        grade_level: 'SYSTEM',
+        is_active: true,
+      });
+    }
+
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncAssignmentToSupabase notice:', err?.message);
+    return false;
+  }
+}
+
+/**
+ * Deletes an assignment from Supabase.
+ */
+export async function deleteAssignmentFromSupabase(assignmentId: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !assignmentId) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    await client.from('assignments').delete().eq('id', assignmentId);
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getAssignmentsFromSupabase();
+    const filtered = existing.filter((a) => a.id !== assignmentId);
+    await client
+      .from('students')
+      .update({
+        password_hash: JSON.stringify(filtered),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_ASSIGNMENTS_STORE__');
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] deleteAssignmentFromSupabase notice:', err?.message);
+    return false;
+  }
+}
+

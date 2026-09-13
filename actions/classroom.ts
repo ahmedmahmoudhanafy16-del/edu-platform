@@ -4,7 +4,12 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
-import { syncStudentToSupabase } from '@/lib/supabase';
+import {
+  syncStudentToSupabase,
+  syncClassroomToSupabase,
+  deleteClassroomFromSupabase,
+  getClassroomsFromSupabase,
+} from '@/lib/supabase';
 import { addDynamicStudent, updateDynamicStudent } from '@/lib/dynamic-students';
 import { generateRandomPin } from '@/lib/utils';
 
@@ -66,6 +71,21 @@ export async function createClassroom(name: string, subject: string, teacherId?:
         createdAt: new Date(),
         isActive: true,
       };
+    }
+
+    // Authoritative Cloud Persistence: Sync directly to Supabase PostgreSQL
+    try {
+      await syncClassroomToSupabase({
+        id: String(classroom.id),
+        name: classroom.name,
+        subject: classroom.subject,
+        code: classroom.code,
+        teacherId: classroom.teacherId,
+        isActive: classroom.isActive !== false,
+        createdAt: classroom.createdAt ? new Date(classroom.createdAt).toISOString() : new Date().toISOString(),
+      });
+    } catch (sbErr: any) {
+      console.warn('[createClassroom] Supabase sync notice:', sbErr?.message);
     }
 
     try {
@@ -413,6 +433,21 @@ export async function updateClassroomAction(
       console.warn('[updateClassroomAction] DB update warning:', dbErr?.message);
     }
 
+    // Authoritative Cloud Persistence: Sync update directly to Supabase
+    try {
+      const existingList = await getClassroomsFromSupabase();
+      const target = existingList.find((c) => c.id === classroomId || c.code === classroomId);
+      await syncClassroomToSupabase({
+        id: classroomId,
+        name: data.name ? data.name.trim() : (target?.name || updated?.name || 'فصل'),
+        subject: data.subject ? data.subject.trim() : (target?.subject || updated?.subject || 'عام'),
+        code: data.code ? data.code.trim().toUpperCase() : (target?.code || updated?.code || ''),
+        isActive: data.isActive !== undefined ? data.isActive : (target?.isActive !== false),
+      });
+    } catch (sbErr: any) {
+      console.warn('[updateClassroomAction] Supabase sync notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/', 'layout');
       revalidatePath('/ar/teacher/classrooms');
@@ -463,6 +498,20 @@ export async function toggleClassroomStatus(classroomId: string, isActive: boole
       });
     } catch (dbErr: any) {
       console.warn('[toggleClassroomStatus] DB update warning:', dbErr?.message);
+    }
+
+    // Authoritative Cloud Persistence: Sync active status to Supabase
+    try {
+      const existingList = await getClassroomsFromSupabase();
+      const target = existingList.find((c) => c.id === classroomId || c.code === classroomId);
+      if (target) {
+        await syncClassroomToSupabase({
+          ...target,
+          isActive,
+        });
+      }
+    } catch (sbErr: any) {
+      console.warn('[toggleClassroomStatus] Supabase sync notice:', sbErr?.message);
     }
 
     try {
@@ -587,6 +636,13 @@ export async function deleteClassroom(classroomId: string) {
       });
     } catch (dbErr: any) {
       console.warn('[deleteClassroom] DB delete warning:', dbErr?.message);
+    }
+
+    // Authoritative Cloud Persistence: Delete directly from Supabase
+    try {
+      await deleteClassroomFromSupabase(classroomId);
+    } catch (sbErr: any) {
+      console.warn('[deleteClassroom] Supabase delete notice:', sbErr?.message);
     }
 
     try {

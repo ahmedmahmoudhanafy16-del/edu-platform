@@ -102,11 +102,14 @@ export const STORAGE_KEYS = {
   ASSIGNMENTS: 'edu_assignments',
   CLASSROOMS: 'edu_classrooms',
   DELETED_CLASSROOMS: 'edu_deleted_classrooms',
+  DELETED_STUDENTS: 'edu_deleted_students',
 } as const;
 
 export const INITIAL_SEED_QUIZZES: QuizData[] = [];
 export const DEFAULT_INITIAL_STUDENTS: any[] = [];
 export const DELETED_ASSIGNMENTS_KEY = 'edu_deleted_assignment_ids';
+export const DELETED_STUDENTS_KEY = 'edu_deleted_students';
+const memDeletedStudents = new Set<string>();
 
 const EVENT_STORE_UPDATED = 'edu_store_updated';
 
@@ -412,7 +415,10 @@ export function toggleAssignmentLock(assignmentId: string, isClosed: boolean): b
 }
 
 export function getStudentsFromStore(): any[] {
-  return [...memStudents];
+  // getStudentsFromStore must filter by edu_deleted_students
+  return [...memStudents].filter(
+    (s) => !memDeletedStudents.has(s.id) && !memDeletedStudents.has(s.studentCode)
+  );
 }
 
 export function saveStudentToStore(student: any): any {

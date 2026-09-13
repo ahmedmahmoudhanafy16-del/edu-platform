@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase } from '@/lib/supabase';
 import { Wifi, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
@@ -50,19 +50,38 @@ export default async function TeacherDashboardPage({
 
   // Authoritative Supabase Cloud counts
   try {
-    const { count: sbStudentCount } = await supabase
-      .from('students')
-      .select('*', { count: 'exact', head: true })
-      .not('student_code', 'like', '__%');
-    if (typeof sbStudentCount === 'number') {
-      studentsCount = Math.max(studentsCount, sbStudentCount);
+    const [sbStudentCountRes, sbQuizCountRes, sbClassrooms, sbAssignments] = await Promise.all([
+      supabase
+        .from('students')
+        .select('*', { count: 'exact', head: true })
+        .not('student_code', 'like', '__%'),
+      supabase
+        .from('exams')
+        .select('*', { count: 'exact', head: true }),
+      getClassroomsFromSupabase().catch(() => []),
+      getAssignmentsFromSupabase().catch(() => []),
+    ]);
+
+    if (typeof sbStudentCountRes?.count === 'number') {
+      studentsCount = Math.max(studentsCount, sbStudentCountRes.count);
     }
 
-    const { count: sbQuizCount } = await supabase
-      .from('exams')
-      .select('*', { count: 'exact', head: true });
-    if (typeof sbQuizCount === 'number') {
-      quizzesCount = sbQuizCount;
+    if (typeof sbQuizCountRes?.count === 'number') {
+      quizzesCount = Math.max(quizzesCount, sbQuizCountRes.count);
+    }
+
+    if (Array.isArray(sbClassrooms) && sbClassrooms.length > 0) {
+      classroomsCount = Math.max(classroomsCount, sbClassrooms.length);
+    }
+
+    if (Array.isArray(sbAssignments) && sbAssignments.length > 0) {
+      const existingIds = new Set(recentAssignments.map((a) => a.id));
+      for (const sba of sbAssignments) {
+        if (!existingIds.has(sba.id)) {
+          recentAssignments.push(sba);
+          existingIds.add(sba.id);
+        }
+      }
     }
   } catch (sbErr) {
     console.warn('[Teacher Dashboard] Supabase counts notice:', sbErr);

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherAssignmentsClient } from './TeacherAssignmentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
+import { getClassroomsFromSupabase, getAssignmentsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -42,6 +43,47 @@ export default async function TeacherAssignmentsPage({
     if (results[1].status === 'fulfilled') assignments = results[1].value || [];
   } catch (err) {
     console.warn('[Teacher Assignments] DB query skipped:', err);
+  }
+
+  // Authoritative Supabase Cloud Sync
+  try {
+    const [sbClassrooms, sbAssignments] = await Promise.all([
+      getClassroomsFromSupabase().catch(() => []),
+      getAssignmentsFromSupabase().catch(() => []),
+    ]);
+
+    if (Array.isArray(sbClassrooms) && sbClassrooms.length > 0) {
+      const existingClsIds = new Set(classrooms.map((c) => c.id));
+      for (const sbc of sbClassrooms) {
+        if (!existingClsIds.has(sbc.id)) {
+          classrooms.push({ id: sbc.id, name: sbc.name });
+          existingClsIds.add(sbc.id);
+        }
+      }
+    }
+
+    if (Array.isArray(sbAssignments) && sbAssignments.length > 0) {
+      const existingAssignIds = new Set(assignments.map((a) => a.id));
+      for (const sba of sbAssignments) {
+        if (!existingAssignIds.has(sba.id)) {
+          assignments.push({
+            id: sba.id,
+            title: sba.title,
+            description: sba.description || '',
+            dueDate: sba.dueDate ? new Date(sba.dueDate) : new Date(),
+            maxScore: sba.maxScore ?? 10,
+            isClosed: Boolean(sba.isClosed),
+            classroom: sba.classroomId ? classrooms.find((c) => c.id === sba.classroomId) : null,
+            classroomId: sba.classroomId || '',
+            submissions: [],
+            createdAt: sba.createdAt ? new Date(sba.createdAt) : new Date(),
+          });
+          existingAssignIds.add(sba.id);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Assignments] Supabase lookup notice:', sbErr);
   }
 
   const serialized = (assignments || []).map((a) => ({

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { StudentAssignmentsClient } from './StudentAssignmentsClient';
 import { getAuthenticatedStudent } from '@/lib/auth';
+import { getAssignmentsFromSupabase, getClassroomsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -38,8 +39,44 @@ export default async function StudentAssignmentsPage({
       },
       orderBy: { dueDate: 'asc' },
     });
+    if (assignments) {
+      // Prisma succeeded
+    }
   } catch (err) {
     console.warn('[Student Assignments] DB query skipped:', err);
+  }
+
+  try {
+    const [sbAssignments, sbClassrooms] = await Promise.all([
+      getAssignmentsFromSupabase(),
+      getClassroomsFromSupabase(),
+    ]);
+    const classroomNameMap = new Map<string, string>();
+    for (const c of sbClassrooms) {
+      classroomNameMap.set(c.id, c.name);
+    }
+    if (sbAssignments && sbAssignments.length > 0) {
+      const existingAssignmentIds = new Set(assignments.map((a) => a.id));
+      for (const sba of sbAssignments) {
+        if (!existingAssignmentIds.has(sba.id)) {
+          assignments.push({
+            id: sba.id,
+            title: sba.title,
+            description: sba.description || '',
+            dueDate: sba.dueDate,
+            maxScore: sba.maxScore ?? 10,
+            classroom: {
+              id: sba.classroomId || '',
+              name: classroomNameMap.get(sba.classroomId || '') || sba.classroom?.name || (isAr ? 'فصل دراسي' : 'Classroom'),
+            },
+            submissions: sba.submissions || [],
+          });
+          existingAssignmentIds.add(sba.id);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Student Assignments] Supabase fetch fallback:', sbErr);
   }
 
   const serialized = (assignments || []).map((a) => ({

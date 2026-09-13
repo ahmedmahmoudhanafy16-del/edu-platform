@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherLiveClient } from './TeacherLiveClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
+import { getClassroomsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -51,6 +52,26 @@ export default async function TeacherLivePage({
   } catch (err) {
     console.warn('[Teacher Live] DB query skipped:', err);
   }
+
+  try {
+    const sbClassrooms = await getClassroomsFromSupabase();
+    if (sbClassrooms && sbClassrooms.length > 0) {
+      const existingIds = new Set(classrooms.map((c) => c.id));
+      for (const sb of sbClassrooms) {
+        if (!existingIds.has(sb.id)) {
+          classrooms.push({
+            id: sb.id,
+            name: sb.name,
+            grade: sb.grade || '',
+            subject: sb.subject || '',
+            isActive: sb.isActive !== false,
+            students: [],
+          });
+          existingIds.add(sb.id);
+        }
+      }
+    }
+  } catch (e) {}
 
   const isAr = locale === 'ar';
 

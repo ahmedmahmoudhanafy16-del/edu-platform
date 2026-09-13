@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getAssignmentsFromSupabase, getClassroomsFromSupabase } from '@/lib/supabase';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
@@ -104,6 +104,40 @@ export default async function StudentDashboardPage({
     if (results[5].status === 'fulfilled') attendance = results[5].value || [];
   } catch (err) {
     console.warn('[Student Dashboard] Database queries skipped:', err);
+  }
+
+  // Authoritative Supabase assignments lookup
+  try {
+    const [sbAssignments, sbClassrooms] = await Promise.all([
+      getAssignmentsFromSupabase(),
+      getClassroomsFromSupabase(),
+    ]);
+    const classroomNameMap = new Map<string, string>();
+    for (const c of sbClassrooms) {
+      classroomNameMap.set(c.id, c.name);
+    }
+    if (sbAssignments && sbAssignments.length > 0) {
+      const existingAssignmentIds = new Set(assignments.map((a) => a.id));
+      for (const sba of sbAssignments) {
+        if (!existingAssignmentIds.has(sba.id)) {
+          assignments.push({
+            id: sba.id,
+            title: sba.title,
+            description: sba.description || '',
+            dueDate: sba.dueDate,
+            maxScore: sba.maxScore ?? 10,
+            classroom: {
+              id: sba.classroomId || '',
+              name: classroomNameMap.get(sba.classroomId || '') || sba.classroom?.name || (isAr ? 'فصل دراسي' : 'Classroom'),
+            },
+            submissions: sba.submissions || [],
+          });
+          existingAssignmentIds.add(sba.id);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Student Dashboard] Supabase assignments sync notice:', sbErr);
   }
 
   // Central Supabase exams & attempts lookup

@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 import { calcStudentAvg } from '@/lib/utils';
@@ -78,7 +78,22 @@ export default async function TeacherStudentsPage({
     console.warn('[Teacher Students] DB query error:', err);
   }
 
-  // Authoritative Supabase Cloud Sync: Ensure all registered students appear across all devices
+  // Authoritative Supabase Cloud Sync: Classrooms & Students
+  try {
+    const sbClassrooms = await getClassroomsFromSupabase();
+    if (Array.isArray(sbClassrooms) && sbClassrooms.length > 0) {
+      const existingClsIds = new Set(classrooms.map((c) => c.id));
+      for (const sbc of sbClassrooms) {
+        if (!existingClsIds.has(sbc.id)) {
+          classrooms.push({ id: sbc.id, name: sbc.name });
+          existingClsIds.add(sbc.id);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Students Page] Supabase classroom sync notice:', sbErr);
+  }
+
   try {
     const { data: sbStudents } = await supabase.from('students').select('*').not('student_code', 'like', '__%');
     if (sbStudents && sbStudents.length > 0) {

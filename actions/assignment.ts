@@ -4,6 +4,11 @@ import { prisma, memoryAssignments, isDatabaseReadOnlyError } from '@/lib/prisma
 import { revalidatePath } from 'next/cache';
 import { requireRole, requireStudentOwnership } from '@/lib/auth';
 import { notifyParentHomeworkGraded } from '@/lib/whatsapp';
+import {
+  syncAssignmentToSupabase,
+  deleteAssignmentFromSupabase,
+  getAssignmentsFromSupabase,
+} from '@/lib/supabase';
 
 const ALLOWED_MIME_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -73,6 +78,23 @@ export async function createAssignment(data: {
       } else {
         throw dbErr;
       }
+    }
+
+    // Authoritative Cloud Persistence: Sync directly to Supabase PostgreSQL
+    try {
+      await syncAssignmentToSupabase({
+        id: String(assignment.id),
+        title: assignment.title,
+        description: assignment.description || '',
+        dueDate: assignment.dueDate ? new Date(assignment.dueDate).toISOString() : new Date().toISOString(),
+        maxScore: Number(assignment.maxScore) || 10,
+        grade: assignment.grade || '',
+        classroomId: assignment.classroomId || '',
+        isClosed: Boolean(assignment.isClosed),
+        createdAt: assignment.createdAt ? new Date(assignment.createdAt).toISOString() : new Date().toISOString(),
+      });
+    } catch (sbErr: any) {
+      console.warn('[createAssignment] Supabase sync notice:', sbErr?.message);
     }
 
     try {
@@ -171,6 +193,24 @@ export async function updateAssignment(
       }
     }
 
+    // Authoritative Cloud Persistence: Sync update directly to Supabase
+    try {
+      const existingList = await getAssignmentsFromSupabase();
+      const target = existingList.find((a) => a.id === assignmentId);
+      await syncAssignmentToSupabase({
+        id: assignmentId,
+        title: data.title ? data.title.trim() : (target?.title || updated?.title || 'واجب دراسي'),
+        description: data.description !== undefined ? data.description.trim() : (target?.description || updated?.description || ''),
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : (target?.dueDate || new Date().toISOString()),
+        maxScore: data.maxScore !== undefined ? Number(data.maxScore) : (target?.maxScore || 10),
+        grade: data.grade !== undefined ? data.grade : (target?.grade || ''),
+        classroomId: data.classroomId !== undefined ? data.classroomId : (target?.classroomId || ''),
+        isClosed: data.isClosed !== undefined ? data.isClosed : (target?.isClosed || false),
+      });
+    } catch (sbErr: any) {
+      console.warn('[updateAssignment] Supabase sync notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/[locale]/teacher');
       revalidatePath('/teacher');
@@ -236,6 +276,13 @@ export async function deleteAssignment(assignmentId: string) {
       }
     }
 
+    // Authoritative Cloud Persistence: Delete directly from Supabase
+    try {
+      await deleteAssignmentFromSupabase(assignmentId);
+    } catch (sbErr: any) {
+      console.warn('[deleteAssignment] Supabase delete notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/[locale]/teacher');
       revalidatePath('/teacher');
@@ -294,6 +341,20 @@ export async function toggleAssignmentLock(assignmentId: string, isClosed: boole
       } else {
         throw dbErr;
       }
+    }
+
+    // Authoritative Cloud Persistence: Sync lock status to Supabase
+    try {
+      const existingList = await getAssignmentsFromSupabase();
+      const target = existingList.find((a) => a.id === assignmentId);
+      if (target) {
+        await syncAssignmentToSupabase({
+          ...target,
+          isClosed,
+        });
+      }
+    } catch (sbErr: any) {
+      console.warn('[toggleAssignmentLock] Supabase sync notice:', sbErr?.message);
     }
 
     try {
