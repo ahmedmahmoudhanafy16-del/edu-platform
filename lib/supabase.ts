@@ -8,6 +8,12 @@ const supabaseUrl =
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.SUPABASE_ANON_KEY ||
+  process.env.SUPABASE_PUBLISHABLE_KEY ||
+  '';
+
+const supabaseSecretKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_SECRET_KEY ||
   '';
 
 /**
@@ -39,7 +45,7 @@ export const supabase = createClient(supabaseUrl, effectiveKey, {
  * Server-side elevated client (if service role key is provided), otherwise falls back to standard client.
  */
 export function getSupabaseServerClient() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const serviceRoleKey = supabaseSecretKey;
   if (serviceRoleKey && (serviceRoleKey.startsWith('ey') || serviceRoleKey.startsWith('sb_'))) {
     return createClient(supabaseUrl, serviceRoleKey, {
       auth: {
@@ -257,36 +263,57 @@ export async function updateTeacherProfileInSupabase(
     if (!error && data) {
       return data;
     }
-  } catch (err: any) {
-    // Proceed to Tier 2
-  }
+  } catch (err: any) {}
 
-  // 2. Fallback: Persist in public.students table under system teacher code
+  // 2. Persist in public.students table under system teacher code
   try {
-    const { data, error } = await client
+    const { data: updateData, error: updateError } = await client
       .from('students')
-      .upsert({
+      .update({
+        full_name: profile.name,
+        phone: profile.phone || '01117633351',
+        parent_phone: profile.email ? profile.email.toLowerCase() : 'rasha@yahoo.com',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_TEACHER_RASHA__')
+      .select()
+      .maybeSingle();
+
+    if (!updateError && updateData) {
+      return {
+        id: updateData.id,
+        name: updateData.full_name,
+        email: updateData.parent_phone,
+        phone: updateData.phone,
+      };
+    }
+
+    // If record doesn't exist yet, insert with required non-null fields
+    const { data: insertData, error: insertError } = await client
+      .from('students')
+      .insert({
         student_code: '__SYSTEM_TEACHER_RASHA__',
         full_name: profile.name,
         phone: profile.phone || '01117633351',
         parent_phone: profile.email ? profile.email.toLowerCase() : 'rasha@yahoo.com',
         grade_level: 'TEACHER',
+        password_hash: '$2a$10$FQv4RigbpTzl3n4iA4VUr.Q6jjZbHb0l2D.OClgLKa6p96WkPZBae',
         is_active: true,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'student_code' })
+      })
       .select()
       .maybeSingle();
 
-    if (!error && data) {
+    if (!insertError && insertData) {
       return {
-        id: data.id,
-        name: data.full_name,
-        email: data.parent_phone,
-        phone: data.phone,
+        id: insertData.id,
+        name: insertData.full_name,
+        email: insertData.parent_phone,
+        phone: insertData.phone,
       };
     }
   } catch (err: any) {
-    console.warn('[Supabase] updateTeacherProfile fallback notice:', err?.message);
+    console.warn('[Supabase] updateTeacherProfile notice:', err?.message);
   }
 
   return null;
@@ -321,32 +348,27 @@ export async function updateTeacherPasswordInSupabase(
     if (!error && data) {
       return data;
     }
-  } catch (err: any) {
-    // Proceed to Tier 2
-  }
+  } catch (err: any) {}
 
-  // 2. Fallback: Persist in public.students table under system teacher code
+  // 2. Persist in public.students table under system teacher code
   try {
-    const { data, error } = await client
+    const { data: updateData, error: updateError } = await client
       .from('students')
-      .upsert({
-        student_code: '__SYSTEM_TEACHER_RASHA__',
-        full_name: 'أ/ رشا',
-        phone: '01117633351',
-        parent_phone: 'rasha@yahoo.com',
-        grade_level: 'TEACHER',
+      .update({
         password_hash: newPasswordHash,
-        is_active: true,
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'student_code' })
+      })
+      .eq('student_code', '__SYSTEM_TEACHER_RASHA__')
       .select()
       .maybeSingle();
 
-    return data;
+    if (!updateError && updateData) {
+      return updateData;
+    }
   } catch (err: any) {
-    console.warn('[Supabase] updateTeacherPassword fallback notice:', err?.message);
-    return null;
+    console.warn('[Supabase] updateTeacherPassword notice:', err?.message);
   }
+  return null;
 }
 
 /**

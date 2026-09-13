@@ -177,10 +177,14 @@ export async function updateTeacherProfileAction(
     // 4. Revalidate all relevant routes
     try {
       revalidatePath('/', 'layout');
+      revalidatePath('/ar', 'layout');
+      revalidatePath('/en', 'layout');
+      revalidatePath('/ar/teacher', 'page');
+      revalidatePath('/en/teacher', 'page');
       revalidatePath('/ar/teacher', 'layout');
       revalidatePath('/en/teacher', 'layout');
-      revalidatePath('/ar/teacher/settings');
-      revalidatePath('/en/teacher/settings');
+      revalidatePath('/ar/teacher/settings', 'page');
+      revalidatePath('/en/teacher/settings', 'page');
     } catch {}
 
     return {

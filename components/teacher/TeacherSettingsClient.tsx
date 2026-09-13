@@ -88,6 +88,11 @@ export function TeacherSettingsClient({
         if (res.user.email) setEmail(res.user.email);
         if (res.user.phone !== null) setPhone(res.user.phone || '');
 
+        // Dispatch instant event for client navigation header
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('edu_teacher_updated', { detail: { name: res.user.name } }));
+        }
+
         // Revalidate server components and navbar
         router.refresh();
       } else {

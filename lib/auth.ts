@@ -36,6 +36,25 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             parsed.name = 'المعلم';
           }
 
+          // If teacher, prioritize authoritative Supabase profile
+          if (parsed.role === 'TEACHER') {
+            try {
+              const sbTeacher = await getTeacherFromSupabase(parsed.email || 'rasha@yahoo.com');
+              if (sbTeacher?.name) {
+                return {
+                  id: sbTeacher.id || parsed.id,
+                  name: sbTeacher.name,
+                  role: 'TEACHER',
+                  email: sbTeacher.email || parsed.email || 'rasha@yahoo.com',
+                  phone: sbTeacher.phone || parsed.phone,
+                  isActive: true,
+                };
+              }
+            } catch (sbErr) {
+              console.warn('[Auth] Supabase teacher lookup notice:', sbErr);
+            }
+          }
+
           try {
             const dbUser = await prisma.user.findUnique({
               where: { id: parsed.id },
@@ -50,6 +69,7 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
                 id: dbUser.id,
                 name: cleanDbName,
                 role: dbUser.role as any,
+                email: parsed.email,
                 studentCode: dbUser.studentCode || undefined,
                 phone: dbUser.phone || undefined,
                 grade: dbUser.grade || undefined,
@@ -64,6 +84,8 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             id: parsed.id,
             name: parsed.name,
             role: parsed.role,
+            email: parsed.email,
+            phone: parsed.phone,
             studentCode: parsed.studentCode,
             grade: parsed.grade || '',
             isActive: parsed.isActive !== false,
@@ -122,10 +144,10 @@ export async function getAuthenticatedTeacher() {
       if (sbTeacher) {
         return {
           id: sbTeacher.id,
-          name: sbTeacher.name || 'أ/ رشا',
+          name: sbTeacher.name || sessionUser.name || 'المعلم',
           role: 'TEACHER',
-          email: sbTeacher.email || 'rasha@yahoo.com',
-          phone: sbTeacher.phone || '',
+          email: sbTeacher.email || sessionUser.email || 'rasha@yahoo.com',
+          phone: sbTeacher.phone || sessionUser.phone || '',
           password: sbTeacher.password || '',
           createdAt: sbTeacher.created_at || new Date(),
           updatedAt: sbTeacher.updated_at || new Date(),
@@ -146,14 +168,14 @@ export async function getAuthenticatedTeacher() {
     } catch (err) {}
 
     const cleanName = (sessionUser.name && (sessionUser.name.includes('سارة') || sessionUser.name.toLowerCase().includes('sarah')))
-      ? 'أ/ رشا'
-      : (sessionUser.name || 'أ/ رشا');
+      ? 'المعلم'
+      : (sessionUser.name || 'المعلم');
 
     return {
       id: sessionUser.id || 'teacher-admin-1',
       name: cleanName,
       role: 'TEACHER',
-      email: sessionUser.email || 'Rasha@yahoo.com',
+      email: sessionUser.email || 'rasha@yahoo.com',
       phone: sessionUser.phone || '',
       password: '',
       createdAt: new Date(),
