@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getSupabaseServerClient } from '@/lib/supabase';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 import { calcStudentAvg } from '@/lib/utils';
@@ -132,8 +132,25 @@ export default async function TeacherStudentsPage({
     const avgScore = calcStudentAvg(s.quizResults || []);
     const enrollment = s.enrollments?.[0];
     const studentGrade = s.grade || s.gradeLevel || '';
-    const studentClassroomId = enrollment?.classroom?.id || '';
-    const studentClassroomName = enrollment?.classroom?.name || '';
+    let studentClassroomId = enrollment?.classroom?.id || '';
+    let studentClassroomName = enrollment?.classroom?.name || '';
+
+    if (!studentClassroomId && classrooms.length > 0) {
+      const matched = classrooms.find(
+        (c) =>
+          c.name === studentGrade ||
+          (studentGrade.includes('الرابع') && (c.name.includes('Primary 4') || c.name.includes('Grade 4') || c.name.includes('الرابع'))) ||
+          (studentGrade.includes('الخامس') && (c.name.includes('Primary 5') || c.name.includes('Grade 5') || c.name.includes('الخامس'))) ||
+          (studentGrade.includes('السادس') && (c.name.includes('Primary 6') || c.name.includes('Grade 6') || c.name.includes('السادس'))) ||
+          (studentGrade.includes('الثالث الإعدادي') && (c.name.includes('Prep 3') || c.name.includes('Grade 9') || c.name.includes('الثالث الإعدادي'))) ||
+          (studentGrade.includes('الثاني الإعدادي') && (c.name.includes('Prep 2') || c.name.includes('Grade 8') || c.name.includes('الثاني الإعدادي'))) ||
+          (studentGrade.includes('الأول الإعدادي') && (c.name.includes('Prep 1') || c.name.includes('Grade 7') || c.name.includes('الأول الإعدادي')))
+      );
+      if (matched) {
+        studentClassroomId = matched.id;
+        studentClassroomName = matched.name;
+      }
+    }
 
     return {
       id: s.id,

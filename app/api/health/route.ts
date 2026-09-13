@@ -1,5 +1,6 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getSupabaseServerClient, isSupabaseConfigured } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,28 @@ export async function GET() {
     dbLatencyMs = Date.now() - startTime;
   }
 
+  let supabaseStatus = 'DISCONNECTED';
+  let supabaseStudentCount = 0;
+  let supabaseLatencyMs = 0;
+  const sbStartTime = Date.now();
+  try {
+    if (isSupabaseConfigured()) {
+      const client = getSupabaseServerClient();
+      const { count, error } = await client
+        .from('students')
+        .select('*', { count: 'exact', head: true });
+      if (!error && typeof count === 'number') {
+        supabaseStatus = 'CONNECTED';
+        supabaseStudentCount = count;
+        supabaseLatencyMs = Date.now() - sbStartTime;
+      } else {
+        supabaseStatus = `ERROR: ${error?.message || 'unknown'}`;
+      }
+    }
+  } catch (e: any) {
+    supabaseStatus = `FATAL: ${e?.message || 'unknown'}`;
+  }
+
   const payload = {
     status: 'UP',
     timestamp: new Date().toISOString(),
@@ -31,6 +54,11 @@ export async function GET() {
     database: {
       status: dbStatus,
       latencyMs: dbLatencyMs,
+    },
+    supabase: {
+      status: supabaseStatus,
+      studentCount: supabaseStudentCount,
+      latencyMs: supabaseLatencyMs,
     },
   };
 

@@ -3,7 +3,7 @@ import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { BarChart3 } from 'lucide-react';
 import { TeacherReportsClient } from './TeacherReportsClient';
 import { getLatestStudentSubmission } from '@/lib/analytics';
-import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getSupabaseServerClient } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -76,9 +76,10 @@ export default async function TeacherReportsPage({
   // Authoritative Supabase Cloud Sync: Students & Exam Attempts
   const attemptsByStudent = new Map<string, any[]>();
   try {
+    const client = getSupabaseServerClient();
     const [studentsRes, attemptsRes] = await Promise.all([
-      supabase.from('students').select('*').not('student_code', 'like', '__%'),
-      supabase.from('exam_attempts').select('id, student_id, exam_id, final_score, status, completed_at, created_at, exams(id, title, total_marks, passing_score)'),
+      client.from('students').select('*').not('student_code', 'like', '__%'),
+      client.from('exam_attempts').select('id, student_id, exam_id, final_score, status, completed_at, created_at, exams(id, title, total_marks, passing_score)'),
     ]);
 
     if (studentsRes.data && studentsRes.data.length > 0) {

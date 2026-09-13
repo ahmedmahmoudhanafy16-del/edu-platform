@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase, getLiveSessionsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase, getLiveSessionsFromSupabase, getSupabaseServerClient } from '@/lib/supabase';
 import { Wifi, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
@@ -50,12 +50,13 @@ export default async function TeacherDashboardPage({
 
   // Authoritative Supabase Cloud counts
   try {
+    const client = getSupabaseServerClient();
     const [sbStudentCountRes, sbQuizCountRes, sbClassrooms, sbAssignments, sbLive] = await Promise.all([
-      supabase
+      client
         .from('students')
         .select('*', { count: 'exact', head: true })
         .not('student_code', 'like', '__%'),
-      supabase
+      client
         .from('exams')
         .select('*', { count: 'exact', head: true }),
       getClassroomsFromSupabase().catch(() => []),

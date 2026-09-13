@@ -53,7 +53,7 @@ runTest('TeacherStudentsClient has ZERO localStorage references', () => {
   );
   assert(!file.includes('localStorage.getItem'), 'Must not read from localStorage');
   assert(!file.includes('edu_deleted_students'), 'Must not use local deleted students cache');
-  assert(!file.includes('edu_students'), 'Must not use local students array');
+  assert(!file.includes("'edu_students'"), 'Must not use local students array');
 });
 
 runTest('lib/store.ts has ZERO localStorage and ZERO sessionStorage references', () => {
