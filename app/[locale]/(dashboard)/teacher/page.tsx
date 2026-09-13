@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase, getLiveSessionsFromSupabase } from '@/lib/supabase';
 import { Wifi, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
@@ -50,7 +50,7 @@ export default async function TeacherDashboardPage({
 
   // Authoritative Supabase Cloud counts
   try {
-    const [sbStudentCountRes, sbQuizCountRes, sbClassrooms, sbAssignments] = await Promise.all([
+    const [sbStudentCountRes, sbQuizCountRes, sbClassrooms, sbAssignments, sbLive] = await Promise.all([
       supabase
         .from('students')
         .select('*', { count: 'exact', head: true })
@@ -60,7 +60,15 @@ export default async function TeacherDashboardPage({
         .select('*', { count: 'exact', head: true }),
       getClassroomsFromSupabase().catch(() => []),
       getAssignmentsFromSupabase().catch(() => []),
+      getLiveSessionsFromSupabase().catch(() => []),
     ]);
+
+    if (activeLive.length === 0 && Array.isArray(sbLive)) {
+      const activeSbLive = sbLive.filter((s: any) => s.isActive);
+      if (activeSbLive.length > 0) {
+        activeLive = activeSbLive;
+      }
+    }
 
     if (typeof sbStudentCountRes?.count === 'number') {
       studentsCount = Math.max(studentsCount, sbStudentCountRes.count);

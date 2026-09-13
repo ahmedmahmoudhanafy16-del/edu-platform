@@ -155,6 +155,17 @@ export async function resetStudentPassword(studentId: string, newPassword?: stri
     });
   } catch (dynErr) {}
 
+  // Authoritative Cloud Persistence: Sync new password hash to Supabase
+  try {
+    const { updateStudentInSupabase } = await import('@/lib/supabase');
+    await updateStudentInSupabase(
+      { id: studentId, student_code: studentId },
+      { password_hash: hashed }
+    );
+  } catch (sbErr: any) {
+    console.warn('[resetStudentPassword] Supabase update notice:', sbErr?.message);
+  }
+
   try {
     revalidatePath('/', 'layout');
     revalidatePath('/[locale]/teacher/students');
@@ -383,6 +394,20 @@ export async function addStudentToClassroom(
         classroomId,
         createdAt: new Date(),
       };
+    }
+
+    // Authoritative Cloud Persistence: Sync new student to Supabase
+    try {
+      await syncStudentToSupabase({
+        student_code: studentCode,
+        full_name: name.trim(),
+        phone: phone.trim() || undefined,
+        grade_level: '',
+        password_hash: hashed,
+        is_active: true,
+      });
+    } catch (sbErr: any) {
+      console.warn('[addStudentToClassroom] Supabase sync notice:', sbErr?.message);
     }
 
     try {
@@ -822,6 +847,17 @@ export async function updateStudentPhoneAction(
     });
   } catch (err) {
     console.warn('[updateStudentPhoneAction] DB update error:', err);
+  }
+
+  // Authoritative Cloud Persistence: Sync updated phone numbers to Supabase
+  try {
+    const { updateStudentInSupabase } = await import('@/lib/supabase');
+    await updateStudentInSupabase(
+      { id: studentId, student_code: studentId },
+      { phone: cleanPhone || null, parent_phone: cleanParentPhone || null }
+    );
+  } catch (sbErr: any) {
+    console.warn('[updateStudentPhoneAction] Supabase update notice:', sbErr?.message);
   }
 
   try {

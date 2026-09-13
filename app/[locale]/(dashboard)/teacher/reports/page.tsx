@@ -3,7 +3,7 @@ import { prisma, memoryQuizResults } from '@/lib/prisma';
 import { BarChart3 } from 'lucide-react';
 import { TeacherReportsClient } from './TeacherReportsClient';
 import { getLatestStudentSubmission } from '@/lib/analytics';
-import { getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,6 +16,7 @@ export default async function TeacherReportsPage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let students: any[] = [];
   let dbSuccess = false;
@@ -72,10 +73,69 @@ export default async function TeacherReportsPage({
     }
   } catch (e) {}
 
-  const isAr = locale === 'ar';
+  // Authoritative Supabase Cloud Sync: Students & Exam Attempts
+  const attemptsByStudent = new Map<string, any[]>();
+  try {
+    const [studentsRes, attemptsRes] = await Promise.all([
+      supabase.from('students').select('*').not('student_code', 'like', '__%'),
+      supabase.from('exam_attempts').select('id, student_id, exam_id, final_score, status, completed_at, created_at, exams(id, title, total_marks, passing_score)'),
+    ]);
+
+    if (studentsRes.data && studentsRes.data.length > 0) {
+      const existingCodes = new Set(students.map((s) => String(s.studentCode || '').toUpperCase()));
+      for (const sb of studentsRes.data) {
+        const code = String(sb.student_code || '').toUpperCase();
+        if (code.startsWith('__')) continue;
+        if (!existingCodes.has(code)) {
+          students.push({
+            id: sb.id,
+            name: sb.full_name,
+            studentCode: sb.student_code,
+            phone: sb.phone || '',
+            parentPhone: sb.parent_phone || '',
+            defaultPassword: '',
+            password: '',
+            isActive: sb.is_active !== false,
+            createdAt: sb.created_at || new Date(),
+            grade: sb.grade_level || '',
+            gradeLevel: sb.grade_level || '',
+            enrollments: [],
+            submissions: [],
+            attendance: [],
+            quizResults: [],
+          });
+          existingCodes.add(code);
+        }
+      }
+    }
+
+    if (attemptsRes.data && attemptsRes.data.length > 0) {
+      for (const att of attemptsRes.data) {
+        const sid = String(att.student_id || '');
+        if (!attemptsByStudent.has(sid)) attemptsByStudent.set(sid, []);
+        const examObj: any = Array.isArray(att.exams) ? att.exams[0] : att.exams;
+        attemptsByStudent.get(sid)!.push({
+          id: att.id,
+          quizId: att.exam_id,
+          totalScore: Number(att.final_score) || 0,
+          autoScore: Number(att.final_score) || 0,
+          maxScore: Number(examObj?.total_marks) || 100,
+          isPassed: att.status === 'completed' && (Number(att.final_score) || 0) >= (Number(examObj?.passing_score) || 50),
+          submittedAt: att.completed_at || att.created_at || new Date(),
+          quiz: {
+            id: att.exam_id,
+            title: examObj?.title || (isAr ? 'امتحان سحابي' : 'Cloud Exam'),
+            type: 'EXAM',
+          },
+        });
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Reports] Supabase sync notice:', sbErr);
+  }
 
   const studentReports = (students || []).map((s) => {
-    // Merge database results with in-memory store
+    // Merge database results with in-memory store and Supabase cloud attempts
     const dbQuizIds = new Set((s.quizResults || []).map((r: any) => r.quizId || r.id));
     const memResults = (memoryQuizResults || []).filter(
       (m: any) =>
@@ -83,7 +143,8 @@ export default async function TeacherReportsPage({
         !dbQuizIds.has(m.quizId)
     );
 
-    const combinedResults = [...(s.quizResults || []), ...memResults];
+    const sbStudentAttempts = attemptsByStudent.get(String(s.id)) || attemptsByStudent.get(String(s.studentCode)) || [];
+    const combinedResults = [...(s.quizResults || []), ...memResults, ...sbStudentAttempts];
     const latest = getLatestStudentSubmission(s.studentCode || s.id, combinedResults);
     const scorePct = latest ? latest.percentage : 0;
 

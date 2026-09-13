@@ -476,6 +476,30 @@ export async function submitAssignment(
     },
   });
 
+  // Authoritative Cloud Persistence: Sync submission to Supabase
+  try {
+    const sbAssignments = await getAssignmentsFromSupabase();
+    const target = sbAssignments.find((a) => a.id === assignmentId);
+    if (target) {
+      const subs = target.submissions || [];
+      const subIdx = subs.findIndex((s) => s.studentId === realStudentId);
+      const newSub = {
+        id: submission?.id || `sub-${Date.now()}`,
+        studentId: realStudentId,
+        textAnswer: answerText,
+        fileUrl: sanitizedFileUrl,
+        submittedAt: new Date().toISOString(),
+        status: 'SUBMITTED',
+      };
+      if (subIdx !== -1) subs[subIdx] = { ...subs[subIdx], ...newSub };
+      else subs.push(newSub);
+      target.submissions = subs;
+      await syncAssignmentToSupabase(target);
+    }
+  } catch (sbErr: any) {
+    console.warn('[submitAssignment] Supabase sync notice:', sbErr?.message);
+  }
+
   revalidatePath('/[locale]/student/assignments');
   revalidatePath('/[locale]/teacher/assignments');
   revalidatePath('/[locale]/teacher/reports');
@@ -517,6 +541,25 @@ export async function gradeSubmission(submissionId: string, grade: number, teach
       maxScore: submission.assignment.maxScore,
       teacherNote,
     }).catch((err) => console.error('WhatsApp notify error on grading:', err));
+  }
+
+  // Authoritative Cloud Persistence: Sync grade to Supabase
+  try {
+    const sbAssignments = await getAssignmentsFromSupabase();
+    for (const a of sbAssignments) {
+      const subs = a.submissions || [];
+      const sub = subs.find((s: any) => s.id === submissionId || s.studentId === submission.student.id);
+      if (sub) {
+        sub.grade = grade;
+        sub.teacherNote = teacherNote || '';
+        sub.status = 'GRADED';
+        sub.gradedAt = new Date().toISOString();
+        await syncAssignmentToSupabase(a);
+        break;
+      }
+    }
+  } catch (sbErr: any) {
+    console.warn('[gradeSubmission] Supabase sync notice:', sbErr?.message);
   }
 
   revalidatePath('/[locale]/teacher/assignments');

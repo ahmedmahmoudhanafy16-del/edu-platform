@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { broadcastLiveSessionByGrade } from '@/lib/whatsapp';
+import { syncLiveSessionToSupabase, endLiveSessionInSupabase } from '@/lib/supabase';
 import crypto from 'crypto';
 
 /**
@@ -107,6 +108,21 @@ export async function startLiveSession(classroomId: string, title: string, targe
       }
     }
 
+    // Authoritative Cloud Persistence: Sync live session directly to Supabase
+    try {
+      await syncLiveSessionToSupabase({
+        id: String(session.id),
+        title: String(session.title),
+        roomCode: String(session.roomCode),
+        targetGrade: String(session.targetGrade || ''),
+        classroomId: String(session.classroomId || ''),
+        isActive: true,
+        startedAt: session.startedAt instanceof Date ? session.startedAt.toISOString() : String(session.startedAt || new Date().toISOString()),
+      });
+    } catch (sbErr: any) {
+      console.warn('[startLiveSession] Supabase sync notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/', 'layout');
       revalidatePath('/ar/teacher/live');
@@ -154,6 +170,12 @@ export async function endLiveSession(sessionId: string) {
         endedAt: new Date(),
       },
     }).catch(() => null);
+
+    try {
+      await endLiveSessionInSupabase(sessionId);
+    } catch (sbErr: any) {
+      console.warn('[endLiveSession] Supabase end notice:', sbErr?.message);
+    }
 
     try {
       revalidatePath('/', 'layout');

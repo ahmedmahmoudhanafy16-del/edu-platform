@@ -183,6 +183,57 @@ export async function syncStudentToSupabase(studentData: {
 }
 
 /**
+ * Updates an existing student in Supabase by ID or studentCode.
+ */
+export async function updateStudentInSupabase(
+  identifier: { id?: string; student_code?: string },
+  fields: {
+    full_name?: string;
+    phone?: string | null;
+    parent_phone?: string | null;
+    grade_level?: string | null;
+    password_hash?: string;
+    is_active?: boolean;
+  }
+) {
+  if (!isSupabaseConfigured()) return null;
+  const client = getSupabaseServerClient();
+  const updatePayload: any = {
+    updated_at: new Date().toISOString(),
+  };
+  if (fields.full_name !== undefined) updatePayload.full_name = fields.full_name;
+  if (fields.phone !== undefined) updatePayload.phone = fields.phone;
+  if (fields.parent_phone !== undefined) updatePayload.parent_phone = fields.parent_phone;
+  if (fields.grade_level !== undefined) updatePayload.grade_level = fields.grade_level;
+  if (fields.password_hash !== undefined) updatePayload.password_hash = fields.password_hash;
+  if (fields.is_active !== undefined) updatePayload.is_active = fields.is_active;
+
+  try {
+    if (identifier.student_code) {
+      const { data, error } = await client
+        .from('students')
+        .update(updatePayload)
+        .eq('student_code', identifier.student_code)
+        .select()
+        .maybeSingle();
+      if (!error && data) return data;
+    }
+    if (identifier.id) {
+      const { data, error } = await client
+        .from('students')
+        .update(updatePayload)
+        .eq('id', identifier.id)
+        .select()
+        .maybeSingle();
+      if (!error && data) return data;
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] updateStudentInSupabase notice:', err?.message);
+  }
+  return null;
+}
+
+/**
  * Retrieves the teacher profile from Supabase by email or phone.
  */
 export async function getTeacherFromSupabase(identifier: string) {
@@ -718,4 +769,162 @@ export async function deleteAssignmentFromSupabase(assignmentId: string): Promis
     return false;
   }
 }
+
+export interface SupabaseLiveSession {
+  id: string;
+  title: string;
+  roomCode: string;
+  targetGrade?: string;
+  classroomId?: string;
+  isActive: boolean;
+  startedAt: string;
+  endedAt?: string;
+}
+
+/**
+ * Retrieves all live sessions from Supabase.
+ */
+export async function getLiveSessionsFromSupabase(): Promise<SupabaseLiveSession[]> {
+  if (!isSupabaseConfigured()) return [];
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    const { data, error } = await client.from('live_sessions').select('*').order('created_at', { ascending: false });
+    if (!error && Array.isArray(data)) {
+      return data.map((s: any) => ({
+        id: s.id,
+        title: s.title,
+        roomCode: s.room_code || s.roomCode,
+        targetGrade: s.target_grade || s.targetGrade || '',
+        classroomId: s.classroom_id || s.classroomId || '',
+        isActive: s.is_active !== false,
+        startedAt: s.started_at || s.startedAt || new Date().toISOString(),
+        endedAt: s.ended_at || s.endedAt,
+      }));
+    }
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const { data, error } = await client
+      .from('students')
+      .select('password_hash')
+      .eq('student_code', '__SYSTEM_LIVE_SESSIONS_STORE__')
+      .maybeSingle();
+
+    if (!error && data?.password_hash) {
+      const parsed = JSON.parse(data.password_hash);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] getLiveSessionsFromSupabase notice:', err?.message);
+  }
+
+  return [];
+}
+
+/**
+ * Saves or updates a live session in Supabase.
+ */
+export async function syncLiveSessionToSupabase(session: SupabaseLiveSession): Promise<boolean> {
+  if (!isSupabaseConfigured() || !session?.id) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    const { error } = await client.from('live_sessions').upsert({
+      id: session.id,
+      title: session.title,
+      room_code: session.roomCode,
+      target_grade: session.targetGrade || null,
+      classroom_id: session.classroomId || null,
+      is_active: session.isActive !== false,
+      started_at: session.startedAt,
+      ended_at: session.endedAt || null,
+      updated_at: new Date().toISOString(),
+    });
+    if (!error) return true;
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getLiveSessionsFromSupabase();
+    const idx = existing.findIndex((s) => s.id === session.id || s.roomCode === session.roomCode);
+    const updated = {
+      ...session,
+      startedAt: session.startedAt || new Date().toISOString(),
+    };
+    if (idx >= 0) {
+      existing[idx] = { ...existing[idx], ...updated };
+    } else {
+      existing.unshift(updated);
+    }
+
+    const jsonStr = JSON.stringify(existing);
+    const { data: updateRes } = await client
+      .from('students')
+      .update({
+        full_name: 'System Live Sessions Store',
+        password_hash: jsonStr,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_LIVE_SESSIONS_STORE__')
+      .select();
+
+    if (!updateRes || updateRes.length === 0) {
+      await client.from('students').insert({
+        student_code: '__SYSTEM_LIVE_SESSIONS_STORE__',
+        full_name: 'System Live Sessions Store',
+        password_hash: jsonStr,
+        grade_level: 'SYSTEM',
+        is_active: true,
+      });
+    }
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] syncLiveSessionToSupabase notice:', err?.message);
+    return false;
+  }
+}
+
+/**
+ * Ends a live session in Supabase.
+ */
+export async function endLiveSessionInSupabase(sessionIdOrRoomCode: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !sessionIdOrRoomCode) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: native table
+  try {
+    await client
+      .from('live_sessions')
+      .update({ is_active: false, ended_at: new Date().toISOString() })
+      .or(`id.eq.${sessionIdOrRoomCode},room_code.eq.${sessionIdOrRoomCode}`);
+  } catch {}
+
+  // Tier 2: Cloud document store
+  try {
+    const existing = await getLiveSessionsFromSupabase();
+    const updated = existing.map((s) => {
+      if (s.id === sessionIdOrRoomCode || s.roomCode === sessionIdOrRoomCode) {
+        return { ...s, isActive: false, endedAt: new Date().toISOString() };
+      }
+      return s;
+    });
+
+    await client
+      .from('students')
+      .update({
+        password_hash: JSON.stringify(updated),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_LIVE_SESSIONS_STORE__');
+    return true;
+  } catch (err: any) {
+    console.warn('[Supabase] endLiveSessionInSupabase notice:', err?.message);
+    return false;
+  }
+}
+
 

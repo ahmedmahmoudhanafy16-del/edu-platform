@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
-import { supabase, getAssignmentsFromSupabase, getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getAssignmentsFromSupabase, getClassroomsFromSupabase, getLiveSessionsFromSupabase } from '@/lib/supabase';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
@@ -105,6 +105,28 @@ export default async function StudentDashboardPage({
   } catch (err) {
     console.warn('[Student Dashboard] Database queries skipped:', err);
   }
+
+  // Authoritative Supabase active live session lookup
+  try {
+    const sbLive = await getLiveSessionsFromSupabase();
+    const activeSb = sbLive.filter((s) => s.isActive);
+    if (activeSb.length > 0) {
+      const existingRoomCodes = new Set(activeLive.map((a) => a.roomCode));
+      for (const s of activeSb) {
+        if (!existingRoomCodes.has(s.roomCode)) {
+          activeLive.push({
+            id: s.id,
+            title: s.title,
+            roomCode: s.roomCode,
+            targetGrade: s.targetGrade,
+            startedAt: new Date(s.startedAt),
+            classroom: { name: s.targetGrade || (isAr ? 'البث المباشر' : 'Live Class') },
+          });
+          existingRoomCodes.add(s.roomCode);
+        }
+      }
+    }
+  } catch (e) {}
 
   // Authoritative Supabase assignments lookup
   try {

@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherLiveClient } from './TeacherLiveClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { getClassroomsFromSupabase } from '@/lib/supabase';
+import { getClassroomsFromSupabase, getLiveSessionsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -13,6 +13,7 @@ export default async function TeacherLivePage({
 }) {
   const resolvedParams = await params;
   const locale = resolvedParams?.locale || 'ar';
+  const isAr = locale === 'ar';
 
   let teacher: any = null;
   try {
@@ -73,7 +74,44 @@ export default async function TeacherLivePage({
     }
   } catch (e) {}
 
-  const isAr = locale === 'ar';
+  try {
+    const sbLive = await getLiveSessionsFromSupabase();
+    if (sbLive && sbLive.length > 0) {
+      const activeSb = sbLive.filter((s) => s.isActive);
+      const pastSb = sbLive.filter((s) => !s.isActive);
+      const existingActiveIds = new Set(activeSessions.map((s) => s.id));
+      for (const s of activeSb) {
+        if (!existingActiveIds.has(s.id)) {
+          activeSessions.unshift({
+            id: s.id,
+            title: s.title,
+            roomCode: s.roomCode,
+            targetGrade: s.targetGrade,
+            isActive: true,
+            startedAt: new Date(s.startedAt),
+            classroom: { name: s.targetGrade || (isAr ? 'البث المباشر' : 'Live Class') },
+          });
+          existingActiveIds.add(s.id);
+        }
+      }
+      const existingPastIds = new Set(pastSessions.map((s) => s.id));
+      for (const s of pastSb) {
+        if (!existingPastIds.has(s.id)) {
+          pastSessions.push({
+            id: s.id,
+            title: s.title,
+            roomCode: s.roomCode,
+            targetGrade: s.targetGrade,
+            isActive: false,
+            startedAt: new Date(s.startedAt),
+            endedAt: s.endedAt ? new Date(s.endedAt) : new Date(),
+            classroom: { name: s.targetGrade || (isAr ? 'البث المباشر' : 'Live Class') },
+          });
+          existingPastIds.add(s.id);
+        }
+      }
+    }
+  } catch (e) {}
 
   const serializedClassrooms = (classrooms || []).map((c) => ({
     id: String(c.id || ''),

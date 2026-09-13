@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
+import { useRouter } from 'next/navigation';
 import {
   Download,
   MessageSquare,
@@ -70,6 +71,7 @@ export function TeacherReportsClient({
   classrooms?: { id: string; name: string }[];
 }) {
   const locale = useLocale();
+  const router = useRouter();
   const isAr = locale === 'ar';
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'excellent' | 'needs_attention'>('all');
@@ -227,6 +229,7 @@ Thank you for your active partnership in your student's education.`;
     } finally {
       setIsUpdating(false);
       setStudentToEdit(null);
+      router.refresh();
     }
   }
 
@@ -270,6 +273,7 @@ Thank you for your active partnership in your student's education.`;
     } finally {
       setIsDeleting(false);
       setStudentToDelete(null);
+      router.refresh();
     }
   }
 

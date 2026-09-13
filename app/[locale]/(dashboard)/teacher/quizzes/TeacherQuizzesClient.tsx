@@ -157,6 +157,7 @@ export function TeacherQuizzesClient({
         persistQuizzes(nextList);
         return nextList;
       });
+      router.refresh();
     }
   }
 

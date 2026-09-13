@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { removeDynamicStudent, updateDynamicStudent } from '@/lib/dynamic-students';
-import { deleteStudentFromSupabase, toggleStudentStatusInSupabase } from '@/lib/supabase';
+import { deleteStudentFromSupabase, toggleStudentStatusInSupabase, updateStudentInSupabase } from '@/lib/supabase';
 
 export async function toggleStudentStatus(studentId: string, isActive: boolean) {
   try {
@@ -210,6 +210,16 @@ export async function updateStudentAcademicAction(
       console.warn('[updateStudentAcademicAction] DB update notice:', dbErr?.message);
     }
 
+    // Authoritative Cloud Persistence: Sync academic update to Supabase
+    try {
+      await updateStudentInSupabase(
+        { id: studentId, student_code: studentId },
+        { grade_level: cleanGrade }
+      );
+    } catch (sbErr: any) {
+      console.warn('[updateStudentAcademicAction] Supabase update notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/[locale]/teacher/students');
       revalidatePath('/[locale]/teacher/reports');
@@ -308,6 +318,22 @@ export async function updateStudentAction(formData: {
         ...(formData.isActive !== undefined && { isActive: formData.isActive }),
       });
     } catch (dynErr) {}
+
+    // Authoritative Cloud Persistence: Sync updated student details to Supabase
+    try {
+      await updateStudentInSupabase(
+        { id: studentId, student_code: studentId },
+        {
+          ...(formData.name && { full_name: formData.name.trim() }),
+          ...(formData.phone !== undefined && { phone: formData.phone.trim() || null }),
+          ...(formData.parentPhone !== undefined && { parent_phone: formData.parentPhone.trim() || null }),
+          ...(cleanGrade && { grade_level: cleanGrade }),
+          ...(formData.isActive !== undefined && { is_active: formData.isActive }),
+        }
+      );
+    } catch (sbErr: any) {
+      console.warn('[updateStudentAction] Supabase update notice:', sbErr?.message);
+    }
 
     // 3. Dual Revalidation: Students AND Reports
     try {
