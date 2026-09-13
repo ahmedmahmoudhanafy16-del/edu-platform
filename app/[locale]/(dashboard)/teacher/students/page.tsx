@@ -95,7 +95,7 @@ export default async function TeacherStudentsPage({
   }
 
   try {
-    const { data: sbStudents } = await supabase.from('students').select('*').not('student_code', 'like', '__%');
+    const { data: sbStudents } = await supabase.from('students').select('*').not('student_code', 'like', '\\_\\_%');
     if (sbStudents && sbStudents.length > 0) {
       const existingCodes = new Set(students.map((s) => String(s.studentCode || '').toUpperCase()));
       for (const sb of sbStudents) {

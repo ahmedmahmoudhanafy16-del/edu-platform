@@ -55,7 +55,7 @@ export default async function TeacherDashboardPage({
       client
         .from('students')
         .select('*', { count: 'exact', head: true })
-        .not('student_code', 'like', '__%'),
+        .not('student_code', 'like', '\\_\\_%'),
       client
         .from('exams')
         .select('*', { count: 'exact', head: true }),

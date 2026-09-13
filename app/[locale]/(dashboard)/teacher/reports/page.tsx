@@ -78,7 +78,7 @@ export default async function TeacherReportsPage({
   try {
     const client = getSupabaseServerClient();
     const [studentsRes, attemptsRes] = await Promise.all([
-      client.from('students').select('*').not('student_code', 'like', '__%'),
+      client.from('students').select('*').not('student_code', 'like', '\\_\\_%'),
       client.from('exam_attempts').select('id, student_id, exam_id, final_score, status, completed_at, created_at, exams(id, title, total_marks, passing_score)'),
     ]);
 

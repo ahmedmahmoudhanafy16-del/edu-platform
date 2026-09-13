@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
         .from('students')
         .select('id, student_code, full_name, grade_level, is_active, password_hash, phone, parent_phone')
         .or(`student_code.eq.${cleanInput},student_code.eq.${cleanUpper},student_code.eq.${cleanLower},phone.eq.${cleanInput}`)
-        .not('student_code', 'like', '__%')
+        .not('student_code', 'like', '\\_\\_%')
         .maybeSingle();
 
       if (!sbError && student) {
