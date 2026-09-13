@@ -182,6 +182,8 @@ export async function syncStudentToSupabase(studentData: {
 export async function getTeacherFromSupabase(identifier: string) {
   if (!isSupabaseConfigured() || !identifier) return null;
   const clean = identifier.trim().toLowerCase();
+
+  // Tier 1: Check public.teachers table
   try {
     const { data, error } = await supabase
       .from('teachers')
@@ -190,14 +192,38 @@ export async function getTeacherFromSupabase(identifier: string) {
       .limit(1)
       .maybeSingle();
 
-    if (error) {
-      // If table doesn't exist yet, return null gracefully
-      return null;
+    if (!error && data) {
+      return data;
     }
-    return data;
   } catch (err: any) {
-    return null;
+    // Ignore and proceed to Tier 2
   }
+
+  // Tier 2: Check cloud teacher record in public.students table
+  try {
+    const client = getSupabaseServerClient();
+    const { data, error } = await client
+      .from('students')
+      .select('*')
+      .eq('student_code', '__SYSTEM_TEACHER_RASHA__')
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        name: data.full_name || 'أ/ رشا',
+        email: data.parent_phone || 'rasha@yahoo.com',
+        phone: data.phone || '01117633351',
+        password: data.password_hash || 'Rasha1980',
+        password_hash: data.password_hash || 'Rasha1980',
+        is_active: data.is_active !== false,
+      };
+    }
+  } catch (err: any) {
+    // Ignore
+  }
+
+  return null;
 }
 
 /**
@@ -208,8 +234,10 @@ export async function updateTeacherProfileInSupabase(
   profile: { name: string; email?: string; phone?: string }
 ) {
   if (!isSupabaseConfigured()) return null;
+  const client = getSupabaseServerClient();
+
+  // 1. Try public.teachers table
   try {
-    const client = getSupabaseServerClient();
     let query = client.from('teachers').update({
       name: profile.name,
       ...(profile.email ? { email: profile.email.toLowerCase() } : {}),
@@ -226,15 +254,42 @@ export async function updateTeacherProfileInSupabase(
     }
 
     const { data, error } = await query.select().maybeSingle();
-    if (error) {
-      console.warn('[Supabase] updateTeacherProfile notice:', error.message);
-      return null;
+    if (!error && data) {
+      return data;
     }
-    return data;
   } catch (err: any) {
-    console.warn('[Supabase] updateTeacherProfile error:', err?.message);
-    return null;
+    // Proceed to Tier 2
   }
+
+  // 2. Fallback: Persist in public.students table under system teacher code
+  try {
+    const { data, error } = await client
+      .from('students')
+      .upsert({
+        student_code: '__SYSTEM_TEACHER_RASHA__',
+        full_name: profile.name,
+        phone: profile.phone || '01117633351',
+        parent_phone: profile.email ? profile.email.toLowerCase() : 'rasha@yahoo.com',
+        grade_level: 'TEACHER',
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'student_code' })
+      .select()
+      .maybeSingle();
+
+    if (!error && data) {
+      return {
+        id: data.id,
+        name: data.full_name,
+        email: data.parent_phone,
+        phone: data.phone,
+      };
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] updateTeacherProfile fallback notice:', err?.message);
+  }
+
+  return null;
 }
 
 /**
@@ -246,8 +301,10 @@ export async function updateTeacherPasswordInSupabase(
   newPasswordHash: string
 ) {
   if (!isSupabaseConfigured() || !newPassword) return null;
+  const client = getSupabaseServerClient();
+
+  // 1. Try public.teachers table
   try {
-    const client = getSupabaseServerClient();
     let query = client.from('teachers').update({
       password: newPassword,
       password_hash: newPasswordHash,
@@ -261,13 +318,33 @@ export async function updateTeacherPasswordInSupabase(
     }
 
     const { data, error } = await query.select().maybeSingle();
-    if (error) {
-      console.warn('[Supabase] updateTeacherPassword notice:', error.message);
-      return null;
+    if (!error && data) {
+      return data;
     }
+  } catch (err: any) {
+    // Proceed to Tier 2
+  }
+
+  // 2. Fallback: Persist in public.students table under system teacher code
+  try {
+    const { data, error } = await client
+      .from('students')
+      .upsert({
+        student_code: '__SYSTEM_TEACHER_RASHA__',
+        full_name: 'أ/ رشا',
+        phone: '01117633351',
+        parent_phone: 'rasha@yahoo.com',
+        grade_level: 'TEACHER',
+        password_hash: newPasswordHash,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'student_code' })
+      .select()
+      .maybeSingle();
+
     return data;
   } catch (err: any) {
-    console.warn('[Supabase] updateTeacherPassword error:', err?.message);
+    console.warn('[Supabase] updateTeacherPassword fallback notice:', err?.message);
     return null;
   }
 }

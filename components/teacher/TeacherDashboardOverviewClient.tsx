@@ -15,11 +15,13 @@ import {
 export function TeacherDashboardOverviewClient({
   initialClassroomsCount = 0,
   initialStudentsCount = 0,
+  initialQuizzesCount = 0,
   initialAssignments = [],
   locale,
 }: {
   initialClassroomsCount?: number;
   initialStudentsCount?: number;
+  initialQuizzesCount?: number;
   initialAssignments?: AssignmentData[];
   locale: string;
 }) {
@@ -28,7 +30,8 @@ export function TeacherDashboardOverviewClient({
       try {
         const stored = localStorage.getItem('edu_classrooms');
         if (stored) {
-          return getClassroomsFromStore().length;
+          const count = getClassroomsFromStore().length;
+          return Math.max(initialClassroomsCount, count);
         }
       } catch {}
     }
@@ -40,7 +43,8 @@ export function TeacherDashboardOverviewClient({
       try {
         const stored = localStorage.getItem('edu_students');
         if (stored) {
-          return getStudentsFromStore().length;
+          const count = getStudentsFromStore().length;
+          return Math.max(initialStudentsCount, count);
         }
       } catch {}
     }
@@ -49,27 +53,38 @@ export function TeacherDashboardOverviewClient({
 
   const [assignments, setAssignments] = useState<AssignmentData[]>(() => {
     if (typeof window !== 'undefined') {
-      return getAssignments();
+      const storeItems = getAssignments();
+      if (storeItems && storeItems.length > 0) return storeItems;
     }
     return initialAssignments || [];
   });
 
-  const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
+  const [quizzesCount, setQuizzesCount] = useState<number>(() => {
     if (typeof window !== 'undefined') {
-      return getQuizzes();
+      const storeItems = getQuizzes();
+      if (storeItems && storeItems.length > 0) {
+        return Math.max(initialQuizzesCount, storeItems.length);
+      }
     }
-    return [];
+    return initialQuizzesCount;
   });
 
   useEffect(() => {
     function syncStore() {
-      setAssignments(getAssignments());
-      setQuizzes(getQuizzes());
+      const storeAssignments = getAssignments();
+      if (storeAssignments && storeAssignments.length > 0) {
+        setAssignments(storeAssignments);
+      }
+
+      const storeQuizzes = getQuizzes();
+      if (storeQuizzes && storeQuizzes.length > 0) {
+        setQuizzesCount(Math.max(initialQuizzesCount, storeQuizzes.length));
+      }
 
       try {
         const storedClassrooms = localStorage.getItem('edu_classrooms');
         if (storedClassrooms) {
-          setClassroomsCount(getClassroomsFromStore().length);
+          setClassroomsCount(Math.max(initialClassroomsCount, getClassroomsFromStore().length));
         } else {
           setClassroomsCount(initialClassroomsCount);
         }
@@ -80,7 +95,7 @@ export function TeacherDashboardOverviewClient({
       try {
         const storedStudents = localStorage.getItem('edu_students');
         if (storedStudents) {
-          setStudentsCount(getStudentsFromStore().length);
+          setStudentsCount(Math.max(initialStudentsCount, getStudentsFromStore().length));
         } else {
           setStudentsCount(initialStudentsCount);
         }
@@ -102,7 +117,7 @@ export function TeacherDashboardOverviewClient({
       window.removeEventListener('edu_students_updated', syncStore);
       window.removeEventListener('storage', syncStore);
     };
-  }, [initialClassroomsCount, initialStudentsCount]);
+  }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount]);
 
   const isAr = locale === 'ar';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
@@ -111,7 +126,7 @@ export function TeacherDashboardOverviewClient({
     { label: isAr ? 'الفصول الدراسية' : 'Classrooms', value: classroomsCount, icon: BookOpen },
     { label: isAr ? 'إجمالي الطلاب' : 'Total Students', value: studentsCount, icon: Users },
     { label: isAr ? 'الواجبات' : 'Assignments', value: assignments.length, icon: FileText },
-    { label: isAr ? 'الامتحانات' : 'Quizzes', value: quizzes.length, icon: ClipboardList },
+    { label: isAr ? 'الامتحانات' : 'Quizzes', value: quizzesCount, icon: ClipboardList },
   ];
 
   return (

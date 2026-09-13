@@ -104,8 +104,8 @@ CREATE POLICY "Allow all access to teachers" ON public.teachers FOR ALL USING (t
 
 -- إدراج الحساب الأساسي للمعلمة
 INSERT INTO public.teachers (name, email, phone, password, password_hash, is_active)
-VALUES ('أ/ رشا', 'rasha@yahoo.com', '01117633351', 'Rasha1900', '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9', true)
-ON CONFLICT (email) DO NOTHING;
+VALUES ('أ/ رشا', 'rasha@yahoo.com', '01117633351', 'Rasha1980', '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9', true)
+ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, password_hash = EXCLUDED.password_hash;
 
 NOTIFY pgrst, 'reload schema';
 

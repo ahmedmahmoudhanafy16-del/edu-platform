@@ -1764,6 +1764,13 @@ export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
       console.warn('[toggleQuizPublish] Database update skipped/relaxed:', dbErr?.message);
     }
 
+    // 3. Authoritative Supabase cloud update
+    try {
+      await supabase.from('exams').update({ is_published: Boolean(isPublished) }).eq('id', cleanId);
+    } catch (sbErr: any) {
+      console.warn('[toggleQuizPublish] Supabase update notice:', sbErr?.message);
+    }
+
     try {
       revalidatePath('/[locale]/teacher');
       revalidatePath('/teacher');
@@ -1841,6 +1848,59 @@ export async function getTeacherQuizzesAction() {
       createdAt: q.createdAt.toISOString(),
     }));
 
+    // Authoritative Supabase Cloud Sync
+    try {
+      const { data: sbExams } = await supabase
+        .from('exams')
+        .select(`
+          id,
+          title,
+          description,
+          duration_minutes,
+          passing_score,
+          total_marks,
+          is_published,
+          created_at,
+          questions ( id )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (sbExams && sbExams.length > 0) {
+        const { data: attempts } = await supabase.from('exam_attempts').select('exam_id');
+        const attemptCounts = new Map<string, number>();
+        if (attempts) {
+          for (const a of attempts) {
+            attemptCounts.set(a.exam_id, (attemptCounts.get(a.exam_id) || 0) + 1);
+          }
+        }
+
+        const existingIds = new Set(mapped.map((m) => m.id));
+        for (const e of sbExams) {
+          if (!existingIds.has(e.id)) {
+            mapped.push({
+              id: e.id,
+              title: e.title,
+              type: 'EXAM',
+              duration: e.duration_minutes || 30,
+              passingScore: Number(e.passing_score) || 50,
+              accessCode: '',
+              isCodeRequired: false,
+              isPublished: e.is_published !== false,
+              grade: '',
+              classroomId: '',
+              classroomName: 'الامتحان السحابي المركزي',
+              questionsCount: (e.questions || []).length,
+              resultsCount: attemptCounts.get(e.id) || 0,
+              createdAt: e.created_at || new Date().toISOString(),
+            });
+            existingIds.add(e.id);
+          }
+        }
+      }
+    } catch (sbErr: any) {
+      console.warn('[getTeacherQuizzesAction] Supabase notice:', sbErr?.message);
+    }
+
     return { success: true, quizzes: mapped };
   } catch (err: any) {
     console.error('[getTeacherQuizzesAction Error]:', err);
@@ -1894,6 +1954,73 @@ export async function getStudentQuizzesAction(studentId?: string) {
       result: resultsMap.get(q.id) || null,
       isCompleted: resultsMap.has(q.id),
     }));
+
+    // Authoritative Supabase Cloud Sync
+    try {
+      const { data: sbExams } = await supabase
+        .from('exams')
+        .select(`
+          id,
+          title,
+          description,
+          duration_minutes,
+          passing_score,
+          total_marks,
+          is_published,
+          questions ( id )
+        `)
+        .eq('is_published', true)
+        .order('created_at', { ascending: false });
+
+      if (sbExams && sbExams.length > 0) {
+        const sbAttemptsMap = new Map<string, any>();
+        if (studentId) {
+          const { data: sbAttempts } = await supabase
+            .from('exam_attempts')
+            .select('id, exam_id, final_score, total_score, status, completed_at')
+            .eq('student_id', studentId);
+
+          if (sbAttempts) {
+            for (const a of sbAttempts) {
+              sbAttemptsMap.set(a.exam_id, a);
+            }
+          }
+        }
+
+        const existingIds = new Set(mapped.map((m) => m.id));
+        for (const e of sbExams) {
+          if (!existingIds.has(e.id)) {
+            const attempt = sbAttemptsMap.get(e.id);
+            mapped.push({
+              id: e.id,
+              title: e.title,
+              type: 'EXAM',
+              duration: e.duration_minutes || 30,
+              passingScore: Number(e.passing_score) || 50,
+              accessCode: '',
+              isCodeRequired: false,
+              grade: '',
+              questionsCount: (e.questions || []).length,
+              classroomName: 'الامتحان المركزي',
+              result: attempt
+                ? {
+                    id: attempt.id,
+                    quizId: e.id,
+                    totalScore: Number(attempt.final_score) || 0,
+                    maxScore: Number(e.total_marks) || 100,
+                    isPassed: Number(attempt.final_score) >= Number(e.passing_score),
+                    submittedAt: attempt.completed_at,
+                  }
+                : null,
+              isCompleted: Boolean(attempt),
+            });
+            existingIds.add(e.id);
+          }
+        }
+      }
+    } catch (sbErr: any) {
+      console.warn('[getStudentQuizzesAction] Supabase notice:', sbErr?.message);
+    }
 
     return { success: true, quizzes: mapped };
   } catch (err: any) {

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { Wifi, Ticket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getAuthenticatedTeacher } from '@/lib/auth';
@@ -21,6 +22,7 @@ export default async function TeacherDashboardPage({
 
   let classroomsCount = 0;
   let studentsCount = 0;
+  let quizzesCount = 0;
   let activeLive: any[] = [];
   let recentAssignments: any[] = [];
 
@@ -44,6 +46,26 @@ export default async function TeacherDashboardPage({
     recentAssignments = assigns || [];
   } catch (err) {
     console.warn('[Teacher Dashboard] DB queries cold on Vercel:', err);
+  }
+
+  // Authoritative Supabase Cloud counts
+  try {
+    const { count: sbStudentCount } = await supabase
+      .from('students')
+      .select('*', { count: 'exact', head: true })
+      .not('student_code', 'like', '__%');
+    if (typeof sbStudentCount === 'number') {
+      studentsCount = Math.max(studentsCount, sbStudentCount);
+    }
+
+    const { count: sbQuizCount } = await supabase
+      .from('exams')
+      .select('*', { count: 'exact', head: true });
+    if (typeof sbQuizCount === 'number') {
+      quizzesCount = sbQuizCount;
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Dashboard] Supabase counts notice:', sbErr);
   }
 
   const serializedAssignments = (recentAssignments || []).map((a) => ({
@@ -112,6 +134,7 @@ export default async function TeacherDashboardPage({
       <TeacherDashboardOverviewClient
         initialClassroomsCount={classroomsCount}
         initialStudentsCount={studentsCount}
+        initialQuizzesCount={quizzesCount}
         initialAssignments={serializedAssignments}
         locale={locale}
       />

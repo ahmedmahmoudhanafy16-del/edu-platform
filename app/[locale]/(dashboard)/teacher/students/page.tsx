@@ -80,11 +80,12 @@ export default async function TeacherStudentsPage({
 
   // Authoritative Supabase Cloud Sync: Ensure all registered students appear across all devices
   try {
-    const { data: sbStudents } = await supabase.from('students').select('*');
+    const { data: sbStudents } = await supabase.from('students').select('*').not('student_code', 'like', '__%');
     if (sbStudents && sbStudents.length > 0) {
       const existingCodes = new Set(students.map((s) => String(s.studentCode || '').toUpperCase()));
       for (const sb of sbStudents) {
         const code = String(sb.student_code || '').toUpperCase();
+        if (code.startsWith('__')) continue;
         if (!existingCodes.has(code)) {
           students.push({
             id: sb.id,

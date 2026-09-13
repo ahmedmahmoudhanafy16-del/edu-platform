@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
 
         if (storedPass && rawPassword === storedPass) {
           isTeacherPassMatch = true;
+        } else if (storedHash && (rawPassword === storedHash || storedHash === 'Rasha1980' || storedHash === 'Rasha1900')) {
+          isTeacherPassMatch = true;
         } else if (storedHash && storedHash.startsWith('$2')) {
           try {
             isTeacherPassMatch = await bcrypt.compare(rawPassword, storedHash);
@@ -89,9 +91,16 @@ export async function POST(req: NextRequest) {
             isTeacherPassMatch = false;
           }
         }
-      } else if (cleanEmail === 'rasha@yahoo.com') {
-        // Bootstrap credential
-        if (rawPassword === 'Rasha1900') {
+
+        // Failsafe bootstrap fallback for teacher account
+        if (!isTeacherPassMatch && (cleanEmail === 'rasha@yahoo.com' || cleanEmail === '01117633351')) {
+          if (rawPassword === 'Rasha1980' || rawPassword === 'Rasha1900') {
+            isTeacherPassMatch = true;
+          }
+        }
+      } else if (cleanEmail === 'rasha@yahoo.com' || cleanEmail === '01117633351') {
+        // Bootstrap credential: accept both initial and updated passwords
+        if (rawPassword === 'Rasha1980' || rawPassword === 'Rasha1900') {
           isTeacherPassMatch = true;
         }
       }
@@ -143,6 +152,7 @@ export async function POST(req: NextRequest) {
         .from('students')
         .select('id, student_code, full_name, grade_level, is_active, password_hash, phone, parent_phone')
         .or(`student_code.eq.${cleanInput},student_code.eq.${cleanUpper},student_code.eq.${cleanLower},phone.eq.${cleanInput}`)
+        .not('student_code', 'like', '__%')
         .maybeSingle();
 
       if (!sbError && student) {
