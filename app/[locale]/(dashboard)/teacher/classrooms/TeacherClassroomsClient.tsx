@@ -40,12 +40,20 @@ function countStudentsForClassroom(c: ClassroomItem, allStudents: any[]): number
     // 1. Direct ID match
     if (s.classroomId && (s.classroomId === c.id || s.classroom === c.id)) return true;
     if (s.classroom && s.classroom === c.id) return true;
-    // 2. Name or Grade match (e.g. "الصف الرابع الابتدائي" or "الصف الثالث الإعدادي")
+    // 2. Name or Grade match (e.g. "الصف الرابع الابتدائي" or "Primary 4")
     if (c.name) {
       const cName = c.name.trim();
+      const sGrade = (s.grade || s.gradeLevel || '').trim();
       if (s.classroom && typeof s.classroom === 'string' && s.classroom.trim() === cName) return true;
-      if (s.grade && typeof s.grade === 'string' && (cName.includes(s.grade.trim()) || s.grade.trim().includes(cName))) return true;
-      if (s.gradeLevel && typeof s.gradeLevel === 'string' && (cName.includes(s.gradeLevel.trim()) || s.gradeLevel.trim().includes(cName))) return true;
+      if (sGrade && (cName.includes(sGrade) || sGrade.includes(cName))) return true;
+      if (
+        (sGrade.includes('الرابع') && (cName.includes('Primary 4') || cName.includes('Grade 4') || cName.includes('الرابع'))) ||
+        (sGrade.includes('الخامس') && (cName.includes('Primary 5') || cName.includes('Grade 5') || cName.includes('الخامس'))) ||
+        (sGrade.includes('السادس') && (cName.includes('Primary 6') || cName.includes('Grade 6') || cName.includes('السادس'))) ||
+        (sGrade.includes('الثالث الإعدادي') && (cName.includes('Prep 3') || cName.includes('Grade 9') || cName.includes('الثالث الإعدادي'))) ||
+        (sGrade.includes('الثاني الإعدادي') && (cName.includes('Prep 2') || cName.includes('Grade 8') || cName.includes('الثاني الإعدادي'))) ||
+        (sGrade.includes('الأول الإعدادي') && (cName.includes('Prep 1') || cName.includes('Grade 7') || cName.includes('الأول الإعدادي')))
+      ) return true;
     }
     return false;
   }).length;

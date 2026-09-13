@@ -134,6 +134,7 @@ export function TeacherAssignmentsClient({
         persistAssignments(nextList);
         return nextList;
       });
+      router.refresh();
     }
   }
 
@@ -163,7 +164,9 @@ export function TeacherAssignmentsClient({
         : (isAr ? 'تم فتح تسليم الواجب للطلاب بنجاح' : 'Assignment submissions opened')
     );
 
-    toggleAssignmentLockAction(item.id, nextLocked).catch(() => null);
+    toggleAssignmentLockAction(item.id, nextLocked).then(() => {
+      router.refresh();
+    }).catch(() => null);
   }
 
   async function handleConfirmDelete() {
@@ -186,7 +189,9 @@ export function TeacherAssignmentsClient({
     toast.success(isAr ? 'تم حذف الواجب بنجاح' : 'Assignment deleted successfully');
 
     // 3. Silent server action backup (fail-safe)
-    deleteAssignmentAction(targetId).catch(() => null);
+    deleteAssignmentAction(targetId).then(() => {
+      router.refresh();
+    }).catch(() => null);
   }
 
   return (

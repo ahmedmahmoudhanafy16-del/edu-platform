@@ -63,6 +63,18 @@ const ACADEMIC_GRADES = [
   'الصف الرابع الابتدائي',
 ];
 
+const GRADE_NAMES_EN: Record<string, string> = {
+  'الصف الثالث الإعدادي': 'Prep 3 (Grade 9)',
+  'الصف الثاني الإعدادي': 'Prep 2 (Grade 8)',
+  'الصف الأول الإعدادي': 'Prep 1 (Grade 7)',
+  'الصف الثالث الثانوي': 'Secondary 3 (Grade 12)',
+  'الصف الثاني الثانوي': 'Secondary 2 (Grade 11)',
+  'الصف الأول الثانوي': 'Secondary 1 (Grade 10)',
+  'الصف السادس الابتدائي': 'Primary 6 (Grade 6)',
+  'الصف الخامس الابتدائي': 'Primary 5 (Grade 5)',
+  'الصف الرابع الابتدائي': 'Primary 4 (Grade 4)',
+};
+
 function computeDynamicAverages(studentList: Student[]): Student[] {
   if (typeof window === 'undefined') return studentList;
   try {
@@ -111,44 +123,54 @@ function computeDynamicAverages(studentList: Student[]): Student[] {
 function PasswordCell({
   password,
   onResetClick,
+  isAr,
 }: {
   password: string;
   onResetClick?: () => void;
+  isAr?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
+  const hasPin = Boolean(password && password.trim());
   return (
     <div className="inline-flex items-center gap-1 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded">
-      <span className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider min-w-[32px] text-center">
-        {visible ? password : '••••'}
+      <span
+        className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 tracking-wider min-w-[32px] text-center"
+        title={hasPin ? undefined : (isAr ? 'مشفرة في السيرفر (انقر على المفتاح لإعادة التعيين)' : 'Encrypted on server (Click key to reset)')}
+      >
+        {hasPin ? (visible ? password : '••••') : '••••'}
       </span>
-      <button
-        type="button"
-        onClick={() => setVisible((v) => !v)}
-        title={visible ? 'إخفاء' : 'إظهار'}
-        className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-      >
-        {visible ? (
-          <EyeOff size={13} className="text-muted-foreground" />
-        ) : (
-          <Eye size={13} className="text-muted-foreground" />
-        )}
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          navigator.clipboard.writeText(password);
-          toast.success('تم نسخ كلمة المرور');
-        }}
-        title="نسخ"
-        className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-      >
-        <Copy size={13} className="text-muted-foreground" />
-      </button>
+      {hasPin && (
+        <>
+          <button
+            type="button"
+            onClick={() => setVisible((v) => !v)}
+            title={visible ? (isAr ? 'إخفاء' : 'Hide') : (isAr ? 'إظهار' : 'Show')}
+            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            {visible ? (
+              <EyeOff size={13} className="text-muted-foreground" />
+            ) : (
+              <Eye size={13} className="text-muted-foreground" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(password);
+              toast.success(isAr ? 'تم نسخ كلمة المرور' : 'Password copied');
+            }}
+            title={isAr ? 'نسخ' : 'Copy'}
+            className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+          >
+            <Copy size={13} className="text-muted-foreground" />
+          </button>
+        </>
+      )}
       {onResetClick && (
         <button
           type="button"
           onClick={onResetClick}
-          title="تغيير / إعادة تعيين كلمة المرور"
+          title={isAr ? 'تغيير / إعادة تعيين كلمة المرور' : 'Reset / Change password'}
           className="p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900/50 rounded text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
         >
           <KeyRound size={13} />
@@ -366,7 +388,18 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
         sGrade.includes(query) ||
         sClsName.includes(query);
 
-      const matchGrade = filterGrade === 'ALL' || sGrade === filterGrade;
+      const matchGrade =
+        filterGrade === 'ALL' ||
+        sGrade === filterGrade ||
+        (filterGrade.includes('الرابع') && (sGrade.includes('Primary 4') || sGrade.includes('Grade 4') || sGrade.includes('الرابع'))) ||
+        (filterGrade.includes('الخامس') && (sGrade.includes('Primary 5') || sGrade.includes('Grade 5') || sGrade.includes('الخامس'))) ||
+        (filterGrade.includes('السادس') && (sGrade.includes('Primary 6') || sGrade.includes('Grade 6') || sGrade.includes('السادس'))) ||
+        (filterGrade.includes('الأول الإعدادي') && (sGrade.includes('Prep 1') || sGrade.includes('Grade 7') || sGrade.includes('الأول الإعدادي'))) ||
+        (filterGrade.includes('الثاني الإعدادي') && (sGrade.includes('Prep 2') || sGrade.includes('Grade 8') || sGrade.includes('الثاني الإعدادي'))) ||
+        (filterGrade.includes('الثالث الإعدادي') && (sGrade.includes('Prep 3') || sGrade.includes('Grade 9') || sGrade.includes('الثالث الإعدادي'))) ||
+        (filterGrade.includes('الأول الثانوي') && (sGrade.includes('Secondary 1') || sGrade.includes('Grade 10') || sGrade.includes('الأول الثانوي'))) ||
+        (filterGrade.includes('الثاني الثانوي') && (sGrade.includes('Secondary 2') || sGrade.includes('Grade 11') || sGrade.includes('الثاني الثانوي'))) ||
+        (filterGrade.includes('الثالث الثانوي') && (sGrade.includes('Secondary 3') || sGrade.includes('Grade 12') || sGrade.includes('الثالث الثانوي')));
       const matchClassroom =
         filterClassroom === 'ALL' ||
         sClsId === filterClassroom ||
@@ -593,7 +626,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
             <option value="ALL">{isAr ? 'جميع السنوات الدراسية' : 'All Academic Grades'}</option>
             {ACADEMIC_GRADES.map((g) => (
               <option key={g} value={g}>
-                {g}
+                {isAr ? g : (GRADE_NAMES_EN[g] || g)}
               </option>
             ))}
           </select>
@@ -708,6 +741,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                     <td className={tdClass + ' text-center'}>
                       <PasswordCell
                         password={plainPin}
+                        isAr={isAr}
                         onResetClick={() => {
                           setStudentToResetPassword(s);
                           const existingPins = students.filter((st) => st.id !== s.id).map((st) => st.defaultPassword || st.password);
@@ -953,7 +987,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
                 >
                   {ACADEMIC_GRADES.map((g) => (
                     <option key={g} value={g}>
-                      {g}
+                      {isAr ? g : (GRADE_NAMES_EN[g] || g)}
                     </option>
                   ))}
                 </select>
