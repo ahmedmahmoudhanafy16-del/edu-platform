@@ -18,7 +18,7 @@ export function isSupabaseConfigured(): boolean {
     supabaseUrl &&
     supabaseAnonKey &&
     supabaseAnonKey !== 'YOUR_SUPABASE_ANON_KEY_HERE' &&
-    supabaseAnonKey.startsWith('ey')
+    (supabaseAnonKey.startsWith('ey') || supabaseAnonKey.startsWith('sb_'))
   );
 }
 
@@ -40,7 +40,7 @@ export const supabase = createClient(supabaseUrl, effectiveKey, {
  */
 export function getSupabaseServerClient() {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (serviceRoleKey && serviceRoleKey.startsWith('ey')) {
+  if (serviceRoleKey && (serviceRoleKey.startsWith('ey') || serviceRoleKey.startsWith('sb_'))) {
     return createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         persistSession: false,
