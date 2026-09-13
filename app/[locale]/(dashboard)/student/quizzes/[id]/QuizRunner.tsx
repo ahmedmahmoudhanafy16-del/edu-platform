@@ -147,44 +147,6 @@ export function QuizRunner({
     } catch {}
   }, [studentId, isAr]);
 
-  // 2. Client-Side Synchronisation with LocalStorage to load real teacher-configured questions immediately
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      const stored = localStorage.getItem('edu_quizzes');
-      if (stored) {
-        const parsedQuizzes: any[] = JSON.parse(stored);
-        if (Array.isArray(parsedQuizzes) && parsedQuizzes.length > 0) {
-          const match = parsedQuizzes.find(
-            (q) =>
-              q.id === quiz.id ||
-              q.accessCode === quiz.id ||
-              (quiz.accessCode && q.accessCode?.trim().toUpperCase() === quiz.accessCode.trim().toUpperCase())
-          );
-
-          if (match) {
-            setActiveQuiz((prev) => ({
-              ...prev,
-              title: match.title || prev.title,
-              duration: Number(match.duration) || prev.duration,
-            }));
-
-            if (Array.isArray(match.questions) && match.questions.length > 0) {
-              const syncedQuestions = normalizeQuestions(
-                match.questions,
-                studentId,
-                isAr
-              );
-              setQuestions(syncedQuestions);
-            }
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[QuizRunner] Local storage sync error:', err);
-    }
-  }, [mounted, quiz.id, quiz.accessCode, studentId, isAr]);
-
   // Restore autosaved answers
   useEffect(() => {
     if (!mounted) return;
@@ -248,7 +210,14 @@ export function QuizRunner({
         const calculatedEarned = clientReviewQuestions.reduce((acc: number, q: any) => acc + (Number(q.earnedScore) || 0), 0);
         const calculatedMax = clientReviewQuestions.reduce((acc: number, q: any) => acc + (Number(q.maxScore) || 0), 0);
 
-        if (!res || !res.success) {
+        if (res && !res.success) {
+          toast.error(res.error || (isAr ? 'فشل تسليم الامتحان' : 'Failed to submit exam'));
+          setSubmitting(false);
+          isSubmitting.current = false;
+          return;
+        }
+
+        if (!res) {
           res = {
             success: true,
             autoScore: calculatedEarned,
@@ -260,24 +229,6 @@ export function QuizRunner({
             reviewQuestions: clientReviewQuestions,
           };
         }
-
-        // Increment resultsCount on teacher quizzes list
-        try {
-          const currentQuizzes: any[] = JSON.parse(localStorage.getItem('edu_quizzes') || '[]');
-          if (Array.isArray(currentQuizzes)) {
-            const targetId = activeQuiz.id || quiz.id;
-            const updatedQuizzes = currentQuizzes.map((q) => {
-              if (q.id === targetId || q.accessCode === targetId) {
-                return {
-                  ...q,
-                  resultsCount: (q.resultsCount || 0) + 1,
-                };
-              }
-              return q;
-            });
-            localStorage.setItem('edu_quizzes', JSON.stringify(updatedQuizzes));
-          }
-        } catch (e) {}
 
         const finalReviewQuestions =
           res.reviewQuestions && res.reviewQuestions.length === questions.length

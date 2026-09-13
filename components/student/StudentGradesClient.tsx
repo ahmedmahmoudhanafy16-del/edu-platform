@@ -76,6 +76,11 @@ export function StudentGradesClient({
           (r) => !r.quizId || (!deletedSet.has(r.quizId) && (!r.id || !deletedSet.has(r.id)))
         );
 
+        if (sanitizedInitial && sanitizedInitial.length > 0) {
+          setResults(sanitizedInitial);
+          return;
+        }
+
         let currentTargetId = effectiveStudent.id || studentId || '';
         if (!currentTargetId && typeof window !== 'undefined') {
           try {

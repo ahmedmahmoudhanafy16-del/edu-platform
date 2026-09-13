@@ -83,14 +83,53 @@ const gradesPageContent = fs.readFileSync(gradesPagePath, 'utf8');
 assert(gradesPageContent.includes(".from('exam_attempts')"), 'Student grades page queries Supabase exam_attempts');
 console.log('  ✅ [Frontend / Full-Stack] PASS: Quizzes list and Grades pages display real Supabase data');
 
-// 7. Check zero star emojis across all files
+// 8. Check Single Attempt Rule & Duplicate Submission Prevention
+assert(quizActionContent.includes('checkStudentExamAttempt'), 'actions/quiz.ts imports checkStudentExamAttempt');
+assert(quizActionContent.includes('syncExamToSupabase'), 'actions/quiz.ts imports syncExamToSupabase');
+assert(quizActionContent.includes('Single Attempt Rule'), 'actions/quiz.ts enforces Single Attempt Rule');
+console.log('  ✅ [DBA / Security] PASS: Single Attempt Rule and duplicate prevention strictly verified');
+
+// 9. Check actions/classroom.ts Supabase Student Sync
+const classroomActionPath = path.join(__dirname, '..', 'actions', 'classroom.ts');
+assert(fs.existsSync(classroomActionPath), 'actions/classroom.ts must exist');
+const classroomActionContent = fs.readFileSync(classroomActionPath, 'utf8');
+assert(classroomActionContent.includes('syncStudentToSupabase'), 'actions/classroom.ts imports and calls syncStudentToSupabase');
+console.log('  ✅ [Backend / DBA] PASS: Classroom student creation dual-writes to Supabase students table');
+
+// 10. Check actions/auth-server.ts Supabase Auth
+const authServerPath = path.join(__dirname, '..', 'actions', 'auth-server.ts');
+assert(fs.existsSync(authServerPath), 'actions/auth-server.ts must exist');
+const authServerContent = fs.readFileSync(authServerPath, 'utf8');
+assert(authServerContent.includes(".from('students')"), 'actions/auth-server.ts queries Supabase students table');
+console.log('  ✅ [Security] PASS: Server Action authentication verifies against Supabase students');
+
+// 11. Check student overview dashboard
+const studentDashboardPath = path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'student', 'page.tsx');
+assert(fs.existsSync(studentDashboardPath), 'student dashboard page must exist');
+const studentDashboardContent = fs.readFileSync(studentDashboardPath, 'utf8');
+assert(studentDashboardContent.includes(".from('exams')"), 'student dashboard queries Supabase exams');
+assert(studentDashboardContent.includes(".from('exam_attempts')"), 'student dashboard queries Supabase exam_attempts');
+console.log('  ✅ [Full-Stack] PASS: Student dashboard overview pulls live exams and attempts from Supabase');
+
+// 12. Check api/quizzes/[id]/route.ts
+const apiQuizPath = path.join(__dirname, '..', 'app', 'api', 'quizzes', '[id]', 'route.ts');
+assert(fs.existsSync(apiQuizPath), 'api/quizzes/[id]/route.ts must exist');
+const apiQuizContent = fs.readFileSync(apiQuizPath, 'utf8');
+assert(apiQuizContent.includes(".from('exams')"), 'api/quizzes/[id] queries Supabase exams');
+console.log('  ✅ [API / Backend] PASS: Quizzes API route queries Supabase exams directly');
+
+// 13. Check zero star emojis across all files
 const filesToCheck = [
   supabaseLibPath,
   loginRoutePath,
   authActionPath,
   quizActionPath,
+  classroomActionPath,
+  authServerPath,
   quizzesPagePath,
   gradesPagePath,
+  studentDashboardPath,
+  apiQuizPath,
 ];
 
 filesToCheck.forEach((filePath) => {

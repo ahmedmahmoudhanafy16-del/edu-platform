@@ -95,52 +95,56 @@ export default function QuizReviewPage() {
 
     async function loadReviewData() {
       try {
-        // 1. Search in local storage for existing submitted result
-        const storedResults = localStorage.getItem(RESULTS_KEY);
         let foundResult: any = null;
 
-        if (storedResults) {
-          const parsed: any[] = JSON.parse(storedResults);
-          if (Array.isArray(parsed)) {
-            foundResult = parsed.find(
-              (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
-            );
+        // 1. Primary Authoritative Cloud Fetch: getStudentQuizResultAction (Supabase PostgreSQL)
+        try {
+          const currentStudentId = studentInfo?.studentCode || studentInfo?.phone || '';
+          const serverRes = await getStudentQuizResultAction(quizId, currentStudentId);
+          if (serverRes.success && serverRes.result) {
+            foundResult = {
+              ...serverRes.result,
+              reviewQuestions: [],
+            };
           }
-        }
+        } catch (serverErr) {}
 
-        // 1.1 Fallback to server PostgreSQL if not in localStorage (cross-device review support)
+        // 1.1 Local storage fallback if server lookup had a network issue
         if (!foundResult) {
           try {
-            const currentStudentId = studentInfo?.studentCode || studentInfo?.phone || '';
-            const serverRes = await getStudentQuizResultAction(quizId, currentStudentId);
-            if (serverRes.success && serverRes.result) {
-              foundResult = {
-                ...serverRes.result,
-                reviewQuestions: [],
-              };
+            const storedResults = localStorage.getItem(RESULTS_KEY);
+            if (storedResults) {
+              const parsed: any[] = JSON.parse(storedResults);
+              if (Array.isArray(parsed)) {
+                foundResult = parsed.find(
+                  (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
+                );
+              }
             }
-          } catch (serverErr) {}
+          } catch (e) {}
         }
 
-        // 2. Fetch quiz details if reviewQuestions are missing or result not found
+        // 2. Fetch authoritative quiz details for review questions
         let quizDetails: any = null;
-        const storedQuizzes = localStorage.getItem(QUIZZES_KEY);
-        if (storedQuizzes) {
-          const parsedQuizzes: any[] = JSON.parse(storedQuizzes);
-          if (Array.isArray(parsedQuizzes)) {
-            quizDetails = parsedQuizzes.find(
-              (q) => q.id === quizId || q.accessCode === quizId
-            );
+        try {
+          const apiRes = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}`);
+          if (apiRes.ok) {
+            const apiJson = await apiRes.json();
+            if (apiJson.success && apiJson.quiz) {
+              quizDetails = apiJson.quiz;
+            }
           }
-        }
+        } catch (e) {}
 
         if (!quizDetails) {
           try {
-            const apiRes = await fetch(`/api/quizzes/${quizId}`);
-            if (apiRes.ok) {
-              const apiJson = await apiRes.json();
-              if (apiJson.success && apiJson.quiz) {
-                quizDetails = apiJson.quiz;
+            const storedQuizzes = localStorage.getItem(QUIZZES_KEY);
+            if (storedQuizzes) {
+              const parsedQuizzes: any[] = JSON.parse(storedQuizzes);
+              if (Array.isArray(parsedQuizzes)) {
+                quizDetails = parsedQuizzes.find(
+                  (q) => q.id === quizId || q.accessCode === quizId
+                );
               }
             }
           } catch (e) {}

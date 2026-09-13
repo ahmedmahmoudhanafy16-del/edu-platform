@@ -50,3 +50,128 @@ export function getSupabaseServerClient() {
   }
   return supabase;
 }
+
+/**
+ * Checks whether a student has already completed a specific exam in Supabase.
+ */
+export async function checkStudentExamAttempt(studentId: string, examId: string) {
+  if (!isSupabaseConfigured() || !studentId || !examId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('exam_attempts')
+      .select('id, student_id, exam_id, final_score, status, completed_at, student_answers')
+      .eq('exam_id', examId)
+      .eq('student_id', studentId)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Supabase] checkStudentExamAttempt notice:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err: any) {
+    console.warn('[Supabase] checkStudentExamAttempt error:', err?.message);
+    return null;
+  }
+}
+
+/**
+ * Inserts or updates an exam and its questions into Supabase.
+ */
+export async function syncExamToSupabase(examData: {
+  id?: string;
+  title: string;
+  description?: string;
+  duration_minutes: number;
+  passing_score: number;
+  total_marks: number;
+  is_published?: boolean;
+  questions?: Array<{
+    question_text: string;
+    options: string[];
+    correct_answer?: string;
+    score: number;
+    order_index: number;
+  }>;
+}) {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data: exam, error: examErr } = await supabase
+      .from('exams')
+      .upsert({
+        ...(examData.id ? { id: examData.id } : {}),
+        title: examData.title,
+        description: examData.description || '',
+        duration_minutes: examData.duration_minutes,
+        passing_score: examData.passing_score,
+        total_marks: examData.total_marks,
+        is_published: examData.is_published !== false,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (examErr || !exam?.id) {
+      console.warn('[Supabase] syncExamToSupabase error:', examErr?.message);
+      return null;
+    }
+
+    if (examData.questions && examData.questions.length > 0) {
+      // Delete old questions if updating
+      await supabase.from('questions').delete().eq('exam_id', exam.id);
+
+      const questionsToInsert = examData.questions.map((q, idx) => ({
+        exam_id: exam.id,
+        question_text: q.question_text,
+        options: q.options,
+        correct_answer: q.correct_answer || '',
+        score: q.score || 1,
+        order_index: q.order_index || idx + 1,
+      }));
+
+      await supabase.from('questions').insert(questionsToInsert);
+    }
+
+    return exam;
+  } catch (err: any) {
+    console.warn('[Supabase] syncExamToSupabase fatal:', err?.message);
+    return null;
+  }
+}
+
+/**
+ * Inserts or updates a student into Supabase students table.
+ */
+export async function syncStudentToSupabase(studentData: {
+  student_code: string;
+  full_name: string;
+  phone?: string;
+  parent_phone?: string;
+  grade_level?: string;
+  password_hash: string;
+  is_active?: boolean;
+}) {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const { data, error } = await supabase
+      .from('students')
+      .upsert({
+        student_code: studentData.student_code,
+        full_name: studentData.full_name,
+        phone: studentData.phone || null,
+        parent_phone: studentData.parent_phone || null,
+        grade_level: studentData.grade_level || null,
+        password_hash: studentData.password_hash,
+        is_active: studentData.is_active !== false,
+      }, { onConflict: 'student_code' })
+      .select('id, student_code')
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Supabase] syncStudentToSupabase notice:', error.message);
+    }
+    return data;
+  } catch (err: any) {
+    console.warn('[Supabase] syncStudentToSupabase fatal:', err?.message);
+    return null;
+  }
+}

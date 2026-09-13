@@ -8,7 +8,7 @@ import {
   memoryRetakeCodes,
   isDatabaseReadOnlyError,
 } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, checkStudentExamAttempt, syncExamToSupabase } from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { requireStudentOwnership, requireRole } from '@/lib/auth';
@@ -142,10 +142,21 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
           } catch (e) {}
         }
 
+        // Supabase central exam_attempts verification (Single Attempt Rule)
+        if (!hasCompleted) {
+          try {
+            const sbAttempt = await checkStudentExamAttempt(cleanStudent, quiz.id);
+            if (sbAttempt && (sbAttempt.status === 'completed' || sbAttempt.final_score !== null)) {
+              hasCompleted = true;
+            }
+          } catch (e) {}
+        }
+
         if (hasCompleted) {
           return {
             success: false,
             error: 'لقد أتممت هذا الاختبار بالفعل ولا يمكنك دخوله مرة أخرى إلا بتصريح من المعلم. يرجى طلب كود إعادة (Retake Code) من معلمك.',
+            isCompleted: true,
           };
         }
       }
@@ -702,6 +713,21 @@ export async function submitQuizAnswers(
       console.warn('[submitQuizAnswers] Ownership check skipped:', err);
     }
 
+    // 1b. Enforce Single Attempt Rule (Duplicate Submission Prevention via Supabase)
+    if (studentId) {
+      const cleanStudent = studentId.trim();
+      try {
+        const sbAttempt = await checkStudentExamAttempt(cleanStudent, quizId);
+        if (sbAttempt && (sbAttempt.status === 'completed' || sbAttempt.final_score !== null)) {
+          return {
+            success: false,
+            error: 'لقد أتممت هذا الامتحان مسبقاً وتم رصد درجتك في النظام السحابي، ولا يمكن إعادة تسليمه.',
+            isCompleted: true,
+          };
+        }
+      } catch (e) {}
+    }
+
     // 2. Format answers safely into structured array
     let answersList: { questionId: string; answerText: string }[] = [];
     if (Array.isArray(answers)) {
@@ -994,18 +1020,32 @@ export async function submitQuizAnswers(
 
       const finalCalculatedScore = hasEssay ? autoScore : (resultPayload.totalScore ?? autoScore);
 
-      await supabase
-        .from('exam_attempts')
-        .upsert({
-          student_id: studentId,
-          exam_id: quizId,
-          student_answers: answersMap,
-          final_score: finalCalculatedScore,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        }, { onConflict: 'student_id,exam_id' });
+      // Check if attempt exists in Supabase
+      const existingAttempt = await checkStudentExamAttempt(studentId, quizId);
+      if (existingAttempt?.id) {
+        await supabase
+          .from('exam_attempts')
+          .update({
+            student_answers: answersMap,
+            final_score: finalCalculatedScore,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', existingAttempt.id);
+      } else {
+        await supabase
+          .from('exam_attempts')
+          .insert({
+            student_id: studentId,
+            exam_id: quizId,
+            student_answers: answersMap,
+            final_score: finalCalculatedScore,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+          });
+      }
     } catch (sbAttemptErr: any) {
-      console.warn('[submitQuizAnswers] Supabase exam_attempts upsert notice:', sbAttemptErr?.message);
+      console.warn('[submitQuizAnswers] Supabase exam_attempts save notice:', sbAttemptErr?.message);
     }
 
     // 6. Update global memory store
@@ -1259,6 +1299,47 @@ export async function createQuiz(data: {
       }
     }
 
+    // 5b. Sync to Supabase central 'exams' and 'questions' tables
+    try {
+      if (quiz) {
+        const totalMarks = (quiz.questions || []).reduce(
+          (acc: number, q: any) => acc + (Number(q.maxScore) || 1),
+          0
+        );
+        const questionsForSupabase = (quiz.questions || []).map((q: any, idx: number) => {
+          let opts: string[] = [];
+          if (Array.isArray(q.options)) opts = q.options;
+          else if (typeof q.options === 'string') {
+            try {
+              opts = JSON.parse(q.options);
+            } catch {
+              opts = [q.options];
+            }
+          }
+          return {
+            question_text: q.text,
+            options: opts,
+            correct_answer: q.correctAnswer || '',
+            score: Number(q.maxScore) || 1,
+            order_index: q.order || idx + 1,
+          };
+        });
+
+        await syncExamToSupabase({
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.grade ? `الصف: ${quiz.grade}` : '',
+          duration_minutes: Number(quiz.duration) || 20,
+          passing_score: Number(quiz.passingScore) || 50,
+          total_marks: totalMarks > 0 ? totalMarks : 100,
+          is_published: quiz.isPublished !== false,
+          questions: questionsForSupabase,
+        });
+      }
+    } catch (sbSyncErr: any) {
+      console.warn('[createQuiz] Supabase sync notice:', sbSyncErr?.message);
+    }
+
     // 6. Revalidate cache across dashboard pages and layouts
     try {
       revalidatePath('/[locale]/teacher');
@@ -1433,6 +1514,48 @@ export async function updateQuiz(
       }
     }
 
+    // 6b. Sync updated quiz to Supabase central 'exams' and 'questions' tables
+    try {
+      if (finalQuiz) {
+        const quizQuestions: any[] = (finalQuiz as any).questions || [];
+        const totalMarks = quizQuestions.reduce(
+          (acc: number, q: any) => acc + (Number(q.maxScore) || 1),
+          0
+        );
+        const questionsForSupabase = quizQuestions.map((q: any, idx: number) => {
+          let opts: string[] = [];
+          if (Array.isArray(q.options)) opts = q.options;
+          else if (typeof q.options === 'string') {
+            try {
+              opts = JSON.parse(q.options);
+            } catch {
+              opts = [q.options];
+            }
+          }
+          return {
+            question_text: q.text,
+            options: opts,
+            correct_answer: q.correctAnswer || '',
+            score: Number(q.maxScore) || 1,
+            order_index: q.order || idx + 1,
+          };
+        });
+
+        await syncExamToSupabase({
+          id: finalQuiz.id,
+          title: finalQuiz.title,
+          description: finalQuiz.grade ? `الصف: ${finalQuiz.grade}` : '',
+          duration_minutes: Number(finalQuiz.duration) || 20,
+          passing_score: Number(finalQuiz.passingScore) || 50,
+          total_marks: totalMarks > 0 ? totalMarks : 100,
+          is_published: finalQuiz.isPublished !== false,
+          questions: questionsForSupabase,
+        });
+      }
+    } catch (sbSyncErr: any) {
+      console.warn('[updateQuiz] Supabase sync notice:', sbSyncErr?.message);
+    }
+
     // 7. Cache revalidation across all routes and layouts
     try {
       revalidatePath('/[locale]/teacher');
@@ -1550,6 +1673,15 @@ export async function deleteQuiz(quizId: string) {
       if (uq.quizId === cleanId) {
         memoryUnlockedQuizzes.splice(i, 1);
       }
+    }
+
+    // Cascade clean from Supabase central cloud tables
+    try {
+      await supabase.from('questions').delete().eq('exam_id', cleanId);
+      await supabase.from('exam_attempts').delete().eq('exam_id', cleanId);
+      await supabase.from('exams').delete().eq('id', cleanId);
+    } catch (sbDelErr: any) {
+      console.warn('[deleteQuiz] Supabase delete notice:', sbDelErr?.message);
     }
 
     // 3. Cache revalidation across all layouts and routes
@@ -1812,6 +1944,41 @@ export async function getStudentQuizResultAction(quizId: string, studentId: stri
     });
 
     if (!result) {
+      try {
+        const sbAttempt = await checkStudentExamAttempt(sId, qId);
+        if (sbAttempt) {
+          const { data: sbExam } = await supabase
+            .from('exams')
+            .select('title, passing_score, total_marks')
+            .eq('id', qId)
+            .maybeSingle();
+
+          const score = Number(sbAttempt.final_score) || 0;
+          const totalMarks = Number(sbExam?.total_marks) || 100;
+          const passScore = Number(sbExam?.passing_score) || 50;
+          const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : score;
+
+          return {
+            success: true,
+            result: {
+              id: sbAttempt.id,
+              quizId: sbAttempt.exam_id,
+              quizTitle: sbExam?.title || 'الاختبار الأكاديمي',
+              studentId: sbAttempt.student_id,
+              autoScore: score,
+              totalScore: score,
+              maxScore: totalMarks,
+              percentage,
+              isPassed: percentage >= passScore,
+              status: sbAttempt.status || 'completed',
+              submittedAt: sbAttempt.completed_at || new Date().toISOString(),
+            },
+          };
+        }
+      } catch (sbLookupErr: any) {
+        console.warn('[getStudentQuizResultAction] Supabase attempt lookup notice:', sbLookupErr?.message);
+      }
+
       return { success: false, error: 'لم يتم العثور على نتيجة مسجلة لهذا الاختبار' };
     }
 

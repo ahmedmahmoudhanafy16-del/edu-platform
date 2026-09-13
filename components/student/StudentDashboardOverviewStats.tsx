@@ -62,11 +62,11 @@ export function StudentDashboardOverviewStats({
       const latest = getLatestStudentSubmission(currentTargetId, submissions);
 
       setStats({
-        completedExams: summary.totalExams,
+        completedExams: Math.max(initialExamsCount, summary.totalExams),
         pendingAssignments: pendingCount,
         attendancePct: initialAttendancePct,
-        latestScore: latest ? latest.percentage : null,
-        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : null,
+        latestScore: latest ? latest.percentage : initialLatestScore,
+        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : initialLatestDetail,
       });
     }
 
@@ -79,7 +79,7 @@ export function StudentDashboardOverviewStats({
       window.removeEventListener('edu_store_updated', recalculateStats);
       window.removeEventListener('storage', recalculateStats);
     };
-  }, [studentId, initialAttendancePct]);
+  }, [studentId, initialAttendancePct, initialExamsCount, initialLatestScore, initialLatestDetail]);
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 

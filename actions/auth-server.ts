@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
@@ -27,8 +28,63 @@ export async function verifyStudentCredentialsAction(
     }
 
     const cleanUpper = cleanId.toUpperCase();
+    const cleanLower = cleanId.toLowerCase();
 
-    // Query PostgreSQL directly
+    // 1. Direct query to Supabase central 'students' table
+    try {
+      const { data: student, error: sbError } = await supabase
+        .from('students')
+        .select('id, student_code, full_name, grade_level, is_active, password_hash, phone, parent_phone')
+        .or(`student_code.eq.${cleanId},student_code.eq.${cleanUpper},student_code.eq.${cleanLower},phone.eq.${cleanId}`)
+        .maybeSingle();
+
+      if (!sbError && student) {
+        if (student.is_active === false) {
+          return { success: false, error: 'تم تعليق هذا الحساب. يرجى مراجعة إدارة المنصة.' };
+        }
+
+        let isMatch = false;
+        const storedHash = String(student.password_hash || '').trim();
+        if (storedHash === cleanPin) {
+          isMatch = true;
+        } else if (storedHash.startsWith('$2')) {
+          try {
+            isMatch = await bcrypt.compare(cleanPin, storedHash);
+          } catch {
+            isMatch = false;
+          }
+        }
+
+        if (!isMatch) {
+          return { success: false, error: 'كلمة المرور غير صحيحة، يرجى التأكد من الرمز الخاص بك' };
+        }
+
+        const sessionPayload = {
+          id: student.id,
+          name: student.full_name,
+          role: 'STUDENT',
+          studentCode: student.student_code,
+          phone: student.phone || '',
+          parentPhone: student.parent_phone || '',
+          grade: student.grade_level || '',
+          isActive: true,
+        };
+
+        try {
+          cookies().set('user_session', JSON.stringify(sessionPayload), {
+            path: '/',
+            maxAge: 60 * 60 * 24 * 30,
+            sameSite: 'lax',
+          });
+        } catch (cookieErr) {}
+
+        return { success: true, student: sessionPayload };
+      }
+    } catch (sbErr: any) {
+      console.warn('[verifyStudentCredentialsAction] Supabase notice:', sbErr?.message);
+    }
+
+    // 2. Secondary fallback: PostgreSQL direct query
     let user: any = null;
     try {
       user = await prisma.user.findFirst({

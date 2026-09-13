@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
@@ -103,6 +104,60 @@ export default async function StudentDashboardPage({
     if (results[5].status === 'fulfilled') attendance = results[5].value || [];
   } catch (err) {
     console.warn('[Student Dashboard] Database queries skipped:', err);
+  }
+
+  // Central Supabase exams & attempts lookup
+  try {
+    const { data: sbExams } = await supabase
+      .from('exams')
+      .select('id, title, duration_minutes, passing_score, total_marks, is_published, created_at')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false })
+      .limit(6);
+
+    if (sbExams && sbExams.length > 0) {
+      const existingExamIds = new Set(quizzes.map((q) => q.id));
+      for (const sbe of sbExams) {
+        if (!existingExamIds.has(sbe.id)) {
+          quizzes.unshift({
+            id: sbe.id,
+            title: sbe.title,
+            type: 'EXAM',
+            duration: sbe.duration_minutes || 30,
+            passingScore: Number(sbe.passing_score) || 50,
+            isCodeRequired: false,
+            classroom: { name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
+          });
+        }
+      }
+    }
+
+    if (studentId) {
+      const { data: sbAttempts } = await supabase
+        .from('exam_attempts')
+        .select('id, exam_id, final_score, status, completed_at')
+        .eq('student_id', studentId)
+        .eq('status', 'completed');
+
+      if (sbAttempts && sbAttempts.length > 0) {
+        const existingAttemptIds = new Set(dbQuizResults.map((r) => r.quizId));
+        for (const sba of sbAttempts) {
+          if (!existingAttemptIds.has(sba.exam_id)) {
+            dbQuizResults.push({
+              quizId: sba.exam_id,
+              totalScore: Number(sba.final_score) || 0,
+              autoScore: Number(sba.final_score) || 0,
+              maxScore: 100,
+              isPassed: (Number(sba.final_score) || 0) >= 50,
+              status: 'AUTO_GRADED',
+              submittedAt: sba.completed_at ? new Date(sba.completed_at) : new Date(),
+            });
+          }
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Student Dashboard] Supabase lookup notice:', sbErr);
   }
 
   // Memory fallback if DB returned empty

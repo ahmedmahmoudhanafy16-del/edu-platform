@@ -18,12 +18,15 @@ export function StudentQuizzesListClient({
   studentId: string;
   locale: string;
 }) {
-  const [quizzes, setQuizzes] = useState<QuizData[]>(() => {
+  const [quizzes, setQuizzes] = useState<any[]>(() => {
+    if (initialQuizzes && initialQuizzes.length > 0) {
+      return initialQuizzes;
+    }
     if (typeof window !== 'undefined') {
       const stored = getStudentQuizzes(studentId);
       if (stored.length > 0) return stored;
     }
-    return initialQuizzes || [];
+    return [];
   });
 
   const [resultsMap, setResultsMap] = useState<Record<string, QuizSubmissionData>>(() => {
@@ -56,9 +59,13 @@ export function StudentQuizzesListClient({
         }
       } catch {}
 
-      // 2. Sync quizzes from the unified client store (preserves completed hidden quizzes)
-      const activeQuizzes = getStudentQuizzes(currentTargetId);
-      setQuizzes(activeQuizzes);
+      // 2. Prioritize initial server quizzes from Supabase
+      if (!initialQuizzes || initialQuizzes.length === 0) {
+        const activeQuizzes = getStudentQuizzes(currentTargetId);
+        if (activeQuizzes.length > 0) {
+          setQuizzes(activeQuizzes);
+        }
+      }
 
       // 3. Sync submissions from the unified client store with dynamic student ID
 

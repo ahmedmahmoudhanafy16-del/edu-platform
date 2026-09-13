@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, memoryQuizzes } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
@@ -33,6 +34,55 @@ export async function GET(
     if (!quiz) {
       const mem = (memoryQuizzes || []).find((m: any) => m.id === id || m.accessCode === id);
       if (mem) quiz = mem;
+    }
+
+    // ── Supabase Production Exams Lookup ──────────────────────────────────
+    if (!quiz) {
+      try {
+        const { data: examData } = await supabase
+          .from('exams')
+          .select('id, title, description, duration_minutes, passing_score, total_marks, is_published')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (examData) {
+          const { data: sbQuestions } = await supabase
+            .from('questions')
+            .select('id, question_text, options, score, order_index')
+            .eq('exam_id', examData.id)
+            .order('order_index', { ascending: true });
+
+          quiz = {
+            id: examData.id,
+            title: examData.title,
+            type: 'EXAM',
+            duration: examData.duration_minutes || 30,
+            passingScore: Number(examData.passing_score) || 50,
+            isPublished: examData.is_published,
+            isCodeRequired: false,
+            questions: (sbQuestions || []).map((q) => {
+              let parsedOpts: string[] = [];
+              if (Array.isArray(q.options)) parsedOpts = q.options;
+              else if (typeof q.options === 'string') {
+                try {
+                  parsedOpts = JSON.parse(q.options);
+                } catch {
+                  parsedOpts = [q.options];
+                }
+              }
+              return {
+                id: q.id,
+                text: q.question_text,
+                type: 'MCQ',
+                options: parsedOpts,
+                maxScore: Number(q.score) || 1,
+              };
+            }),
+          };
+        }
+      } catch (sbErr: any) {
+        console.warn('[API Quiz GET] Supabase lookup error:', sbErr?.message);
+      }
     }
 
     if (!quiz) {

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
+import { syncStudentToSupabase } from '@/lib/supabase';
 import { addDynamicStudent, updateDynamicStudent } from '@/lib/dynamic-students';
 import { generateRandomPin } from '@/lib/utils';
 
@@ -255,6 +256,21 @@ export async function createStudentAction(formData: {
       });
     } catch (dbError: any) {
       console.warn('[createStudentAction] Prisma transaction notice:', dbError?.message);
+    }
+
+    // Sync to Supabase central 'students' table for cross-device authentication
+    try {
+      await syncStudentToSupabase({
+        student_code: newStudent.studentCode,
+        full_name: newStudent.name,
+        phone: newStudent.phone || undefined,
+        parent_phone: newStudent.parentPhone || undefined,
+        grade_level: newStudent.grade || undefined,
+        password_hash: hashedPassword,
+        is_active: true,
+      });
+    } catch (sbErr: any) {
+      console.warn('[createStudentAction] Supabase student sync notice:', sbErr?.message);
     }
 
     try {
