@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ExamSecurityShield } from '@/components/shared/ExamSecurityShield';
 import { getStudentQuizResultAction } from '@/actions/quiz';
+import { getClientSessionStudent } from '@/actions/auth';
+import { getSubmissions, getQuizzes } from '@/lib/store';
 
 interface ReviewQuestion {
   questionId: string;
@@ -36,9 +38,6 @@ interface ExamResult {
   submittedAt: string;
   reviewQuestions: ReviewQuestion[];
 }
-
-const RESULTS_KEY = 'edu_quiz_results';
-const QUIZZES_KEY = 'edu_quizzes';
 
 function normalizeAnswerText(str: any): string {
   if (str === undefined || str === null) return '';
@@ -75,19 +74,14 @@ export default function QuizReviewPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    try {
-      const stored = localStorage.getItem('current_student');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed) {
-          setStudentInfo({
-            name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
-            studentCode: parsed.studentCode || parsed.id || '',
-            phone: parsed.phone || '',
-          });
-        }
-      }
-    } catch {}
+    const session = getClientSessionStudent();
+    if (session) {
+      setStudentInfo({
+        name: session.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
+        studentCode: session.studentCode || session.id || '',
+        phone: session.phone || '',
+      });
+    }
   }, [isAr]);
 
   useEffect(() => {
@@ -109,19 +103,12 @@ export default function QuizReviewPage() {
           }
         } catch (serverErr) {}
 
-        // 1.1 Local storage fallback if server lookup had a network issue
+        // 1.1 In-memory store fallback if server lookup had a network issue
         if (!foundResult) {
-          try {
-            const storedResults = localStorage.getItem(RESULTS_KEY);
-            if (storedResults) {
-              const parsed: any[] = JSON.parse(storedResults);
-              if (Array.isArray(parsed)) {
-                foundResult = parsed.find(
-                  (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
-                );
-              }
-            }
-          } catch (e) {}
+          const inMemorySubs = getSubmissions();
+          foundResult = inMemorySubs.find(
+            (r) => r.quizId === quizId || r.id === quizId || (r.quizTitle && r.quizTitle.includes(quizId))
+          );
         }
 
         // 2. Fetch authoritative quiz details for review questions
@@ -137,17 +124,10 @@ export default function QuizReviewPage() {
         } catch (e) {}
 
         if (!quizDetails) {
-          try {
-            const storedQuizzes = localStorage.getItem(QUIZZES_KEY);
-            if (storedQuizzes) {
-              const parsedQuizzes: any[] = JSON.parse(storedQuizzes);
-              if (Array.isArray(parsedQuizzes)) {
-                quizDetails = parsedQuizzes.find(
-                  (q) => q.id === quizId || q.accessCode === quizId
-                );
-              }
-            }
-          } catch (e) {}
+          const inMemoryQuizzes = getQuizzes();
+          quizDetails = inMemoryQuizzes.find(
+            (q) => q.id === quizId || q.accessCode === quizId
+          );
         }
 
         // If we have existing submitted result with populated reviewQuestions

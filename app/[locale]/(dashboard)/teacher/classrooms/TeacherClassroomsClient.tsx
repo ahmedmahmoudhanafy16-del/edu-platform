@@ -33,9 +33,6 @@ export interface ClassroomItem {
   isActive?: boolean;
 }
 
-const STORAGE_KEY = 'edu_classrooms';
-const DELETED_KEY = 'edu_deleted_classrooms';
-
 function countStudentsForClassroom(c: ClassroomItem, allStudents: any[]): number {
   if (!allStudents || !Array.isArray(allStudents)) return 0;
   return allStudents.filter((s: any) => {
@@ -72,103 +69,10 @@ export function TeacherClassroomsClient({
   const [classroomToEdit, setClassroomToEdit] = useState<ClassroomItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Sync with localStorage on mount & prop changes, strictly filtering out deleted classrooms and dynamically computing counts
+  // Server-authoritative classrooms state
   useEffect(() => {
-    try {
-      const deletedRaw = localStorage.getItem(DELETED_KEY);
-      const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-      const stored = localStorage.getItem(STORAGE_KEY);
-      let localList: ClassroomItem[] = [];
-
-      if (stored) {
-        const parsed: ClassroomItem[] = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          localList = parsed;
-        }
-      }
-
-      const map = new Map<string, ClassroomItem>();
-
-      if (localList.length > 0) {
-        // Authoritative client store
-        localList.forEach((c) => {
-          if (c?.id && !deletedIds.has(c.id)) {
-            map.set(c.id, c);
-          }
-        });
-      } else {
-        // First-time fallback from server
-        initialClassrooms.forEach((c) => {
-          if (c?.id && !deletedIds.has(c.id)) {
-            map.set(c.id, c);
-          }
-        });
-      }
-
-      const allStudents = getStudentsFromStore();
-      const allQuizzes = getQuizzes();
-      const allAssignments = getAssignments();
-
-      const enriched = Array.from(map.values()).map((c) => {
-        const computedStudents = countStudentsForClassroom(c, allStudents);
-        const computedQuizzes = allQuizzes.filter((q: any) => q.classroomId === c.id || (c.name && q.classroomName === c.name)).length;
-        const computedAssignments = allAssignments.filter((a: any) => a.classroomId === c.id || (c.name && a.classroomName === c.name)).length;
-
-        return {
-          ...c,
-          studentsCount: Math.max(c.studentsCount || 0, computedStudents),
-          quizzesCount: Math.max(c.quizzesCount || 0, computedQuizzes),
-          assignmentsCount: Math.max(c.assignmentsCount || 0, computedAssignments),
-        };
-      });
-
-      setClassrooms(enriched);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(enriched));
-      return;
-    } catch {}
-
     setClassrooms(initialClassrooms);
   }, [initialClassrooms]);
-
-  // Real-time synchronization whenever students, quizzes, or assignments are updated
-  useEffect(() => {
-    function handleStoreUpdate() {
-      try {
-        const allStudents = getStudentsFromStore();
-        const allQuizzes = getQuizzes();
-        const allAssignments = getAssignments();
-
-        setClassrooms((prev) =>
-          prev.map((c) => {
-            const computedStudents = countStudentsForClassroom(c, allStudents);
-            const computedQuizzes = allQuizzes.filter((q: any) => q.classroomId === c.id || (c.name && q.classroomName === c.name)).length;
-            const computedAssignments = allAssignments.filter((a: any) => a.classroomId === c.id || (c.name && a.classroomName === c.name)).length;
-
-            return {
-              ...c,
-              studentsCount: Math.max(c.studentsCount || 0, computedStudents),
-              quizzesCount: Math.max(c.quizzesCount || 0, computedQuizzes),
-              assignmentsCount: Math.max(c.assignmentsCount || 0, computedAssignments),
-            };
-          })
-        );
-      } catch {}
-    }
-
-    window.addEventListener('edu_store_updated', handleStoreUpdate);
-    window.addEventListener('storage', handleStoreUpdate);
-    return () => {
-      window.removeEventListener('edu_store_updated', handleStoreUpdate);
-      window.removeEventListener('storage', handleStoreUpdate);
-    };
-  }, []);
-
-  function persistClassrooms(list: ClassroomItem[]) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-    } catch {}
-  }
 
   function refresh() {
     router.refresh();
@@ -182,7 +86,6 @@ export function TeacherClassroomsClient({
 
     setClassrooms((prev) => {
       const nextList = prev.map((c) => (c.id === classroom.id ? { ...c, isActive: nextState } : c));
-      persistClassrooms(nextList);
       return nextList;
     });
 
@@ -219,7 +122,6 @@ export function TeacherClassroomsClient({
     // 2. Optimistic deletion in state
     setClassrooms((prev) => {
       const nextList = prev.filter((c) => c.id !== targetId);
-      persistClassrooms(nextList);
       return nextList;
     });
 

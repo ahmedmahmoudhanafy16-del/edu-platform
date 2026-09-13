@@ -68,9 +68,6 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       const student = data.user;
       if (typeof window !== 'undefined') {
         try {
-          localStorage.setItem('current_student', JSON.stringify(student));
-          sessionStorage.setItem('userRole', 'student');
-
           const sessionPayload = {
             id: student.id || student.studentCode,
             name: student.name,
@@ -110,6 +107,17 @@ export async function verifyStudentCredentials(inputIdentifier: string, inputPin
       error: 'تعذر الاتصال بالخادم السحابي المركزي، يرجى التحقق من اتصال الإنترنت والمحاولة ثانية',
     };
   }
+}
+
+export function getClientSessionStudent(): any | null {
+  if (typeof document === 'undefined') return null;
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)user_session=([^;]+)/);
+    if (match && match[1]) {
+      return JSON.parse(decodeURIComponent(match[1]));
+    }
+  } catch {}
+  return null;
 }
 
 // Aliases for comprehensive backwards compatibility

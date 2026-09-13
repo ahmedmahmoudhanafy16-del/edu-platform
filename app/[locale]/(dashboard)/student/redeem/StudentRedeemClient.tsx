@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Ticket, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight, Wifi, Sparkles, ShieldCheck, BookOpen, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { getClientSessionStudent } from '@/actions/auth';
 
 export function StudentRedeemClient({ locale, studentName }: { locale: string; studentName: string }) {
   const isAr = locale === 'ar';
@@ -66,11 +67,7 @@ export function StudentRedeemClient({ locale, studentName }: { locale: string; s
     setSuccessData(null);
 
     try {
-      let currentStudent = null;
-      try {
-        const cur = localStorage.getItem('current_student');
-        if (cur) currentStudent = JSON.parse(cur);
-      } catch {}
+      const currentStudent = getClientSessionStudent();
 
       const res = await fetch('/api/student/redeem-code', {
         method: 'POST',

@@ -74,61 +74,28 @@ export function TeacherLiveClient({
   const [classroomId, setClassroomId] = useState(initialClass?.id || '');
   const [targetGrade, setTargetGrade] = useState(initialGradeMatch || 'الصف الرابع الابتدائي');
 
-  // Synchronize classrooms strictly matching /teacher/classrooms (Master Controller)
+  // Synchronize classrooms from server props
   useEffect(() => {
-    function syncClassrooms() {
-      try {
-        const stored = localStorage.getItem('edu_classrooms');
-        const deletedRaw = localStorage.getItem('edu_deleted_classrooms');
-        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-        let localList: any[] = [];
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) localList = parsed;
-        }
+    const effectiveList = (classrooms || []).filter((c) => c?.id && c.isActive !== false);
 
-        // The classrooms page (/teacher/classrooms) is the Master Controller.
-        // If localList is configured, use it exclusively so no phantom server fallbacks ever appear!
-        let effectiveList: any[] = [];
-        if (localList.length > 0) {
-          effectiveList = localList.filter((c) => c?.id && !deletedIds.has(c.id) && c.isActive !== false);
-        } else {
-          effectiveList = classrooms.filter((c) => c?.id && !deletedIds.has(c.id) && c.isActive !== false);
-        }
+    if (effectiveList.length > 0) {
+      setClassList(effectiveList);
+      setClassroomId((prev: string) => {
+        const exists = effectiveList.some((c) => c.id === prev);
+        const chosenId = exists ? prev : effectiveList[0].id;
 
-        if (effectiveList.length > 0) {
-          setClassList(effectiveList);
-          setClassroomId((prev: string) => {
-            const exists = effectiveList.some((c) => c.id === prev);
-            const chosenId = exists ? prev : effectiveList[0].id;
-
-            const chosenClass = effectiveList.find((c) => c.id === chosenId);
-            if (chosenClass?.name) {
-              const matchedGrade = ACADEMIC_GRADES.find(
-                (g) => chosenClass.name.includes(g) || g.includes(chosenClass.name)
-              );
-              if (matchedGrade) {
-                setTargetGrade(matchedGrade);
-              }
-            }
-            return chosenId;
-          });
+        const chosenClass = effectiveList.find((c) => c.id === chosenId);
+        if (chosenClass?.name) {
+          const matchedGrade = ACADEMIC_GRADES.find(
+            (g) => chosenClass.name.includes(g) || g.includes(chosenClass.name)
+          );
+          if (matchedGrade) {
+            setTargetGrade(matchedGrade);
+          }
         }
-      } catch (e) {
-        console.warn('[TeacherLiveClient] sync error:', e);
-      }
+        return chosenId;
+      });
     }
-
-    syncClassrooms();
-
-    window.addEventListener('edu_store_updated', syncClassrooms);
-    window.addEventListener('edu_classrooms_updated', syncClassrooms);
-    window.addEventListener('storage', syncClassrooms);
-    return () => {
-      window.removeEventListener('edu_store_updated', syncClassrooms);
-      window.removeEventListener('edu_classrooms_updated', syncClassrooms);
-      window.removeEventListener('storage', syncClassrooms);
-    };
   }, [classrooms]);
 
   function handleClassroomSelect(id: string) {

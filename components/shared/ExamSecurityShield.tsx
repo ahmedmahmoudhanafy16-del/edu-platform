@@ -31,7 +31,6 @@ export function ExamSecurityShield({
   const [watermarkDate, setWatermarkDate] = useState('');
   const [lockCountdown, setLockCountdown] = useState(0);
   const sessionTraceId = useId().replace(/[:]/g, '').slice(0, 6).toUpperCase();
-  const violationStorageKey = `edu_quiz_violations_${quizId}_${studentCode}`;
 
   useEffect(() => {
     setWatermarkDate(
@@ -43,21 +42,7 @@ export function ExamSecurityShield({
         minute: '2-digit',
       })
     );
-
-    // Restore persistent violations from storage
-    try {
-      const stored = localStorage.getItem(violationStorageKey);
-      if (stored) {
-        const count = parseInt(stored, 10);
-        if (!isNaN(count) && count > 0) {
-          setViolations(count);
-          if (count >= maxViolations && onMaxViolationsExceeded) {
-            onMaxViolationsExceeded();
-          }
-        }
-      }
-    } catch {}
-  }, [violationStorageKey, maxViolations, onMaxViolationsExceeded]);
+  }, [isAr]);
 
   const handleSecurityViolation = useCallback(
     (reason: string) => {
@@ -67,10 +52,6 @@ export function ExamSecurityShield({
 
       setViolations((prev) => {
         const next = prev + 1;
-        try {
-          localStorage.setItem(violationStorageKey, String(next));
-        } catch {}
-
         if (onViolation) onViolation(next);
 
         if (next >= maxViolations) {
@@ -94,7 +75,7 @@ export function ExamSecurityShield({
         return next;
       });
     },
-    [isActive, isAr, maxViolations, onViolation, onMaxViolationsExceeded, violationStorageKey]
+    [isActive, isAr, maxViolations, onViolation, onMaxViolationsExceeded]
   );
 
   // Lock countdown timer when shield is displayed

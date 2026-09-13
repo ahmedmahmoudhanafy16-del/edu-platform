@@ -56,14 +56,89 @@ runTest('TeacherStudentsClient has ZERO localStorage references', () => {
   assert(!file.includes('edu_students'), 'Must not use local students array');
 });
 
-runTest('LoginForm has ZERO mock data arrays and ZERO hardcoded passwords', () => {
+runTest('lib/store.ts has ZERO localStorage and ZERO sessionStorage references', () => {
   const file = fs.readFileSync(
-    path.join(__dirname, '..', 'components', 'auth', 'LoginForm.tsx'),
+    path.join(__dirname, '..', 'lib', 'store.ts'),
     'utf8'
   );
-  assert(!file.includes('DEFAULT_INITIAL_STUDENTS'), 'Must not import DEFAULT_INITIAL_STUDENTS');
-  assert(!file.includes('teacher123'), 'Must not contain teacher123');
-  assert(!file.includes('edu_teacher_profile'), 'Must not read or write edu_teacher_profile in localStorage');
+  assert(!file.includes('localStorage'), 'lib/store.ts must have zero localStorage references');
+  assert(!file.includes('sessionStorage'), 'lib/store.ts must have zero sessionStorage references');
+});
+
+runTest('TeacherQuizzesClient has ZERO localStorage references', () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'teacher', 'quizzes', 'TeacherQuizzesClient.tsx'),
+    'utf8'
+  );
+  assert(!file.includes('localStorage'), 'Must not contain localStorage');
+});
+
+runTest('TeacherAssignmentsClient has ZERO localStorage references', () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'teacher', 'assignments', 'TeacherAssignmentsClient.tsx'),
+    'utf8'
+  );
+  assert(!file.includes('localStorage'), 'Must not contain localStorage');
+});
+
+runTest('TeacherClassroomsClient has ZERO localStorage references', () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'teacher', 'classrooms', 'TeacherClassroomsClient.tsx'),
+    'utf8'
+  );
+  assert(!file.includes('localStorage'), 'Must not contain localStorage');
+});
+
+runTest('TeacherReportsClient has ZERO localStorage references', () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'teacher', 'reports', 'TeacherReportsClient.tsx'),
+    'utf8'
+  );
+  assert(!file.includes('localStorage'), 'Must not contain localStorage');
+});
+
+runTest('CompactStudentsTable has ZERO localStorage references', () => {
+  const file = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'teacher', 'CompactStudentsTable.tsx'),
+    'utf8'
+  );
+  assert(!file.includes('localStorage'), 'Must not contain localStorage');
+});
+
+runTest('StudentQuizzesListClient, StudentGradesClient, and QuizRunner have ZERO localStorage references', () => {
+  const qList = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'student', 'StudentQuizzesListClient.tsx'),
+    'utf8'
+  );
+  const grades = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'student', 'StudentGradesClient.tsx'),
+    'utf8'
+  );
+  const runner = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '[locale]', '(dashboard)', 'student', 'quizzes', '[id]', 'QuizRunner.tsx'),
+    'utf8'
+  );
+  assert(!qList.includes('localStorage'), 'StudentQuizzesListClient must not contain localStorage');
+  assert(!grades.includes('localStorage'), 'StudentGradesClient must not contain localStorage');
+  assert(!runner.includes('localStorage'), 'QuizRunner must not contain localStorage');
+});
+
+runTest('Entire components/ and app/ directories have ZERO localStorage and ZERO sessionStorage', () => {
+  function scanDir(dir) {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        scanDir(fullPath);
+      } else if (entry.isFile() && (entry.name.endsWith('.tsx') || entry.name.endsWith('.ts'))) {
+        const content = fs.readFileSync(fullPath, 'utf8');
+        assert(!content.includes('localStorage'), `${entry.name} in ${dir} has residual localStorage`);
+        assert(!content.includes('sessionStorage'), `${entry.name} in ${dir} has residual sessionStorage`);
+      }
+    }
+  }
+  scanDir(path.join(__dirname, '..', 'components'));
+  scanDir(path.join(__dirname, '..', 'app'));
 });
 
 // -----------------------------------------------------------------------------

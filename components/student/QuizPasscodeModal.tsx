@@ -48,10 +48,9 @@ export function QuizPasscodeModal({
 
   function unlockClientLocally(targetQuizId: string) {
     try {
-      sessionStorage.setItem(`unlocked_quiz_${targetQuizId}`, 'true');
       document.cookie = `unlocked_quiz_${targetQuizId}=true; path=/; max-age=86400; SameSite=Lax`;
     } catch (e) {
-      console.warn('Failed to set client unlock storage:', e);
+      console.warn('Failed to set client unlock cookie:', e);
     }
   }
 
@@ -80,47 +79,11 @@ export function QuizPasscodeModal({
       }
     }
 
-    // 2. Check client-side stored quizzes in localStorage
-    let clientMatched = false;
-    let targetQuizId = quizId;
-
+    // 2. Call Server Action verification
     try {
-      const stored = localStorage.getItem('edu_quizzes');
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const matchedQuiz = parsed.find(
-            (q) =>
-              q.id === quizId ||
-              (q.accessCode && q.accessCode.trim().toUpperCase() === cleanCode)
-          );
-
-          if (matchedQuiz) {
-            targetQuizId = matchedQuiz.id;
-            if (matchedQuiz.isPublished === false || matchedQuiz.isHidden === true) {
-              setErrorMsg(isAr ? 'هذا الاختبار غير متاح حالياً للطلاب' : 'This exam is currently not available');
-              setLoading(false);
-              return;
-            }
-            const expected = (matchedQuiz.accessCode || '').trim().toUpperCase();
-            if (
-              !matchedQuiz.isCodeRequired ||
-              (expected && cleanCode === expected)
-            ) {
-              clientMatched = true;
-            }
-          }
-        }
-      }
-    } catch (localErr) {
-      console.warn('LocalStorage check skipped:', localErr);
-    }
-
-    // 3. Call Server Action verification
-    try {
-      const res = await verifyQuizAccessCode(targetQuizId, studentId, cleanCode);
+      const res = await verifyQuizAccessCode(quizId, studentId, cleanCode);
       if (res?.success) {
-        const finalId = res?.quizId || targetQuizId;
+        const finalId = res?.quizId || quizId;
         unlockClientLocally(finalId);
         toast.success(res?.message || (isAr ? 'تم التحقق من كود الامتحان بنجاح!' : 'Access code verified successfully!'));
         onClose();
@@ -130,13 +93,6 @@ export function QuizPasscodeModal({
         setErrorMsg(res?.error || (isAr ? 'الكود غير صحيح أو منتهي الصلاحية' : 'Invalid or expired access code'));
       }
     } catch (err: any) {
-      if (clientMatched) {
-        unlockClientLocally(targetQuizId);
-        toast.success(isAr ? 'تم التحقق من كود الامتحان بنجاح!' : 'Access code verified successfully!');
-        onClose();
-        router.push(`/${locale}/student/quizzes/${targetQuizId}`);
-        return;
-      }
       setErrorMsg(isAr ? 'حدث خطأ أثناء التحقق من الكود، يرجى المحاولة ثانية' : 'Error verifying code, please try again');
     } finally {
       setLoading(false);

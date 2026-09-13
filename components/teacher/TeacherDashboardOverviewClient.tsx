@@ -3,14 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BookOpen, Users, FileText, ClipboardList, Video, Ticket, BarChart3 } from 'lucide-react';
-import {
-  getAssignments,
-  getQuizzes,
-  getClassroomsFromStore,
-  getStudentsFromStore,
-  AssignmentData,
-  QuizData,
-} from '@/lib/store';
+import { AssignmentData } from '@/lib/store';
 
 export function TeacherDashboardOverviewClient({
   initialClassroomsCount = 0,
@@ -25,99 +18,17 @@ export function TeacherDashboardOverviewClient({
   initialAssignments?: AssignmentData[];
   locale: string;
 }) {
-  const [classroomsCount, setClassroomsCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('edu_classrooms');
-        if (stored) {
-          const count = getClassroomsFromStore().length;
-          return Math.max(initialClassroomsCount, count);
-        }
-      } catch {}
-    }
-    return initialClassroomsCount;
-  });
-
-  const [studentsCount, setStudentsCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('edu_students');
-        if (stored) {
-          const count = getStudentsFromStore().length;
-          return Math.max(initialStudentsCount, count);
-        }
-      } catch {}
-    }
-    return initialStudentsCount;
-  });
-
-  const [assignments, setAssignments] = useState<AssignmentData[]>(() => {
-    if (typeof window !== 'undefined') {
-      const storeItems = getAssignments();
-      if (storeItems && storeItems.length > 0) return storeItems;
-    }
-    return initialAssignments || [];
-  });
-
-  const [quizzesCount, setQuizzesCount] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const storeItems = getQuizzes();
-      if (storeItems && storeItems.length > 0) {
-        return Math.max(initialQuizzesCount, storeItems.length);
-      }
-    }
-    return initialQuizzesCount;
-  });
+  const [classroomsCount, setClassroomsCount] = useState<number>(initialClassroomsCount);
+  const [studentsCount, setStudentsCount] = useState<number>(initialStudentsCount);
+  const [assignments, setAssignments] = useState<AssignmentData[]>(initialAssignments || []);
+  const [quizzesCount, setQuizzesCount] = useState<number>(initialQuizzesCount);
 
   useEffect(() => {
-    function syncStore() {
-      const storeAssignments = getAssignments();
-      if (storeAssignments && storeAssignments.length > 0) {
-        setAssignments(storeAssignments);
-      }
-
-      const storeQuizzes = getQuizzes();
-      if (storeQuizzes && storeQuizzes.length > 0) {
-        setQuizzesCount(Math.max(initialQuizzesCount, storeQuizzes.length));
-      }
-
-      try {
-        const storedClassrooms = localStorage.getItem('edu_classrooms');
-        if (storedClassrooms) {
-          setClassroomsCount(Math.max(initialClassroomsCount, getClassroomsFromStore().length));
-        } else {
-          setClassroomsCount(initialClassroomsCount);
-        }
-      } catch {
-        setClassroomsCount(initialClassroomsCount);
-      }
-
-      try {
-        const storedStudents = localStorage.getItem('edu_students');
-        if (storedStudents) {
-          setStudentsCount(Math.max(initialStudentsCount, getStudentsFromStore().length));
-        } else {
-          setStudentsCount(initialStudentsCount);
-        }
-      } catch {
-        setStudentsCount(initialStudentsCount);
-      }
-    }
-
-    syncStore();
-
-    window.addEventListener('edu_store_updated', syncStore);
-    window.addEventListener('edu_classrooms_updated', syncStore);
-    window.addEventListener('edu_students_updated', syncStore);
-    window.addEventListener('storage', syncStore);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', syncStore);
-      window.removeEventListener('edu_classrooms_updated', syncStore);
-      window.removeEventListener('edu_students_updated', syncStore);
-      window.removeEventListener('storage', syncStore);
-    };
-  }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount]);
+    setClassroomsCount(initialClassroomsCount);
+    setStudentsCount(initialStudentsCount);
+    setQuizzesCount(initialQuizzesCount);
+    setAssignments(initialAssignments || []);
+  }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount, initialAssignments]);
 
   const isAr = locale === 'ar';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';

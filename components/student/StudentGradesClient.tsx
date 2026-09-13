@@ -35,138 +35,19 @@ export function StudentGradesClient({
   locale: string;
 }) {
   const isAr = locale === 'ar';
-  const [results, setResults] = useState<GradeResultItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-        return (initialResults || []).filter(
-          (r) => !r.quizId || (!deletedSet.has(r.quizId) && (!r.id || !deletedSet.has(r.id)))
-        );
-      } catch {}
-    }
-    return initialResults || [];
-  });
+  const [results, setResults] = useState<GradeResultItem[]>(() => initialResults || []);
   const [effectiveStudent, setEffectiveStudent] = useState<{ id: string; name: string }>({
     id: studentId || '',
     name: studentName,
   });
 
-  // 1. Resolve logged-in student info from localStorage if available
   useEffect(() => {
-    try {
-      const cur = localStorage.getItem('current_student');
-      if (cur) {
-        const parsed = JSON.parse(cur);
-        setEffectiveStudent({
-          id: parsed.studentCode || parsed.id || studentId || '',
-          name: parsed.name || studentName,
-        });
-      }
-    } catch {}
-  }, [studentId, studentName]);
-
-  // 2. Synchronize grades from localStorage submissions
-  useEffect(() => {
-    function syncGrades() {
-      try {
-        const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-        const sanitizedInitial = (initialResults || []).filter(
-          (r) => !r.quizId || (!deletedSet.has(r.quizId) && (!r.id || !deletedSet.has(r.id)))
-        );
-
-        if (sanitizedInitial && sanitizedInitial.length > 0) {
-          setResults(sanitizedInitial);
-          return;
-        }
-
-        let currentTargetId = effectiveStudent.id || studentId || '';
-        if (!currentTargetId && typeof window !== 'undefined') {
-          try {
-            const cur = localStorage.getItem('current_student');
-            if (cur) {
-              const parsed = JSON.parse(cur);
-              currentTargetId = parsed.studentCode || parsed.id || '';
-            }
-          } catch {}
-        }
-
-        let storedSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
-        const storedQuizzes = getQuizzes();
-
-        // Fallback: If no results found with specific ID, check all local submissions
-        if (!storedSubmissions || storedSubmissions.length === 0) {
-          const allSubs = getSubmissions();
-          if (allSubs && allSubs.length > 0) {
-            const normTarget = currentTargetId.trim().toUpperCase();
-            const matched = allSubs.filter((s: any) => {
-              const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
-              return !normTarget || sId === normTarget || s.name === studentName;
-            });
-            storedSubmissions = matched.length > 0 ? matched : allSubs;
-          }
-        }
-
-        // Exclude any deleted quizzes
-        storedSubmissions = (storedSubmissions || []).filter(
-          (s: any) => !s.quizId || !deletedSet.has(s.quizId)
-        );
-
-        if (storedSubmissions && storedSubmissions.length > 0) {
-          const mapped: GradeResultItem[] = storedSubmissions.map((p: any, idx: number) => {
-            const quizMatch = storedQuizzes.find((q) => q.id === p.quizId || q.accessCode === p.quizId);
-            const scoreVal = p.totalScore ?? p.autoScore ?? p.score ?? 0;
-            const maxScoreVal = p.maxScore && p.maxScore > 0 ? p.maxScore : 100;
-            const pctVal = p.percentage !== undefined ? p.percentage : Math.round((scoreVal / maxScoreVal) * 100);
-
-            return {
-              id: p.id || `res-${p.quizId || idx}`,
-              quizId: p.quizId,
-              totalScore: scoreVal,
-              autoScore: p.autoScore ?? 0,
-              maxScore: maxScoreVal,
-              percentage: pctVal,
-              isPassed: Boolean(p.isPassed),
-              submittedAt: p.submittedAt ? new Date(p.submittedAt) : new Date(),
-              quiz: {
-                id: p.quizId,
-                title: p.quizTitle || quizMatch?.title || (isAr ? 'اختبار تقييمي' : 'Assessment Quiz'),
-                type: quizMatch?.type || 'WEEKLY',
-              },
-            };
-          });
-
-          setResults(mapped);
-          return;
-        }
-
-        setResults(sanitizedInitial);
-        return;
-      } catch (e) {
-        console.warn('[StudentGradesClient] Sync error:', e);
-      }
-      setResults((initialResults || []).filter((r) => {
-        try {
-          const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
-          const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-          return !r.quizId || !deletedSet.has(r.quizId);
-        } catch {
-          return true;
-        }
-      }));
-    }
-
-    syncGrades();
-
-    window.addEventListener('edu_store_updated', syncGrades);
-    window.addEventListener('storage', syncGrades);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', syncGrades);
-      window.removeEventListener('storage', syncGrades);
-    };
-  }, [initialResults, studentId, effectiveStudent.id, studentName, isAr]);
+    setResults(initialResults || []);
+    setEffectiveStudent({
+      id: studentId || '',
+      name: studentName,
+    });
+  }, [initialResults, studentId, studentName]);
 
   // Robust Direct Metrics Computation
   const totalExams = results.length;

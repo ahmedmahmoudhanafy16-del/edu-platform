@@ -42,33 +42,11 @@ export function TopNav({ role, userName, brandName }: TopNavProps) {
   const [currentUserName, setCurrentUserName] = useState(() => sanitizeName(userName));
 
   useEffect(() => {
-    // 1. Check local storage for updated teacher profile if in teacher area
-    if (typeof window !== 'undefined' && isTeacherArea) {
-      try {
-        const storedProfile = localStorage.getItem('edu_teacher_profile');
-        if (storedProfile) {
-          const parsed = JSON.parse(storedProfile);
-          if (parsed?.name && !parsed.name.includes('سارة') && !parsed.name.toLowerCase().includes('sarah')) {
-            setCurrentUserName(parsed.name.trim());
-            return;
-          }
-        }
-        const rawSession = localStorage.getItem('user_session');
-        if (rawSession) {
-          const parsedSession = JSON.parse(rawSession);
-          if (parsedSession?.name && !parsedSession.name.includes('سارة') && !parsedSession.name.toLowerCase().includes('sarah')) {
-            setCurrentUserName(parsedSession.name.trim());
-            return;
-          }
-        }
-      } catch {}
-    }
-
     const clean = sanitizeName(userName);
     if (clean) {
       setCurrentUserName(clean);
     }
-  }, [userName, isTeacherArea]);
+  }, [userName]);
 
   useEffect(() => {
     function onTeacherUpdated(e: any) {

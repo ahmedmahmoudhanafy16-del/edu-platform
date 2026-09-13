@@ -33,10 +33,9 @@ export function QuizPasscodeGuard({
 
   function unlockClientLocally(targetQuizId: string) {
     try {
-      sessionStorage.setItem(`unlocked_quiz_${targetQuizId}`, 'true');
       document.cookie = `unlocked_quiz_${targetQuizId}=true; path=/; max-age=86400; SameSite=Lax`;
     } catch (e) {
-      console.warn('Failed to set client unlock storage:', e);
+      console.warn('Failed to set client unlock cookie:', e);
     }
   }
 
@@ -67,36 +66,7 @@ export function QuizPasscodeGuard({
       }
     }
 
-    // 2. Check local storage
-    let clientMatched = false;
-    try {
-      const stored = localStorage.getItem('edu_quizzes');
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          const matched = parsed.find(
-            (q) =>
-              q.id === quizId ||
-              (q.accessCode && q.accessCode.trim().toUpperCase() === cleanCode)
-          );
-          if (matched) {
-            if (matched.isPublished === false || matched.isHidden === true) {
-              setErrorMsg(isAr ? 'هذا الاختبار غير متاح حالياً للطلاب' : 'This exam is not currently available to students');
-              setLoading(false);
-              return;
-            }
-            const expected = (matched.accessCode || '').trim().toUpperCase();
-            if (
-              !matched.isCodeRequired ||
-              (expected && cleanCode === expected)
-            ) {
-              clientMatched = true;
-            }
-          }
-        }
-      }
-    } catch (e) {}
-
+    // 2. Call Server Action verification
     try {
       const res = await verifyQuizAccessCode(quizId, studentId, cleanCode);
       if (res?.success) {
@@ -111,16 +81,6 @@ export function QuizPasscodeGuard({
         setErrorMsg(res?.error || (isAr ? 'الكود غير صحيح أو منتهي الصلاحية' : 'The code is invalid or expired'));
       }
     } catch (err: any) {
-      if (clientMatched) {
-        unlockClientLocally(quizId);
-        toast.success(isAr ? 'تم التحقق من كود الامتحان بنجاح!' : 'Exam code verified successfully!');
-        if (onUnlocked) {
-          onUnlocked();
-        } else {
-          router.refresh();
-        }
-        return;
-      }
       setErrorMsg(isAr ? 'حدث خطأ أثناء التحقق من الكود، يرجى المحاولة ثانية' : 'An error occurred while verifying the code, please try again');
     } finally {
       setLoading(false);

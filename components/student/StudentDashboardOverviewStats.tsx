@@ -2,8 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, FileText, CalendarCheck, BarChart3, Trophy } from 'lucide-react';
-import { getStudentAcademicSummary, getLatestStudentSubmission } from '@/lib/analytics';
-import { getSubmissions, getAssignments } from '@/lib/store';
 import { useLocale } from 'next-intl';
 
 export function StudentDashboardOverviewStats({
@@ -33,53 +31,14 @@ export function StudentDashboardOverviewStats({
   });
 
   useEffect(() => {
-    function recalculateStats() {
-      let currentTargetId = studentId;
-      try {
-        const cur = localStorage.getItem('current_student');
-        if (cur) {
-          const parsed = JSON.parse(cur);
-          if (parsed.studentCode || parsed.id) {
-            currentTargetId = parsed.studentCode || parsed.id;
-          }
-        }
-      } catch {}
-
-      let submissions = currentTargetId ? getSubmissions(currentTargetId) : [];
-      if (!submissions || submissions.length === 0) {
-        const allSubs = getSubmissions();
-        const norm = (currentTargetId || '').trim().toUpperCase();
-        submissions = norm
-          ? allSubs.filter((s: any) => (s.studentId || s.studentCode || '').trim().toUpperCase() === norm)
-          : allSubs;
-      }
-
-      const summary = getStudentAcademicSummary(currentTargetId, submissions);
-      const assignments = getAssignments();
-      const pendingCount = assignments.filter(
-        (a) => !(a.submissions || []).some((s) => !s.studentId || s.studentId === currentTargetId)
-      ).length;
-      const latest = getLatestStudentSubmission(currentTargetId, submissions);
-
-      setStats({
-        completedExams: Math.max(initialExamsCount, summary.totalExams),
-        pendingAssignments: pendingCount,
-        attendancePct: initialAttendancePct,
-        latestScore: latest ? latest.percentage : initialLatestScore,
-        latestDetail: latest ? `${latest.score} / ${latest.maxScore}` : initialLatestDetail,
-      });
-    }
-
-    recalculateStats();
-
-    window.addEventListener('edu_store_updated', recalculateStats);
-    window.addEventListener('storage', recalculateStats);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', recalculateStats);
-      window.removeEventListener('storage', recalculateStats);
-    };
-  }, [studentId, initialAttendancePct, initialExamsCount, initialLatestScore, initialLatestDetail]);
+    setStats({
+      completedExams: initialExamsCount,
+      pendingAssignments: initialPendingCount,
+      attendancePct: initialAttendancePct,
+      latestScore: initialLatestScore,
+      latestDetail: initialLatestDetail,
+    });
+  }, [initialExamsCount, initialPendingCount, initialAttendancePct, initialLatestScore, initialLatestDetail]);
 
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';
 

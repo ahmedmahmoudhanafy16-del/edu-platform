@@ -5,6 +5,7 @@ import { useLocale } from 'next-intl';
 import { X, Upload, CheckCircle2, Image as ImageIcon, Send, FileCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { submitAssignment } from '@/actions/assignment';
+import { getClientSessionStudent } from '@/actions/auth';
 import { toast } from 'sonner';
 
 interface SubmitAssignmentModalProps {
@@ -96,14 +97,11 @@ export function SubmitAssignmentModal({
     try {
       // Dynamically resolve student ID
       let currentStudentId = studentId || '';
-      if (!currentStudentId && typeof window !== 'undefined') {
-        try {
-          const cur = localStorage.getItem('current_student');
-          if (cur) {
-            const parsed = JSON.parse(cur);
-            currentStudentId = parsed.studentCode || parsed.id || '';
-          }
-        } catch {}
+      if (!currentStudentId) {
+        const sessionStudent = getClientSessionStudent();
+        if (sessionStudent) {
+          currentStudentId = sessionStudent.studentCode || sessionStudent.id || '';
+        }
       }
       if (!currentStudentId) {
         toast.error(isAr ? 'يرجى تسجيل الدخول كطالب أولاً' : 'Please log in as a student first');

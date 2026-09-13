@@ -51,8 +51,6 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const STORAGE_KEY = 'edu_students';
-
 const ACADEMIC_GRADES = [
   'الصف الثالث الإعدادي',
   'الصف الثاني الإعدادي',
@@ -172,7 +170,7 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Available Classrooms loaded from props and localStorage
+  // Available Classrooms loaded from props
   const [availableClassrooms, setAvailableClassrooms] = useState<{ id: string; name: string }[]>(classrooms);
 
   // Academic Grade & Classroom Assignment Modal State
@@ -192,116 +190,30 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
   const [editParentPhoneInput, setEditParentPhoneInput] = useState('');
   const [isUpdatingPhones, setIsUpdatingPhones] = useState(false);
 
-  // Sync available classrooms
   useEffect(() => {
-    function syncClassroomsList() {
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_classrooms');
-        const deletedIds = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-        const stored = localStorage.getItem('edu_classrooms');
-        const map = new Map<string, { id: string; name: string }>();
-        classrooms.forEach((c) => {
-          if (!deletedIds.has(c.id)) map.set(c.id, c);
-        });
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            parsed.forEach((c: any) => {
-              if (!deletedIds.has(c.id)) map.set(c.id, { id: c.id, name: c.name });
-            });
-          }
-        }
-        setAvailableClassrooms(Array.from(map.values()));
-      } catch {
-        setAvailableClassrooms(classrooms);
-      }
-    }
-
-    syncClassroomsList();
-
-    window.addEventListener('edu_classrooms_updated', syncClassroomsList);
-    window.addEventListener('edu_store_updated', syncClassroomsList);
-    window.addEventListener('storage', syncClassroomsList);
-    return () => {
-      window.removeEventListener('edu_classrooms_updated', syncClassroomsList);
-      window.removeEventListener('edu_store_updated', syncClassroomsList);
-      window.removeEventListener('storage', syncClassroomsList);
-    };
+    setAvailableClassrooms(classrooms);
   }, [classrooms]);
 
-  // Sync with localStorage on mount & prop changes
+  // Sync with initialStudents on mount & prop changes
   useEffect(() => {
     function syncStudents() {
-      let baseList = initialStudents;
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_students');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed: Student[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const localMap = new Map(parsed.map((s) => [s.id, s]));
-            initialStudents.forEach((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
-                localMap.set(s.id, s);
-              }
-            });
-            baseList = Array.from(localMap.values()).filter((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-            });
-          }
-        } else if (deletedSet.size > 0) {
-          baseList = baseList.filter((s) => {
-            const sCode = String(s.studentCode || '').trim().toUpperCase();
-            const sId = String(s.id || '').trim().toUpperCase();
-            return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-          });
-        }
-      } catch {}
-
-      const computed = computeDynamicAverages(baseList);
+      const computed = computeDynamicAverages(initialStudents);
       setStudents(computed);
-
-      // Background sync all students from teacher table to server registry
-      if (baseList && baseList.length > 0) {
-        fetch('/api/students/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ students: baseList }),
-        }).catch(() => {});
-      }
     }
 
     syncStudents();
 
     window.addEventListener('edu_students_updated', syncStudents);
     window.addEventListener('edu_store_updated', syncStudents);
-    window.addEventListener('storage', syncStudents);
 
     return () => {
       window.removeEventListener('edu_students_updated', syncStudents);
       window.removeEventListener('edu_store_updated', syncStudents);
-      window.removeEventListener('storage', syncStudents);
     };
   }, [initialStudents]);
 
   function persistStudents(list: Student[], deletedId?: string) {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-
-      if (deletedId) {
-        const delRaw = localStorage.getItem('edu_deleted_students');
-        const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
-        delSet.add(deletedId);
-        localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
-      }
-
       window.dispatchEvent(new CustomEvent('edu_students_updated', {
         detail: { students: list, deletedId },
       }));
@@ -511,14 +423,6 @@ export function CompactStudentsTable({ students: initialStudents, classroomName,
     setStudents((prev) => {
       const nextList = prev.filter((c) => c.id !== targetId && (!targetCode || c.studentCode !== targetCode));
       persistStudents(nextList, targetId);
-      if (targetCode && targetCode !== targetId) {
-        try {
-          const delRaw = localStorage.getItem('edu_deleted_students');
-          const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
-          delSet.add(targetCode);
-          localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
-        } catch {}
-      }
       return nextList;
     });
 

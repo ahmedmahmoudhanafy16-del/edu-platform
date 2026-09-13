@@ -47,14 +47,7 @@ export function StudentQuizCard({
   useEffect(() => {
     function checkRetakeStatus() {
       try {
-        let currentStudentCode = studentId;
-        const cur = localStorage.getItem('current_student');
-        if (cur) {
-          const parsed = JSON.parse(cur);
-          if (parsed.studentCode || parsed.id) {
-            currentStudentCode = parsed.studentCode || parsed.id;
-          }
-        }
+        const currentStudentCode = studentId;
 
         const codes = getRetakeCodes(quiz.id);
         const myCode = codes.find(

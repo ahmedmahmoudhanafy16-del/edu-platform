@@ -88,102 +88,12 @@ export function TeacherQuizzesClient({
 
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
-    function syncQuizzesData() {
-      let resultCountsMap: Record<string, number> = {};
-      try {
-        const submissions = getSubmissions();
-        submissions.forEach((r) => {
-          if (r.quizId) {
-            resultCountsMap[r.quizId] = (resultCountsMap[r.quizId] || 0) + 1;
-          }
-        });
-      } catch (e) {}
-
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_quiz_ids');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-        const deletedClassroomsRaw = localStorage.getItem('edu_deleted_classrooms');
-        const deletedClassrooms = new Set<string>(deletedClassroomsRaw ? JSON.parse(deletedClassroomsRaw) : []);
-
-        // Sync Classrooms
-        const storedClassroomsRaw = localStorage.getItem('edu_classrooms');
-        let currentClassrooms: any[] = classrooms;
-        if (storedClassroomsRaw) {
-          const parsed = JSON.parse(storedClassroomsRaw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            currentClassrooms = parsed.filter((c: any) => !deletedClassrooms.has(c.id));
-          }
-        }
-        setClassList(currentClassrooms);
-
-        const classroomMap = new Map<string, string>(currentClassrooms.map((c) => [c.id, c.name]));
-
-        const stored = getQuizzes();
-        const localMap = new Map<string, any>(stored.map((item) => [item.id, item]));
-
-        initialQuizzes.forEach((sq) => {
-          const local = localMap.get(sq.id);
-          if (local) {
-            localMap.set(sq.id, {
-              ...local,
-              ...sq,
-              classroomName: (sq.classroomId && classroomMap.get(sq.classroomId)) || sq.classroomName || local.classroomName,
-              totalScore: sq.totalScore ?? local.totalScore,
-              questions: (sq.questions && sq.questions.length > 0) ? sq.questions : (local.questions || []),
-            });
-          } else if (!deletedSet.has(sq.id) && (!sq.classroomId || !deletedClassrooms.has(sq.classroomId))) {
-            localMap.set(sq.id, {
-              ...sq,
-              classroomName: (sq.classroomId && classroomMap.get(sq.classroomId)) || sq.classroomName,
-            });
-          }
-        });
-
-        const merged = Array.from(localMap.values())
-          .filter((q) => {
-            if (deletedSet.has(q.id) || (q.accessCode && deletedSet.has(q.accessCode))) return false;
-            if (q.classroomId && deletedClassrooms.has(q.classroomId)) return false;
-            if (q.classroomName && deletedClassrooms.has(q.classroomName)) return false;
-            return true;
-          })
-          .map((q) => {
-            const extraCount = resultCountsMap[q.id] || resultCountsMap[q.accessCode] || 0;
-            return {
-              ...q,
-              classroomName: (q.classroomId && classroomMap.get(q.classroomId)) || q.classroomName,
-              resultsCount: Math.max(q.resultsCount || 0, extraCount),
-            };
-          });
-
-        setQuizzes(merged);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      } catch (e) {
-        console.warn('[TeacherQuizzes] Sync error:', e);
-        setQuizzes(initialQuizzes);
-      }
-    }
-
-    syncQuizzesData();
-
-    window.addEventListener('edu_store_updated', syncQuizzesData);
-    window.addEventListener('edu_classrooms_updated', syncQuizzesData);
-    window.addEventListener('storage', syncQuizzesData);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', syncQuizzesData);
-      window.removeEventListener('edu_classrooms_updated', syncQuizzesData);
-      window.removeEventListener('storage', syncQuizzesData);
-    };
+    setQuizzes(initialQuizzes);
+    setClassList(classrooms);
   }, [initialQuizzes, classrooms]);
 
-  // Helper to persist quizzes to localStorage
   function persistQuizzes(updatedList: QuizItem[]) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedList));
-    } catch (e) {
-      console.warn('[TeacherQuizzes] LocalStorage write failed:', e);
-    }
+    // No-op: Authoritative persistence is purely server-side via Supabase
   }
 
   function handleQuizSaved(savedQuiz?: any) {
@@ -279,23 +189,20 @@ export function TeacherQuizzesClient({
     // 1. Direct Store update
     toggleVisibilityStore(quiz.id, nextState);
 
-    // 2. Immediate Local State update
-    setQuizzes((prev) => {
-      const nextList = prev.map((q) =>
-        q.id === quiz.id ? { ...q, isPublished: nextState } : q
-      );
-      persistQuizzes(nextList);
-      return nextList;
-    });
+    setQuizzes((prev) =>
+      prev.map((q) => (q.id === quiz.id ? { ...q, isPublished: nextState } : q))
+    );
+
+    try {
+      await toggleQuizPublishAction(quiz.id, nextState);
+    } catch {}
 
     toast.success(
       nextState
         ? (isAr ? 'تم إتاحة الامتحان للطلاب' : 'Quiz published for students')
         : (isAr ? 'تم إخفاء الامتحان عن الطلاب' : 'Quiz hidden from students')
     );
-
-    // 3. Silent server action backup (fail-safe)
-    toggleQuizPublishAction(quiz.id, nextState).catch(() => null);
+    router.refresh();
   }
 
   async function handleConfirmDelete() {
@@ -303,22 +210,16 @@ export function TeacherQuizzesClient({
     const targetId = quizToDelete.id;
     setDeleteLoading(true);
 
-    // 1. Direct Store update & Tombstone record
-    deleteQuizStore(targetId);
+    setQuizzes((prev) => prev.filter((q) => q.id !== targetId && q.accessCode !== targetId));
 
-    // 2. Immediate Local State update
-    setQuizzes((prev) => {
-      const nextList = prev.filter((q) => q.id !== targetId && q.accessCode !== targetId);
-      persistQuizzes(nextList);
-      return nextList;
-    });
+    try {
+      await deleteQuizAction(targetId);
+    } catch {}
 
     setQuizToDelete(null);
     setDeleteLoading(false);
     toast.success(isAr ? 'تم حذف الامتحان بنجاح' : 'Quiz deleted successfully');
-
-    // 3. Silent server action backup (fail-safe)
-    deleteQuizAction(targetId).catch(() => null);
+    router.refresh();
   }
 
   function handlePrint(quiz: QuizItem) {

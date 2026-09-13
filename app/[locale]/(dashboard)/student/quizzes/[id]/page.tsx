@@ -7,6 +7,7 @@ import { QuizPasscodeGuard } from './QuizPasscodeGuard';
 import { Loader2, AlertCircle, ArrowRight, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getStudentQuizSecureAction } from '@/actions/quiz';
+import { getClientSessionStudent } from '@/actions/auth';
 import Link from 'next/link';
 
 export default function StudentQuizPage() {
@@ -27,18 +28,13 @@ export default function StudentQuizPage() {
   // 1. Ensure Client-Side Hydration
   useEffect(() => {
     setIsMounted(true);
-    try {
-      const stored = localStorage.getItem('current_student');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.id || parsed?.studentCode) {
-          setStudentId(parsed.id || parsed.studentCode);
-        }
-      }
-    } catch {}
+    const session = getClientSessionStudent();
+    if (session?.id || session?.studentCode) {
+      setStudentId(session.id || session.studentCode);
+    }
   }, []);
 
-  // 2. Client-Side Safe Fetching & Storage Synchronisation
+  // 2. Client-Side Safe Fetching
   useEffect(() => {
     if (!isMounted || !quizId) return;
 
@@ -99,13 +95,7 @@ export default function StudentQuizPage() {
       let unlocked = !resolvedQuiz.isCodeRequired;
 
       if (!unlocked) {
-        try {
-          const inSession = sessionStorage.getItem(`unlocked_quiz_${resolvedQuiz.id || quizId}`);
-          const inCookie = document.cookie.includes(`unlocked_quiz_${resolvedQuiz.id || quizId}=true`);
-          if (inSession === 'true' || inCookie) {
-            unlocked = true;
-          }
-        } catch (e) {}
+        unlocked = document.cookie.includes(`unlocked_quiz_${resolvedQuiz.id || quizId}=true`);
       }
 
       setQuiz(resolvedQuiz);

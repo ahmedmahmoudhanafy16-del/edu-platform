@@ -18,27 +18,15 @@ export function StudentQuizzesListClient({
   studentId: string;
   locale: string;
 }) {
-  const [quizzes, setQuizzes] = useState<any[]>(() => {
-    if (initialQuizzes && initialQuizzes.length > 0) {
-      return initialQuizzes;
-    }
-    if (typeof window !== 'undefined') {
-      const stored = getStudentQuizzes(studentId);
-      if (stored.length > 0) return stored;
-    }
-    return [];
-  });
+  const [quizzes, setQuizzes] = useState<any[]>(() => initialQuizzes || []);
 
   const [resultsMap, setResultsMap] = useState<Record<string, QuizSubmissionData>>(() => {
     const map: Record<string, QuizSubmissionData> = {};
-    const deletedRaw = typeof window !== 'undefined' ? localStorage.getItem('edu_deleted_quiz_ids') : null;
-    const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
     (initialResults || []).forEach((r) => {
-      if (r.quizId && !deletedSet.has(r.quizId)) map[r.quizId] = r;
+      if (r.quizId) map[r.quizId] = r;
     });
     (completedQuizIds || []).forEach((id) => {
-      if (!deletedSet.has(id) && !map[id]) {
+      if (!map[id]) {
         map[id] = { quizId: id, score: undefined, isPassed: true };
       }
     });
@@ -46,60 +34,18 @@ export function StudentQuizzesListClient({
   });
 
   useEffect(() => {
-    function syncQuizzesAndResults() {
-      // 1. Resolve target student ID
-      let currentTargetId = studentId;
-      try {
-        const cur = localStorage.getItem('current_student');
-        if (cur) {
-          const parsed = JSON.parse(cur);
-          if (parsed.studentCode || parsed.id) {
-            currentTargetId = parsed.studentCode || parsed.id;
-          }
-        }
-      } catch {}
-
-      // 2. Prioritize initial server quizzes from Supabase
-      if (!initialQuizzes || initialQuizzes.length === 0) {
-        const activeQuizzes = getStudentQuizzes(currentTargetId);
-        if (activeQuizzes.length > 0) {
-          setQuizzes(activeQuizzes);
-        }
+    setQuizzes(initialQuizzes || []);
+    const map: Record<string, QuizSubmissionData> = {};
+    (initialResults || []).forEach((r) => {
+      if (r.quizId) map[r.quizId] = r;
+    });
+    (completedQuizIds || []).forEach((id) => {
+      if (!map[id]) {
+        map[id] = { quizId: id, score: undefined, isPassed: true };
       }
-
-      // 3. Sync submissions from the unified client store with dynamic student ID
-
-      let activeSubmissions = currentTargetId ? getSubmissions(currentTargetId) : [];
-      if (!activeSubmissions || activeSubmissions.length === 0) {
-        const allSubs = getSubmissions();
-        const norm = (currentTargetId || '').trim().toUpperCase();
-        activeSubmissions = norm
-          ? allSubs.filter((s: any) => {
-              const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
-              return sId === norm;
-            })
-          : allSubs;
-      }
-
-      const newMap: Record<string, QuizSubmissionData> = {};
-      activeSubmissions.forEach((r) => {
-        if (r.quizId) newMap[r.quizId] = r;
-      });
-      setResultsMap((prev) => ({ ...prev, ...newMap }));
-    }
-
-    syncQuizzesAndResults();
-
-    window.addEventListener('edu_store_updated', syncQuizzesAndResults);
-    window.addEventListener('edu_classrooms_updated', syncQuizzesAndResults);
-    window.addEventListener('storage', syncQuizzesAndResults);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', syncQuizzesAndResults);
-      window.removeEventListener('edu_classrooms_updated', syncQuizzesAndResults);
-      window.removeEventListener('storage', syncQuizzesAndResults);
-    };
-  }, [studentId]);
+    });
+    setResultsMap(map);
+  }, [initialQuizzes, initialResults, completedQuizIds]);
 
   const isAr = locale === 'ar';
 

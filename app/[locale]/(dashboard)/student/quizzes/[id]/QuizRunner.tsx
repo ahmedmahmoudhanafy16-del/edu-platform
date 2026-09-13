@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertTriangle, FileQuestion, ShieldCheck, Maximize2, Timer, Lock, ShieldAlert } from 'lucide-react';
 import { submitQuizAnswers } from '@/actions/quiz';
+import { getClientSessionStudent } from '@/actions/auth';
 import { saveSubmission } from '@/lib/store';
 import { shuffleArray } from '@/lib/shuffle';
 import { cn } from '@/lib/utils';
@@ -117,8 +118,6 @@ export function QuizRunner({
   const [result, setResult] = useState<any>(null);
   const isSubmitting = useRef(false);
 
-  const autosaveKey = `quiz_answers_${activeQuiz?.id || quiz?.id || 'default'}_${studentId}`;
-
   const secondsPerQuestion = Number(activeQuiz?.timePerQuestion || quiz?.timePerQuestion) || 60;
   const isLinearMode = activeQuiz?.preventBackNavigation !== false && quiz?.preventBackNavigation !== false;
 
@@ -132,42 +131,21 @@ export function QuizRunner({
   // 1. Client Mount Flag & Student Identity resolution
   useEffect(() => {
     setMounted(true);
-    try {
-      const stored = localStorage.getItem('current_student');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed) {
-          setStudentInfo({
-            name: parsed.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
-            studentCode: parsed.studentCode || parsed.id || studentId || '',
-            phone: parsed.phone || '',
-          });
-        }
-      }
-    } catch {}
+    const session = getClientSessionStudent();
+    if (session) {
+      setStudentInfo({
+        name: session.name || (isAr ? 'طالب مسجل' : 'Enrolled Student'),
+        studentCode: session.studentCode || session.id || studentId || '',
+        phone: session.phone || '',
+      });
+    } else if (studentId) {
+      setStudentInfo({
+        name: isAr ? 'طالب مسجل' : 'Enrolled Student',
+        studentCode: studentId,
+        phone: '',
+      });
+    }
   }, [studentId, isAr]);
-
-  // Restore autosaved answers
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      const saved = localStorage.getItem(autosaveKey);
-      if (saved) {
-        setAnswers(JSON.parse(saved));
-        toast.info(isAr ? 'تم استعادة إجاباتك المحفوظة تلقائياً' : 'Your saved answers have been automatically restored');
-      }
-    } catch {}
-  }, [mounted, autosaveKey, isAr]);
-
-  // Autosave answers to localStorage
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      if (Object.keys(answers).length > 0) {
-        localStorage.setItem(autosaveKey, JSON.stringify(answers));
-      }
-    } catch {}
-  }, [mounted, answers, autosaveKey]);
 
   const handleSubmit = useCallback(
     async (auto = false) => {
@@ -236,7 +214,6 @@ export function QuizRunner({
             : clientReviewQuestions;
 
         try {
-          localStorage.removeItem(autosaveKey);
           const earnedScoreVal = res.totalScore ?? res.autoScore ?? calculatedEarned;
           const maxScoreVal = res.maxScore ?? calculatedMax ?? 20;
           const percentageVal =
@@ -331,7 +308,7 @@ export function QuizRunner({
         setSubmitting(false);
       }
     },
-    [questions, answers, activeQuiz.id, activeQuiz.title, quiz.id, quiz.title, studentId, submitted, autosaveKey, isAr]
+    [questions, answers, activeQuiz.id, activeQuiz.title, quiz.id, quiz.title, studentId, submitted, isAr]
   );
 
   // Anti-cheat: tab switch detection (client only)

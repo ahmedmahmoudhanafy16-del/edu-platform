@@ -6,7 +6,6 @@ import { FileText, CheckCircle2, Clock, Upload, Award } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubmitAssignmentModal } from '@/components/student/SubmitAssignmentModal';
 import { relativeTimeAr } from '@/lib/utils';
-import { getStudentAssignments, AssignmentData } from '@/lib/store';
 
 interface AssignmentItem {
   id: string;
@@ -31,55 +30,8 @@ export function StudentAssignmentsClient({ initialAssignments }: { initialAssign
   const [selectedAssignment, setSelectedAssignment] = useState<AssignmentItem | null>(null);
 
   useEffect(() => {
-    function syncAssignments() {
-      const stored = getStudentAssignments();
-      let currentTargetId = '';
-      try {
-        const cur = localStorage.getItem('current_student');
-        if (cur) {
-          const parsed = JSON.parse(cur);
-          currentTargetId = (parsed.studentCode || parsed.id || '').trim().toUpperCase();
-        }
-      } catch {}
-
-      const mapped: AssignmentItem[] = stored.map((a) => {
-        const sub = (a.submissions || []).find((s: any) => {
-          const sId = (s.studentId || s.studentCode || '').trim().toUpperCase();
-          return currentTargetId ? sId === currentTargetId : true;
-        });
-        return {
-          id: a.id,
-          title: a.title,
-          description: a.description || '',
-          dueDate: a.dueDate,
-          maxScore: a.maxScore ?? 10,
-          classroomName: a.classroomName || '',
-          submission: sub
-            ? {
-                id: sub.id,
-                grade: sub.grade ?? null,
-                status: sub.status || 'SUBMITTED',
-                teacherNote: sub.teacherNote || null,
-                submittedAt: sub.submittedAt || new Date().toISOString(),
-              }
-            : null,
-        };
-      });
-      setAssignments(mapped);
-    }
-
-    syncAssignments();
-
-    window.addEventListener('edu_store_updated', syncAssignments);
-    window.addEventListener('edu_classrooms_updated', syncAssignments);
-    window.addEventListener('storage', syncAssignments);
-
-    return () => {
-      window.removeEventListener('edu_store_updated', syncAssignments);
-      window.removeEventListener('edu_classrooms_updated', syncAssignments);
-      window.removeEventListener('storage', syncAssignments);
-    };
-  }, [isAr]);
+    setAssignments(initialAssignments);
+  }, [initialAssignments]);
 
   function handleSuccess(assignmentId: string) {
     setAssignments((prev) =>

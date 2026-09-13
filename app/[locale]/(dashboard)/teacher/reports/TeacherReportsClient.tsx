@@ -50,8 +50,6 @@ interface StudentReportItem {
   status: string;
 }
 
-const RESULTS_KEY = 'edu_quiz_results';
-
 const ACADEMIC_GRADES = [
   'الصف الثالث الإعدادي',
   'الصف الثاني الإعدادي',
@@ -91,143 +89,10 @@ export function TeacherReportsClient({
   const [studentToDelete, setStudentToDelete] = useState<StudentReportItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Server-authoritative reports state
   useEffect(() => {
-    function syncReports() {
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_students');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-        let baseList = initialReports.filter((r) => {
-          const sCode = String(r.studentCode || '').trim().toUpperCase();
-          const sId = String(r.id || '').trim().toUpperCase();
-          return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-        });
-
-        const storedStudents = localStorage.getItem('edu_students');
-        if (storedStudents) {
-          const parsedStudents: any[] = JSON.parse(storedStudents);
-          if (Array.isArray(parsedStudents)) {
-            const map = new Map<string, StudentReportItem>();
-            baseList.forEach((r) => {
-              const code = String(r.studentCode || r.id).trim().toUpperCase();
-              map.set(code, r);
-            });
-
-            parsedStudents.forEach((s) => {
-              const sCode = String(s.studentCode || s.id).trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              if (deletedSet.has(sId) || (sCode && deletedSet.has(sCode))) return;
-
-              const existing = map.get(sCode) || map.get(sId);
-              if (existing) {
-                map.set(sCode, {
-                  ...existing,
-                  name: s.name || existing.name,
-                  phone: s.phone || existing.phone,
-                  parentPhone: s.parentPhone || s.parentWhatsapp || existing.parentPhone,
-                  grade: s.grade || s.gradeLevel || existing.grade,
-                  classroomId: s.classroomId || s.classroom || existing.classroomId,
-                  classroomName: s.classroomName || existing.classroomName,
-                });
-              } else {
-                map.set(sCode, {
-                  id: s.id,
-                  name: s.name,
-                  studentCode: s.studentCode || s.id,
-                  phone: s.phone || '—',
-                  parentPhone: s.parentPhone || s.parentWhatsapp || '—',
-                  grade: s.grade || s.gradeLevel || '—',
-                  classroomId: s.classroomId || s.classroom || '',
-                  classroomName: s.classroomName || '',
-                  avgScore: 0,
-                  latestScore: null,
-                  latestMaxScore: null,
-                  latestPercentage: null,
-                  hasSubmissions: false,
-                  examsCompleted: 0,
-                  homeworkCompleted: 0,
-                  attendanceCount: 0,
-                  status: isAr ? 'يحتاج متابعة' : 'Needs Follow-up',
-                });
-              }
-            });
-
-            if (parsedStudents.length > 0) {
-              const validCodes = new Set(
-                parsedStudents.map((s) => String(s.studentCode || s.id).trim().toUpperCase())
-              );
-              const validIds = new Set(
-                parsedStudents.map((s) => String(s.id || '').trim().toUpperCase())
-              );
-              for (const [key, item] of map.entries()) {
-                const itemCode = String(item.studentCode || item.id).trim().toUpperCase();
-                const itemId = String(item.id || '').trim().toUpperCase();
-                if (!validCodes.has(itemCode) && !validIds.has(itemId) && !validCodes.has(itemId)) {
-                  map.delete(key);
-                }
-              }
-            } else {
-              map.clear();
-            }
-
-            baseList = Array.from(map.values());
-          }
-        }
-
-        const storedResults = localStorage.getItem(RESULTS_KEY);
-        if (storedResults) {
-          const parsedRes: any[] = JSON.parse(storedResults);
-          if (Array.isArray(parsedRes) && parsedRes.length > 0) {
-            baseList = baseList.map((student) => {
-              const cleanCode = (student.studentCode || '').trim().toUpperCase();
-              const cleanId = (student.id || '').trim().toUpperCase();
-              const studentSubmissions = parsedRes.filter((r) => {
-                const rStudentId = String(r.studentId || '').trim().toUpperCase();
-                const rStudentCode = String(r.studentCode || '').trim().toUpperCase();
-                return (
-                  rStudentId === cleanId ||
-                  rStudentId === cleanCode ||
-                  rStudentCode === cleanCode
-                );
-              });
-
-              const latest = getLatestStudentSubmission(student.studentCode || student.id, studentSubmissions);
-              if (latest) {
-                const totalExams = Math.max(student.examsCompleted, studentSubmissions.length);
-                return {
-                  ...student,
-                  avgScore: latest.percentage,
-                  latestScore: latest.score,
-                  latestMaxScore: latest.maxScore,
-                  latestPercentage: latest.percentage,
-                  hasSubmissions: true,
-                  examsCompleted: totalExams,
-                  status: latest.percentage >= 65 ? (isAr ? 'ممتاز' : 'Excellent') : (isAr ? 'يحتاج متابعة' : 'Needs Follow-up'),
-                };
-              }
-              return student;
-            });
-          }
-        }
-
-        setReports(baseList);
-      } catch (err) {
-        console.warn('[TeacherReportsClient] Sync error:', err);
-      }
-    }
-
-    syncReports();
-
-    window.addEventListener('edu_students_updated', syncReports);
-    window.addEventListener('edu_store_updated', syncReports);
-    window.addEventListener('storage', syncReports);
-
-    return () => {
-      window.removeEventListener('edu_students_updated', syncReports);
-      window.removeEventListener('edu_store_updated', syncReports);
-      window.removeEventListener('storage', syncReports);
-    };
-  }, [initialReports, isAr]);
+    setReports(initialReports);
+  }, [initialReports]);
 
   // Clean phone number for WhatsApp link
   function formatWhatsAppPhone(phone: string): string {
@@ -335,30 +200,8 @@ Thank you for your active partnership in your student's education.`;
       )
     );
 
-    // 2. Synchronize to localStorage edu_students
+    // 2. Notify client subscribers
     try {
-      const stored = localStorage.getItem('edu_students');
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        const updated = parsed.map((s) =>
-          s.id === targetStudent.id || s.studentCode === targetStudent.studentCode
-            ? {
-                ...s,
-                name: cleanName,
-                phone: cleanPhone,
-                parentPhone: cleanParent,
-                parentWhatsapp: cleanParent,
-                grade: cleanGrade,
-                gradeLevel: cleanGrade,
-                classroomId: editClassroomId,
-                classroom: editClassroomId,
-                classroomName: targetClassName,
-              }
-            : s
-        );
-        localStorage.setItem('edu_students', JSON.stringify(updated));
-      }
-
       window.dispatchEvent(new CustomEvent('edu_students_updated', {
         detail: { action: 'update', studentId: targetStudent.id },
       }));
@@ -380,7 +223,7 @@ Thank you for your active partnership in your student's education.`;
         toast.success(isAr ? 'تم تحديث بيانات الطالب في كشف الطلاب والتقارير بنجاح' : 'Student updated across roster and reports');
       }
     } catch {
-      toast.success(isAr ? 'تم حفظ التعديلات محلياً ومزامنتها بنجاح' : 'Changes saved locally and synchronized');
+      toast.success(isAr ? 'تم حفظ التعديلات ومزامنتها بنجاح' : 'Changes saved and synchronized');
     } finally {
       setIsUpdating(false);
       setStudentToEdit(null);
@@ -400,23 +243,8 @@ Thank you for your active partnership in your student's education.`;
       prev.filter((r) => r.id !== targetId && (!targetCode || r.studentCode !== targetCode))
     );
 
-    // 2. Synchronize to localStorage edu_deleted_students & edu_students
+    // 2. Notify subscribers
     try {
-      const delRaw = localStorage.getItem('edu_deleted_students');
-      const delSet = new Set<string>(delRaw ? JSON.parse(delRaw) : []);
-      delSet.add(targetId);
-      if (targetCode) delSet.add(targetCode);
-      localStorage.setItem('edu_deleted_students', JSON.stringify(Array.from(delSet)));
-
-      const stored = localStorage.getItem('edu_students');
-      if (stored) {
-        const parsed: any[] = JSON.parse(stored);
-        const next = parsed.filter(
-          (s) => s.id !== targetId && (!targetCode || s.studentCode !== targetCode)
-        );
-        localStorage.setItem('edu_students', JSON.stringify(next));
-      }
-
       window.dispatchEvent(new CustomEvent('edu_students_updated', {
         detail: { action: 'delete', studentId: targetId },
       }));
