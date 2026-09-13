@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { Lock, Mail, KeyRound, GraduationCap, Users, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DEFAULT_INITIAL_STUDENTS } from '@/lib/store';
 import { normalizeArabic, toStandardDigits, verifyStudentCredentials } from '@/actions/auth';
 
 export function LoginForm() {
@@ -84,49 +83,16 @@ export function LoginForm() {
         body: JSON.stringify({ email: cleanEmail, password: cleanPass, role: 'TEACHER' }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
-        // Fallback for local/offline demo if teacher credentials
-        if (
-          (cleanEmail === 'rasha@yahoo.com' && cleanPass === 'Rasha1900') ||
-          (cleanEmail === 'teacher@school.com' && cleanPass === 'teacher123')
-        ) {
-          let teacherName = 'أ/ رشا';
-          try {
-            const stored = localStorage.getItem('edu_teacher_profile');
-            if (stored) {
-              const p = JSON.parse(stored);
-              if (p?.name && !p.name.includes('سارة') && !p.name.toLowerCase().includes('sarah')) {
-                teacherName = p.name;
-              }
-            }
-          } catch {}
-
-          const teacherPayload = {
-            id: 'teacher-admin-1',
-            name: teacherName,
-            role: 'TEACHER',
-            email: 'Rasha@yahoo.com',
-            phone: '',
-          };
-          sessionStorage.setItem('userRole', 'teacher');
-          document.cookie = `user_session=${encodeURIComponent(JSON.stringify(teacherPayload))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-          router.push(`/${locale}/teacher`);
-          return;
-        }
-
-        setError(isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password');
+        setError(data?.error || (isAr ? 'البريد الإلكتروني أو كلمة المرور غير صحيحة' : 'Invalid email or password'));
         setLoading(false);
         return;
       }
 
-      const data = await res.json();
       if (data?.user) {
-        sessionStorage.setItem('userRole', 'teacher');
         document.cookie = `user_session=${encodeURIComponent(JSON.stringify(data.user))}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-        try {
-          localStorage.setItem('user_session', JSON.stringify(data.user));
-          localStorage.setItem('edu_teacher_profile', JSON.stringify(data.user));
-        } catch {}
       }
 
       router.push(`/${locale}/teacher`);

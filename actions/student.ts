@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { removeDynamicStudent, updateDynamicStudent } from '@/lib/dynamic-students';
+import { deleteStudentFromSupabase, toggleStudentStatusInSupabase } from '@/lib/supabase';
 
 export async function toggleStudentStatus(studentId: string, isActive: boolean) {
   try {
@@ -24,7 +25,13 @@ export async function toggleStudentStatus(studentId: string, isActive: boolean) 
         data: { isActive },
       });
     } catch (dbErr: any) {
-      console.warn('[toggleStudentStatus] DB update warning:', dbErr?.message);
+      console.warn('[toggleStudentStatus] DB update notice:', dbErr?.message);
+    }
+
+    try {
+      await toggleStudentStatusInSupabase(studentId, isActive);
+    } catch (sbErr: any) {
+      console.warn('[toggleStudentStatus] Supabase notice:', sbErr?.message);
     }
 
     try {
@@ -92,6 +99,12 @@ export async function deleteStudent(studentId: string) {
       });
     } catch (dbErr: any) {
       console.warn('[deleteStudent] DB delete warning:', dbErr?.message);
+    }
+
+    try {
+      await deleteStudentFromSupabase(studentId);
+    } catch (sbErr: any) {
+      console.warn('[deleteStudent] Supabase delete notice:', sbErr?.message);
     }
 
     try {

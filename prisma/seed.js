@@ -28,24 +28,6 @@ async function main() {
     },
   });
 
-  // Secondary legacy Teacher Account for test suite compatibility
-  await prisma.user.upsert({
-    where: { email: 'teacher@school.com' },
-    update: {
-      password: teacherHash,
-      passwordHash: teacherHash,
-      role: 'TEACHER',
-    },
-    create: {
-      name: 'أ/ رشا',
-      email: 'teacher@school.com',
-      password: teacherHash,
-      passwordHash: teacherHash,
-      role: 'TEACHER',
-      phone: null,
-    },
-  });
-
   // 2. Clean up any legacy dummy / mock sample data from previous runs
   const dummyStudentCodes = ['STU-001', 'STU-633', 'STU-777', 'STU-645', 'STU-003'];
   const dummyQuizIds = ['sample-quiz-1', 'sample-q1', 'sample-q2'];

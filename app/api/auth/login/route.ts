@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getTeacherFromSupabase } from '@/lib/supabase';
 import bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
@@ -20,27 +20,6 @@ function toStandardDigits(str: string): string {
     .replace(/[٩۹]/g, '9');
 }
 
-const SEED_USERS: any[] = [
-  {
-    id: 'teacher-admin-1',
-    name: 'أ/ رشا',
-    email: 'Rasha@yahoo.com',
-    phone: '',
-    role: 'TEACHER',
-    password: 'Rasha1900',
-    passwordHash: '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9',
-  },
-  {
-    id: 'teacher-admin-2',
-    name: 'أ/ رشا',
-    email: 'teacher@school.com',
-    phone: '',
-    role: 'TEACHER',
-    password: 'teacher123',
-    passwordHash: '$2a$10$w8.1k9rJ8e4Fq.qXn2.eGe1XmP5s7mKz3n8q2w5e7r9t1y3u5i7o9',
-  },
-];
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -59,65 +38,61 @@ export async function POST(req: NextRequest) {
     const cleanUpper = cleanInput.toUpperCase();
     const cleanLower = cleanInput.toLowerCase();
 
-    // ── Teacher Authentication ─────────────────────────────────────────────
+    // ── 1. Teacher Authentication (Authoritative Supabase & Cloud DB) ─────
     if (role === 'TEACHER' || (!cleanInput && email)) {
       const cleanEmail = String(email ?? '').trim().toLowerCase();
-      let teacherUser: any = null;
 
+      // Step A: Check Supabase PostgreSQL teachers table first
+      let teacherRecord: any = null;
       try {
-        teacherUser = await prisma.user.findFirst({
-          where: {
-            role: 'TEACHER',
-            OR: [{ email: cleanEmail }, { phone: cleanEmail }],
-          },
-        });
-      } catch (dbErr) {
-        console.warn('[Teacher Login] Database query skipped:', dbErr);
+        teacherRecord = await getTeacherFromSupabase(cleanEmail);
+      } catch (sbErr) {
+        console.warn('[Teacher Login] Supabase query notice:', sbErr);
       }
 
-      if (!teacherUser) {
-        const memTeacher = (global as any).memoryTeacher || (global as any).prisma?.memoryTeacher;
-        if (
-          memTeacher &&
-          ((memTeacher.email && memTeacher.email.toLowerCase() === cleanEmail) ||
-            (memTeacher.phone && memTeacher.phone === cleanEmail) ||
-            cleanEmail === 'rasha@yahoo.com' ||
-            cleanEmail === 'teacher@school.com')
-        ) {
-          teacherUser = memTeacher;
-        } else {
-          teacherUser = SEED_USERS.find(
-            (u) =>
-              u.role === 'TEACHER' &&
-              ((u.email && u.email.toLowerCase() === cleanEmail) ||
-                (u.phone && u.phone === cleanEmail))
-          );
+      // Step B: If not in Supabase yet, check relational Prisma user table
+      if (!teacherRecord) {
+        try {
+          teacherRecord = await prisma.user.findFirst({
+            where: {
+              role: 'TEACHER',
+              OR: [{ email: cleanEmail }, { phone: cleanEmail }],
+            },
+          });
+        } catch (dbErr) {
+          console.warn('[Teacher Login] Prisma query notice:', dbErr);
         }
       }
 
-      if (!teacherUser) {
-        return NextResponse.json(
-          { error: 'البريد الإلكتروني أو كلمة المرور غير صحيحة' },
-          { status: 401 }
-        );
-      }
-
-      // Verify teacher password
+      // Step C: If still no DB record, check bootstrap teacher identity
       let isTeacherPassMatch = false;
-      const tPass = String(teacherUser.password || '').trim();
-      const tHash = String(teacherUser.passwordHash || '').trim();
+      let teacherName = 'أ/ رشا';
+      let teacherEmail = 'Rasha@yahoo.com';
+      let teacherPhone = '01117633351';
+      let teacherId = 'teacher-admin-1';
 
-      if (tPass && rawPassword === tPass) {
-        isTeacherPassMatch = true;
-      } else if (cleanEmail === 'rasha@yahoo.com' && rawPassword === 'Rasha1900') {
-        isTeacherPassMatch = true;
-      } else if (cleanEmail === 'teacher@school.com' && rawPassword === 'teacher123') {
-        isTeacherPassMatch = true;
-      } else if (tHash && tHash.startsWith('$2')) {
-        try {
-          isTeacherPassMatch = await bcrypt.compare(rawPassword, tHash);
-        } catch {
-          isTeacherPassMatch = false;
+      if (teacherRecord) {
+        teacherId = teacherRecord.id || teacherId;
+        teacherName = teacherRecord.name || teacherName;
+        teacherEmail = teacherRecord.email || teacherEmail;
+        teacherPhone = teacherRecord.phone || teacherPhone;
+
+        const storedPass = String(teacherRecord.password || '').trim();
+        const storedHash = String(teacherRecord.password_hash || teacherRecord.passwordHash || '').trim();
+
+        if (storedPass && rawPassword === storedPass) {
+          isTeacherPassMatch = true;
+        } else if (storedHash && storedHash.startsWith('$2')) {
+          try {
+            isTeacherPassMatch = await bcrypt.compare(rawPassword, storedHash);
+          } catch {
+            isTeacherPassMatch = false;
+          }
+        }
+      } else if (cleanEmail === 'rasha@yahoo.com') {
+        // Bootstrap credential
+        if (rawPassword === 'Rasha1900') {
+          isTeacherPassMatch = true;
         }
       }
 
@@ -129,11 +104,11 @@ export async function POST(req: NextRequest) {
       }
 
       const teacherSession = {
-        id: teacherUser.id || 'teacher-admin-1',
-        name: teacherUser.name || 'أ/ رشا',
+        id: teacherId,
+        name: teacherName,
         role: 'TEACHER',
-        email: teacherUser.email || 'Rasha@yahoo.com',
-        phone: teacherUser.phone || '',
+        email: teacherEmail,
+        phone: teacherPhone,
         isActive: true,
       };
 
@@ -154,7 +129,7 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    // ── Student Authentication (Supabase Central Production Database) ──────
+    // ── 2. Student Authentication (Supabase Central Production Database) ──
     if (!cleanInput) {
       return NextResponse.json(
         { error: 'يرجى إدخال كود الطالب أو رقم الهاتف' },
@@ -162,7 +137,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Direct query to Supabase central 'students' table
+    // Direct query to Supabase central 'students' table
     try {
       const { data: student, error: sbError } = await supabase
         .from('students')
@@ -230,7 +205,7 @@ export async function POST(req: NextRequest) {
       console.warn('[Student Login] Supabase query notice:', sbErr?.message);
     }
 
-    // 2. Secondary fallback: Local/Relational Prisma Database
+    // Secondary fallback: Prisma Database
     let user: any = null;
     try {
       user = await prisma.user.findFirst({
@@ -245,7 +220,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch (dbErr) {
-      console.warn('[Student Login] DB query skipped:', dbErr);
+      console.warn('[Student Login] DB query notice:', dbErr);
     }
 
     if (!user) {
@@ -295,7 +270,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Success payload
     const sessionPayload = {
       id: user.id || user.studentCode,
       name: user.name,

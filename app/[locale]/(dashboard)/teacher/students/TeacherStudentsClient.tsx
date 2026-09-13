@@ -35,91 +35,16 @@ export function TeacherStudentsClient({
   const isAr = locale === 'ar';
   const [addStudentOpen, setAddStudentOpen] = useState(false);
 
-  // Authoritative dynamic students state synchronized with localStorage and cross-tab events
-  const [students, setStudents] = useState<StudentItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_students');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
+  // Authoritative server-provided students state
+  const [students, setStudents] = useState<StudentItem[]>(initialStudents);
 
-        const stored = localStorage.getItem('edu_students');
-        if (stored) {
-          const parsed: StudentItem[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const localMap = new Map(parsed.map((s) => [s.id, s]));
-            initialStudents.forEach((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
-                localMap.set(s.id, s);
-              }
-            });
-            return Array.from(localMap.values()).filter((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-            });
-          }
-        }
-      } catch {}
-    }
-    return initialStudents;
-  });
+  useEffect(() => {
+    setStudents(initialStudents);
+  }, [initialStudents]);
 
   function refresh() {
     router.refresh();
   }
-
-  // Reactive synchronization across all student additions, updates, suspensions, and removals
-  useEffect(() => {
-    function syncStudents() {
-      let baseList = initialStudents;
-      try {
-        const deletedRaw = localStorage.getItem('edu_deleted_students');
-        const deletedSet = new Set<string>(deletedRaw ? JSON.parse(deletedRaw) : []);
-
-        const stored = localStorage.getItem('edu_students');
-        if (stored) {
-          const parsed: StudentItem[] = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const localMap = new Map(parsed.map((s) => [s.id, s]));
-            initialStudents.forEach((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              if (!localMap.has(s.id) && !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode))) {
-                localMap.set(s.id, s);
-              }
-            });
-            baseList = Array.from(localMap.values()).filter((s) => {
-              const sCode = String(s.studentCode || '').trim().toUpperCase();
-              const sId = String(s.id || '').trim().toUpperCase();
-              return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-            });
-          }
-        } else if (deletedSet.size > 0) {
-          baseList = baseList.filter((s) => {
-            const sCode = String(s.studentCode || '').trim().toUpperCase();
-            const sId = String(s.id || '').trim().toUpperCase();
-            return !deletedSet.has(sId) && (!sCode || !deletedSet.has(sCode));
-          });
-        }
-      } catch {}
-
-      setStudents(baseList);
-    }
-
-    syncStudents();
-
-    window.addEventListener('edu_students_updated', syncStudents);
-    window.addEventListener('edu_store_updated', syncStudents);
-    window.addEventListener('storage', syncStudents);
-
-    return () => {
-      window.removeEventListener('edu_students_updated', syncStudents);
-      window.removeEventListener('edu_store_updated', syncStudents);
-      window.removeEventListener('storage', syncStudents);
-    };
-  }, [initialStudents]);
 
   // Executive Metric Calculations with Zero-Division Protection directly from reactive students
   const totalStudents = students.length;

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
-import { prisma, memoryTeacher } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
+import { getTeacherFromSupabase } from '@/lib/supabase';
 
 export interface SessionUser {
   id: string;
@@ -57,10 +58,6 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
             }
           } catch (dbErr) {
             console.warn('[Auth] DB query in getCurrentUser:', dbErr);
-          }
-
-          if (parsed.role === 'TEACHER' && memoryTeacher?.name && memoryTeacher.name !== 'المعلم') {
-            parsed.name = memoryTeacher.name;
           }
 
           return {
@@ -121,6 +118,22 @@ export async function getAuthenticatedTeacher() {
   const sessionUser = await getCurrentUser();
   if (sessionUser && sessionUser.role === 'TEACHER') {
     try {
+      const sbTeacher = await getTeacherFromSupabase(sessionUser.email || 'rasha@yahoo.com');
+      if (sbTeacher) {
+        return {
+          id: sbTeacher.id,
+          name: sbTeacher.name || 'أ/ رشا',
+          role: 'TEACHER',
+          email: sbTeacher.email || 'rasha@yahoo.com',
+          phone: sbTeacher.phone || '',
+          password: sbTeacher.password || '',
+          createdAt: sbTeacher.created_at || new Date(),
+          updatedAt: sbTeacher.updated_at || new Date(),
+        } as any;
+      }
+    } catch (sbErr) {}
+
+    try {
       const teacher = await prisma.user.findUnique({
         where: { id: sessionUser.id },
       });
@@ -134,15 +147,15 @@ export async function getAuthenticatedTeacher() {
 
     const cleanName = (sessionUser.name && (sessionUser.name.includes('سارة') || sessionUser.name.toLowerCase().includes('sarah')))
       ? 'أ/ رشا'
-      : (memoryTeacher?.name || sessionUser.name || 'أ/ رشا');
+      : (sessionUser.name || 'أ/ رشا');
 
     return {
       id: sessionUser.id || 'teacher-admin-1',
       name: cleanName,
       role: 'TEACHER',
-      email: memoryTeacher?.email || 'Rasha@yahoo.com',
-      phone: memoryTeacher?.phone || '',
-      password: memoryTeacher?.password || 'Rasha1900',
+      email: sessionUser.email || 'Rasha@yahoo.com',
+      phone: sessionUser.phone || '',
+      password: '',
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any;

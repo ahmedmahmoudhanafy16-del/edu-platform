@@ -175,3 +175,142 @@ export async function syncStudentToSupabase(studentData: {
     return null;
   }
 }
+
+/**
+ * Retrieves the teacher profile from Supabase by email or phone.
+ */
+export async function getTeacherFromSupabase(identifier: string) {
+  if (!isSupabaseConfigured() || !identifier) return null;
+  const clean = identifier.trim().toLowerCase();
+  try {
+    const { data, error } = await supabase
+      .from('teachers')
+      .select('*')
+      .or(`email.ilike.${clean},phone.eq.${clean}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      // If table doesn't exist yet, return null gracefully
+      return null;
+    }
+    return data;
+  } catch (err: any) {
+    return null;
+  }
+}
+
+/**
+ * Updates teacher profile name, email, and phone in Supabase.
+ */
+export async function updateTeacherProfileInSupabase(
+  id: string,
+  profile: { name: string; email?: string; phone?: string }
+) {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const client = getSupabaseServerClient();
+    let query = client.from('teachers').update({
+      name: profile.name,
+      ...(profile.email ? { email: profile.email.toLowerCase() } : {}),
+      phone: profile.phone || null,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (id && id !== 'teacher-admin-1') {
+      query = query.eq('id', id);
+    } else if (profile.email) {
+      query = query.eq('email', profile.email.toLowerCase());
+    } else {
+      query = query.eq('email', 'rasha@yahoo.com');
+    }
+
+    const { data, error } = await query.select().maybeSingle();
+    if (error) {
+      console.warn('[Supabase] updateTeacherProfile notice:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err: any) {
+    console.warn('[Supabase] updateTeacherProfile error:', err?.message);
+    return null;
+  }
+}
+
+/**
+ * Updates teacher password and password_hash in Supabase.
+ */
+export async function updateTeacherPasswordInSupabase(
+  id: string,
+  newPassword: string,
+  newPasswordHash: string
+) {
+  if (!isSupabaseConfigured() || !newPassword) return null;
+  try {
+    const client = getSupabaseServerClient();
+    let query = client.from('teachers').update({
+      password: newPassword,
+      password_hash: newPasswordHash,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (id && id !== 'teacher-admin-1') {
+      query = query.eq('id', id);
+    } else {
+      query = query.eq('email', 'rasha@yahoo.com');
+    }
+
+    const { data, error } = await query.select().maybeSingle();
+    if (error) {
+      console.warn('[Supabase] updateTeacherPassword notice:', error.message);
+      return null;
+    }
+    return data;
+  } catch (err: any) {
+    console.warn('[Supabase] updateTeacherPassword error:', err?.message);
+    return null;
+  }
+}
+
+/**
+ * Deletes a student from Supabase students table.
+ */
+export async function deleteStudentFromSupabase(studentIdOrCode: string) {
+  if (!isSupabaseConfigured() || !studentIdOrCode) return null;
+  try {
+    const client = getSupabaseServerClient();
+    const { error } = await client
+      .from('students')
+      .delete()
+      .or(`id.eq.${studentIdOrCode},student_code.eq.${studentIdOrCode}`);
+    if (error) {
+      console.warn('[Supabase] deleteStudent notice:', error.message);
+    }
+    return !error;
+  } catch (err: any) {
+    console.warn('[Supabase] deleteStudent error:', err?.message);
+    return false;
+  }
+}
+
+/**
+ * Toggles a student's active status in Supabase.
+ */
+export async function toggleStudentStatusInSupabase(studentIdOrCode: string, isActive: boolean) {
+  if (!isSupabaseConfigured() || !studentIdOrCode) return null;
+  try {
+    const client = getSupabaseServerClient();
+    const { error } = await client
+      .from('students')
+      .update({ is_active: isActive, updated_at: new Date().toISOString() })
+      .or(`id.eq.${studentIdOrCode},student_code.eq.${studentIdOrCode}`);
+    if (error) {
+      console.warn('[Supabase] toggleStudentStatus notice:', error.message);
+    }
+    return !error;
+  } catch (err: any) {
+    console.warn('[Supabase] toggleStudentStatus error:', err?.message);
+    return false;
+  }
+}
+

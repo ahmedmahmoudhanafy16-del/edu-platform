@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { supabase } from '@/lib/supabase';
 import { TeacherStudentsClient } from './TeacherStudentsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 import { calcStudentAvg } from '@/lib/utils';
@@ -75,6 +76,39 @@ export default async function TeacherStudentsPage({
     if (results[1].status === 'fulfilled') students = results[1].value || [];
   } catch (err) {
     console.warn('[Teacher Students] DB query error:', err);
+  }
+
+  // Authoritative Supabase Cloud Sync: Ensure all registered students appear across all devices
+  try {
+    const { data: sbStudents } = await supabase.from('students').select('*');
+    if (sbStudents && sbStudents.length > 0) {
+      const existingCodes = new Set(students.map((s) => String(s.studentCode || '').toUpperCase()));
+      for (const sb of sbStudents) {
+        const code = String(sb.student_code || '').toUpperCase();
+        if (!existingCodes.has(code)) {
+          students.push({
+            id: sb.id,
+            name: sb.full_name,
+            studentCode: sb.student_code,
+            phone: sb.phone || '',
+            parentPhone: sb.parent_phone || '',
+            defaultPassword: '',
+            password: '',
+            isActive: sb.is_active !== false,
+            createdAt: sb.created_at || new Date(),
+            grade: sb.grade_level || '',
+            gradeLevel: sb.grade_level || '',
+            enrollments: [],
+            submissions: [],
+            attendance: [],
+            quizResults: [],
+          });
+          existingCodes.add(code);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Students Page] Supabase sync notice:', sbErr);
   }
 
   const formatted = students.map((s) => {

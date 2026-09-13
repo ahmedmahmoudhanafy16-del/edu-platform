@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   User,
   Mail,
@@ -35,6 +36,7 @@ export function TeacherSettingsClient({
   initialTeacher: TeacherProfile;
   locale: string;
 }): React.JSX.Element {
+  const router = useRouter();
   const isAr = locale === 'ar';
 
   const cleanInitialName = (raw?: string) => {
@@ -43,32 +45,11 @@ export function TeacherSettingsClient({
     return raw.trim();
   };
 
-  // Profile Form State
+  // Profile Form State - Initialized strictly from authoritative server props
   const [name, setName] = useState(() => cleanInitialName(initialTeacher?.name));
   const [email, setEmail] = useState(initialTeacher?.email || '');
   const [phone, setPhone] = useState(initialTeacher?.phone || '');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-
-  // Sync from localStorage if previously updated
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('edu_teacher_profile');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (parsed?.name && !parsed.name.includes('سارة') && !parsed.name.toLowerCase().includes('sarah')) {
-            setName(parsed.name.trim());
-          }
-          if (parsed?.email) {
-            setEmail(parsed.email.trim());
-          }
-          if (parsed?.phone) {
-            setPhone(parsed.phone.trim());
-          }
-        }
-      } catch {}
-    }
-  }, []);
 
   // Password Form State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -103,30 +84,12 @@ export function TeacherSettingsClient({
 
       if (res.success && res.user) {
         toast.success(isAr ? 'تم حفظ وتحديث بيانات المعلم بنجاح' : 'Teacher profile updated successfully');
+        setName(res.user.name);
+        if (res.user.email) setEmail(res.user.email);
+        if (res.user.phone !== null) setPhone(res.user.phone || '');
 
-        // Immediate client-side persistence and sync
-        if (typeof window !== 'undefined') {
-          const updatedUserPayload = {
-            id: res.user.id,
-            name: res.user.name,
-            email: res.user.email,
-            phone: res.user.phone,
-            role: 'TEACHER',
-            isActive: true,
-          };
-
-          try {
-            localStorage.setItem('edu_teacher_profile', JSON.stringify(updatedUserPayload));
-            localStorage.setItem('user_session', JSON.stringify(updatedUserPayload));
-            document.cookie = `user_session=${encodeURIComponent(JSON.stringify(updatedUserPayload))}; path=/; max-age=2592000; SameSite=Lax`;
-          } catch {}
-
-          window.dispatchEvent(
-            new CustomEvent('edu_teacher_updated', {
-              detail: updatedUserPayload,
-            })
-          );
-        }
+        // Revalidate server components and navbar
+        router.refresh();
       } else {
         toast.error(res.error || (isAr ? 'فشل تحديث البيانات' : 'Failed to update profile'));
       }
