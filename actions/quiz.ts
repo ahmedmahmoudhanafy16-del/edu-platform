@@ -56,6 +56,48 @@ export async function getStudentQuizSecureAction(quizId: string, studentId: stri
       quiz = memoryQuizzes.find((m: any) => m.id === cleanId || m.accessCode === cleanId);
     }
 
+    // ── Supabase Production Central Store Lookup ───────────────────────────
+    if (!quiz) {
+      try {
+        const sbQuizzes = await getQuizzesFromSupabase();
+        const matched = sbQuizzes.find((q) => q.id === cleanId || q.accessCode === cleanId);
+        if (matched) {
+          quiz = {
+            id: matched.id,
+            title: matched.title,
+            type: matched.type || 'WEEKLY',
+            duration: matched.duration || 20,
+            passingScore: Number(matched.passingScore) || 60,
+            isPublished: matched.isPublished !== false,
+            isCodeRequired: matched.isCodeRequired !== false,
+            accessCode: matched.accessCode,
+            totalScore: matched.totalScore,
+            classroomName: matched.classroomName,
+            questions: (matched.questions || []).map((q: any) => {
+              let parsedOpts: string[] = [];
+              if (Array.isArray(q.options)) parsedOpts = q.options;
+              else if (typeof q.options === 'string') {
+                try {
+                  parsedOpts = JSON.parse(q.options);
+                } catch {
+                  parsedOpts = [q.options];
+                }
+              }
+              return {
+                id: q.id,
+                text: q.text,
+                type: q.type || 'MCQ',
+                options: parsedOpts,
+                maxScore: Number(q.maxScore) || 5,
+              };
+            }),
+          };
+        }
+      } catch (err: any) {
+        console.warn('[getStudentQuizSecureAction] Central store lookup notice:', err?.message);
+      }
+    }
+
     // ── Supabase Production Exams Lookup ──────────────────────────────────
     if (!quiz) {
       try {
@@ -777,6 +819,43 @@ export async function submitQuizAnswers(
       );
       if (mem) {
         quiz = mem;
+      }
+    }
+
+    // ── Supabase Production Central Store Lookup for Auto-Grading ───────────
+    if (!quiz) {
+      try {
+        const sbQuizzes = await getQuizzesFromSupabase();
+        const matched = sbQuizzes.find((q) => q.id === quizId || q.accessCode === quizId);
+        if (matched) {
+          quiz = {
+            id: matched.id,
+            title: matched.title,
+            duration: matched.duration || 20,
+            passingScore: Number(matched.passingScore) || 60,
+            questions: (matched.questions || []).map((q: any) => {
+              let parsedOpts: string[] = [];
+              if (Array.isArray(q.options)) parsedOpts = q.options;
+              else if (typeof q.options === 'string') {
+                try {
+                  parsedOpts = JSON.parse(q.options);
+                } catch {
+                  parsedOpts = [q.options];
+                }
+              }
+              return {
+                id: q.id,
+                text: q.text,
+                type: q.type || 'MCQ',
+                options: parsedOpts,
+                correctAnswer: q.correctAnswer,
+                maxScore: Number(q.maxScore) || 5,
+              };
+            }),
+          };
+        }
+      } catch (err: any) {
+        console.warn('[submitQuizAnswers] Supabase central store lookup notice:', err?.message);
       }
     }
 

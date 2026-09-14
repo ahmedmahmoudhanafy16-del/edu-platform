@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma, memoryQuizzes } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getQuizzesFromSupabase } from '@/lib/supabase';
 import { shuffleArray } from '@/lib/shuffle';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +34,38 @@ export async function GET(
     if (!quiz) {
       const mem = (memoryQuizzes || []).find((m: any) => m.id === id || m.accessCode === id);
       if (mem) quiz = mem;
+    }
+
+    // ── Supabase Production Central Store Lookup ───────────────────────────
+    if (!quiz) {
+      try {
+        const sbQuizzes = await getQuizzesFromSupabase();
+        const matched = sbQuizzes.find((q) => q.id === id || q.accessCode === id);
+        if (matched) {
+          quiz = {
+            id: matched.id,
+            title: matched.title,
+            type: matched.type || 'WEEKLY',
+            duration: matched.duration || 20,
+            passingScore: Number(matched.passingScore) || 60,
+            isPublished: matched.isPublished !== false,
+            isCodeRequired: matched.isCodeRequired !== false,
+            accessCode: matched.accessCode,
+            totalScore: matched.totalScore,
+            classroomName: matched.classroomName,
+            questions: (matched.questions || []).map((q: any) => ({
+              id: q.id,
+              text: q.text,
+              type: q.type || 'MCQ',
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              maxScore: Number(q.maxScore) || 5,
+            })),
+          };
+        }
+      } catch (err: any) {
+        console.warn('[API Quiz GET] Supabase central store lookup notice:', err?.message);
+      }
     }
 
     // ── Supabase Production Exams Lookup ──────────────────────────────────

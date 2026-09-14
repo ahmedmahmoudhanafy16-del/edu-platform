@@ -635,11 +635,16 @@ export function QuizRunner({
           <span>{studentInfo.phone ? `${isAr ? 'هاتف' : 'Phone'}: ${studentInfo.phone}` : (isAr ? 'سري وخاص' : 'Confidential')}</span>
         </div>
 
-        <div className="flex items-start gap-3">
-          <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
-            {current + 1}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="w-7 h-7 rounded-full border border-n-200 text-n-500 flex items-center justify-center text-xs font-bold shrink-0">
+              {current + 1}
+            </span>
+            <p className="text-sm font-semibold text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || (isAr ? 'نص السؤال' : 'Question text')}</p>
+          </div>
+          <span className="shrink-0 text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800/60 px-2.5 py-0.5 rounded-full font-mono">
+            {q?.maxScore ?? 5} {isAr ? 'درجات' : 'pts'}
           </span>
-          <p className="text-sm font-semibold text-n-800 dark:text-n-700 leading-relaxed pt-0.5">{q?.text || (isAr ? 'نص السؤال' : 'Question text')}</p>
         </div>
 
         {q?.type === 'MCQ' ? (

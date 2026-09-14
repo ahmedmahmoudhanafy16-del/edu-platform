@@ -1020,6 +1020,7 @@ export interface SupabaseQuiz {
   accessCode?: string;
   isCodeRequired?: boolean;
   isPublished?: boolean;
+  isHidden?: boolean;
   classroomName?: string;
   classroomId?: string;
   grade?: string;

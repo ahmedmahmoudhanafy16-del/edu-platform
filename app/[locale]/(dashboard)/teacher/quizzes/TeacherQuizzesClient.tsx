@@ -19,6 +19,9 @@ import {
   Users,
   CheckCircle2,
   FileQuestion,
+  Search,
+  Filter,
+  X as XIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateQuizModal } from '@/components/teacher/CreateQuizModal';
@@ -82,9 +85,13 @@ export function TeacherQuizzesClient({
   // Results & Retake Codes dialog state
   const [quizForResults, setQuizForResults] = useState<QuizItem | null>(null);
 
-  // Print state
   const [printableQuiz, setPrintableQuiz] = useState<QuizItem | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [classroomFilter, setClassroomFilter] = useState('ALL');
+  const [typeFilter, setTypeFilter] = useState('ALL');
 
   // 1. Unified Local Storage & Server Sync on Mount
   useEffect(() => {
@@ -260,6 +267,26 @@ export function TeacherQuizzesClient({
     ? Math.round(quizzes.reduce((sum, q) => sum + (q.questionsCount || 0), 0) / totalQuizzesCount)
     : 0;
 
+  // Filtered Quizzes
+  const filteredQuizzes = quizzes.filter((q) => {
+    if (searchQuery.trim()) {
+      const qText = searchQuery.toLowerCase().trim();
+      const matchTitle = (q.title || '').toLowerCase().includes(qText);
+      const matchClass = (q.classroomName || '').toLowerCase().includes(qText);
+      const matchCode = (q.accessCode || '').toLowerCase().includes(qText);
+      if (!matchTitle && !matchClass && !matchCode) return false;
+    }
+    if (classroomFilter !== 'ALL') {
+      const matchId = q.classroomId === classroomFilter;
+      const matchName = q.classroomName === classroomFilter;
+      if (!matchId && !matchName) return false;
+    }
+    if (typeFilter !== 'ALL') {
+      if (q.type !== typeFilter) return false;
+    }
+    return true;
+  });
+
   return (
     <>
       {/* Page Header */}
@@ -361,6 +388,66 @@ export function TeacherQuizzesClient({
         </div>
       </div>
 
+      {/* Search and Filters Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm no-print" dir={isAr ? 'rtl' : 'ltr'}>
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={isAr ? 'ابحث عن امتحان بالاسم أو الفصل أو الكود...' : 'Search exams by title, classroom, or code...'}
+            className="w-full h-9 ps-9 pe-3 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-accent"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+            <Filter className="h-3.5 w-3.5 text-slate-400" />
+            <span>{isAr ? 'الفصل:' : 'Class:'}</span>
+            <select
+              value={classroomFilter}
+              onChange={(e) => setClassroomFilter(e.target.value)}
+              className="h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-accent"
+            >
+              <option value="ALL">{isAr ? 'جميع الفصول الدراسية' : 'All Classrooms'}</option>
+              {classList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-800 text-xs bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:border-accent"
+          >
+            <option value="ALL">{isAr ? 'جميع الأنواع' : 'All Types'}</option>
+            <option value="WEEKLY">{isAr ? 'أسبوعي' : 'Weekly'}</option>
+            <option value="MONTHLY">{isAr ? 'شهري' : 'Monthly'}</option>
+            <option value="FINAL">{isAr ? 'نهائي' : 'Final'}</option>
+          </select>
+
+          {(searchQuery || classroomFilter !== 'ALL' || typeFilter !== 'ALL') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setClassroomFilter('ALL');
+                setTypeFilter('ALL');
+              }}
+              className="h-9 text-xs text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            >
+              <XIcon className="h-3.5 w-3.5 me-1" />
+              {isAr ? 'إعادة ضبط' : 'Reset'}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {/* Quizzes List Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 no-print" dir={isAr ? 'rtl' : 'ltr'}>
         {quizzes.length === 0 ? (
@@ -375,8 +462,30 @@ export function TeacherQuizzesClient({
                 : 'Click "Create New Quiz" above to publish your first quiz'}
             </p>
           </div>
+        ) : filteredQuizzes.length === 0 ? (
+          <div className="col-span-full p-10 text-center border border-slate-200 dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900">
+            <Search className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {isAr ? 'لا توجد نتائج مطابقة لخيارات البحث' : 'No matching quizzes found'}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {isAr ? 'جرب تغيير نص البحث أو اختيار فصل دراسي آخر' : 'Try adjusting your search query or selecting another classroom'}
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('');
+                setClassroomFilter('ALL');
+                setTypeFilter('ALL');
+              }}
+              className="mt-3 text-xs"
+            >
+              {isAr ? 'إظهار جميع الامتحانات' : 'Show All Exams'}
+            </Button>
+          </div>
         ) : (
-          quizzes.map((q) => (
+          filteredQuizzes.map((q) => (
             <div
               key={q.id}
               className={`p-6 rounded-2xl border transition-all duration-200 bg-white dark:bg-slate-900 space-y-4 shadow-sm ${
@@ -475,33 +584,41 @@ export function TeacherQuizzesClient({
                 </div>
               )}
 
-              {/* Stats Metrics Strip */}
+              {/* Stats Metrics Strip (5 Columns with Passing Score) */}
               {(() => {
                 const totalScore = (q as any).totalScore || (
                   q.questions && q.questions.length > 0
                     ? q.questions.reduce((acc: number, cur: any) => acc + (Number(cur.maxScore) || 0), 0)
                     : 10
                 );
+                const passPercent = Number(q.passingScore) || 60;
+                const passPts = Number(((passPercent / 100) * totalScore).toFixed(1));
                 return (
-                  <div className="grid grid-cols-4 gap-1.5 py-3 border-y border-slate-100 dark:border-slate-800 text-center text-xs">
+                  <div className="grid grid-cols-5 gap-1 py-3 border-y border-slate-100 dark:border-slate-800 text-center text-xs">
                     <div>
-                      <p className="text-slate-400">{isAr ? 'الأسئلة' : 'Questions'}</p>
+                      <p className="text-slate-400 text-[11px]">{isAr ? 'الأسئلة' : 'Questions'}</p>
                       <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">{q.questionsCount}</p>
                     </div>
                     <div>
-                      <p className="text-slate-400">{isAr ? 'الدرجة الكلية' : 'Total Score'}</p>
+                      <p className="text-slate-400 text-[11px]">{isAr ? 'الدرجة الكلية' : 'Total Score'}</p>
                       <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono whitespace-nowrap">
                         {totalScore} {isAr ? 'درجات' : 'pts'}
                       </p>
                     </div>
                     <div>
-                      <p className="text-slate-400">{isAr ? 'المدة' : 'Duration'}</p>
-                      <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">
-                        {q.duration} {isAr ? 'دقيقة' : 'mins'}
+                      <p className="text-slate-400 text-[11px]">{isAr ? 'درجة النجاح' : 'Passing'}</p>
+                      <p className="font-bold text-blue-600 dark:text-blue-400 mt-0.5 font-mono whitespace-nowrap">
+                        {passPts} <span className="text-[10px] text-slate-400 font-normal">({passPercent}%)</span>
                       </p>
                     </div>
                     <div>
-                      <p className="text-slate-400">{isAr ? 'الممتحنون' : 'Examinees'}</p>
+                      <p className="text-slate-400 text-[11px]">{isAr ? 'المدة' : 'Duration'}</p>
+                      <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">
+                        {q.duration} {isAr ? 'د' : 'm'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 text-[11px]">{isAr ? 'الممتحنون' : 'Examinees'}</p>
                       <p className="font-bold text-slate-900 dark:text-white mt-0.5 font-mono whitespace-nowrap">
                         {q.resultsCount} {isAr ? 'طالب' : 'students'}
                       </p>

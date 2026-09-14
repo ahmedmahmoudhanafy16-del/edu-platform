@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
-import { supabase } from '@/lib/supabase';
+import { supabase, getQuizzesFromSupabase } from '@/lib/supabase';
 import { ClipboardList } from 'lucide-react';
 import { getAuthenticatedStudent } from '@/lib/auth';
 import { StudentQuizzesListClient } from '@/components/student/StudentQuizzesListClient';
@@ -28,24 +28,54 @@ export default async function StudentQuizzesPage({
   let quizzes: any[] = [];
   let dbResults: any[] = [];
 
-  // 1. Fetch published exams from central Supabase database
+  // 1. Fetch published exams from central Supabase database and Central Cloud Store
   try {
-    const { data: sbExams } = await supabase
-      .from('exams')
-      .select('id, title, description, duration_minutes, passing_score, total_marks, is_published, created_at')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false });
+    const [sbStoreQuizzes, sbExamsRes] = await Promise.allSettled([
+      getQuizzesFromSupabase(),
+      supabase
+        .from('exams')
+        .select('id, title, description, duration_minutes, passing_score, total_marks, is_published, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false }),
+    ]);
 
-    if (sbExams && sbExams.length > 0) {
-      quizzes = sbExams.map((e) => ({
-        id: e.id,
-        title: e.title,
-        type: 'EXAM',
-        duration: e.duration_minutes || 30,
-        passingScore: Number(e.passing_score) || 50,
-        isCodeRequired: false,
-        classroom: { name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
-      }));
+    const existingIds = new Set<string>();
+
+    if (sbStoreQuizzes.status === 'fulfilled' && Array.isArray(sbStoreQuizzes.value)) {
+      for (const q of sbStoreQuizzes.value) {
+        if (q.isPublished !== false && !q.isHidden) {
+          quizzes.push({
+            id: q.id,
+            title: q.title,
+            type: q.type || 'WEEKLY',
+            duration: q.duration || 20,
+            passingScore: Number(q.passingScore) || 60,
+            isCodeRequired: q.isCodeRequired !== false,
+            accessCode: q.accessCode,
+            totalScore: q.totalScore,
+            classroom: { name: q.classroomName || (isAr ? 'عام' : 'General') },
+          });
+          existingIds.add(q.id);
+          if (q.accessCode) existingIds.add(q.accessCode);
+        }
+      }
+    }
+
+    if (sbExamsRes.status === 'fulfilled' && sbExamsRes.value.data) {
+      for (const e of sbExamsRes.value.data) {
+        if (!existingIds.has(e.id)) {
+          quizzes.push({
+            id: e.id,
+            title: e.title,
+            type: 'EXAM',
+            duration: e.duration_minutes || 30,
+            passingScore: Number(e.passing_score) || 50,
+            isCodeRequired: false,
+            classroom: { name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
+          });
+          existingIds.add(e.id);
+        }
+      }
     }
 
     if (studentId) {
@@ -164,7 +194,8 @@ export default async function StudentQuizzesPage({
     duration: q.duration ?? 20,
     passingScore: q.passingScore ?? 60,
     isCodeRequired: q.isCodeRequired !== false,
-    classroomName: q.classroom?.name || (isAr ? 'عام' : 'General'),
+    classroomName: q.classroom?.name || q.classroomName || (isAr ? 'عام' : 'General'),
+    totalScore: q.totalScore,
   }));
 
   const completedQuizIds = allResults

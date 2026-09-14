@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma, memoryQuizResults, memoryQuizzes } from '@/lib/prisma';
-import { supabase, getAssignmentsFromSupabase, getClassroomsFromSupabase, getLiveSessionsFromSupabase } from '@/lib/supabase';
+import { supabase, getAssignmentsFromSupabase, getClassroomsFromSupabase, getLiveSessionsFromSupabase, getQuizzesFromSupabase } from '@/lib/supabase';
 import {
   Wifi, ClipboardList, FileText, Layers,
   Clock, CheckCircle2, Download, Timer,
@@ -164,16 +164,38 @@ export default async function StudentDashboardPage({
 
   // Central Supabase exams & attempts lookup
   try {
-    const { data: sbExams } = await supabase
-      .from('exams')
-      .select('id, title, duration_minutes, passing_score, total_marks, is_published, created_at')
-      .eq('is_published', true)
-      .order('created_at', { ascending: false })
-      .limit(6);
+    const [sbQuizzesStore, sbExamsRes] = await Promise.allSettled([
+      getQuizzesFromSupabase(),
+      supabase
+        .from('exams')
+        .select('id, title, duration_minutes, passing_score, total_marks, is_published, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+        .limit(6),
+    ]);
 
-    if (sbExams && sbExams.length > 0) {
-      const existingExamIds = new Set(quizzes.map((q) => q.id));
-      for (const sbe of sbExams) {
+    const existingExamIds = new Set(quizzes.map((q) => q.id));
+
+    if (sbQuizzesStore.status === 'fulfilled' && Array.isArray(sbQuizzesStore.value)) {
+      for (const sq of sbQuizzesStore.value) {
+        if (sq.isPublished !== false && !sq.isHidden && !existingExamIds.has(sq.id)) {
+          quizzes.unshift({
+            id: sq.id,
+            title: sq.title,
+            type: sq.type || 'WEEKLY',
+            duration: sq.duration || 20,
+            passingScore: Number(sq.passingScore) || 60,
+            isCodeRequired: sq.isCodeRequired !== false,
+            totalScore: sq.totalScore,
+            classroom: { name: sq.classroomName || (isAr ? 'عام' : 'General') },
+          });
+          existingExamIds.add(sq.id);
+        }
+      }
+    }
+
+    if (sbExamsRes.status === 'fulfilled' && sbExamsRes.value.data && sbExamsRes.value.data.length > 0) {
+      for (const sbe of sbExamsRes.value.data) {
         if (!existingExamIds.has(sbe.id)) {
           quizzes.unshift({
             id: sbe.id,
@@ -184,6 +206,7 @@ export default async function StudentDashboardPage({
             isCodeRequired: false,
             classroom: { name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
           });
+          existingExamIds.add(sbe.id);
         }
       }
     }
