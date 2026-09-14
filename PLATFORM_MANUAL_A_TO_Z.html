@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>منصة التعليم الإلكتروني الذكية — Master Platform Manual (A to Z)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+  <style>
+    :root {
+      --bg: #FAFAF7;
+      --card-bg: #FFFFFF;
+      --text: #1C1917;
+      --text-muted: #57534E;
+      --primary: #0E7C7B;
+      --primary-light: #F0FDFA;
+      --border: #E7E5E4;
+      --code-bg: #1C1917;
+      --code-text: #38BDF8;
+    }
+    [data-theme="dark"] {
+      --bg: #0C0A09;
+      --card-bg: #1C1917;
+      --text: #F5F5F4;
+      --text-muted: #A8A29E;
+      --primary: #14B8A6;
+      --primary-light: #134E4A;
+      --border: #292524;
+      --code-bg: #000000;
+      --code-text: #38BDF8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Cairo", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+      padding: 0;
+      transition: background 0.2s, color 0.2s;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-family: "Cairo", sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-secondary {
+      background: var(--border);
+      color: var(--text);
+    }
+    .container {
+      max-width: 1000px;
+      margin: 2rem auto;
+      padding: 0 1.5rem 4rem 1.5rem;
+    }
+    article {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2.5rem 3rem;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+    }
+    h1, h2, h3, h4 {
+      color: var(--text);
+      font-weight: 800;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+    h1 { font-size: 2.2rem; border-bottom: 2px solid var(--border); padding-bottom: 0.75rem; color: var(--primary); }
+    h2 { font-size: 1.6rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    h3 { font-size: 1.25rem; }
+    p, ul, ol { margin-bottom: 1.2rem; }
+    li { margin-bottom: 0.4rem; margin-right: 1.5rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.75rem 1rem;
+      text-align: right;
+    }
+    th {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 700;
+    }
+    code {
+      font-family: "Fira Code", monospace;
+      font-size: 0.88em;
+      background: var(--border);
+      padding: 0.2em 0.4em;
+      border-radius: 4px;
+      direction: ltr;
+      display: inline-block;
+    }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 1.25rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      direction: ltr;
+      text-align: left;
+      margin: 1.5rem 0;
+    }
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      display: block;
+    }
+    blockquote {
+      border-right: 4px solid var(--primary);
+      padding-right: 1rem;
+      color: var(--text-muted);
+      margin: 1.5rem 0;
+      background: var(--primary-light);
+      padding: 0.75rem 1rem;
+      border-radius: 4px 0 0 4px;
+    }
+    a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    a:hover { text-decoration: underline; }
+    .mermaid {
+      background: var(--card-bg);
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin: 1.5rem 0;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+    @media print {
+      header { display: none; }
+      .container { max-width: 100%; margin: 0; padding: 0; }
+      article { border: none; box-shadow: none; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">
+      <span>🎓</span>
+      <span>دليل المنصة الشامل (Platform Manual A to Z)</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="toggleTheme()">🌓 الوضع الداكن</button>
+      <button class="btn" onclick="window.print()">🖨️ طباعة / حفظ كـ PDF</button>
+    </div>
+  </header>
+  <div class="container">
+    <article id="content"></article>
+  </div>
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+    const rawMd = "# 🎓 منصة التعليم الإلكتروني الذكية — Master Platform Manual (A to Z)\n**The Definitive Architecture, Feature Specification, Database Schema & Developer Operations Guide**\n\n---\n\n## 📑 Table of Contents\n1. [Executive Overview & Platform Identity](#1-executive-overview--platform-identity)\n2. [High-Level Architecture & Tech Stack](#2-high-level-architecture--tech-stack)\n3. [User Roles & Security Authentication](#3-user-roles--security-authentication)\n4. [Cross-Module Platform Bonding & Event Bus](#4-cross-module-platform-bonding--event-bus)\n5. [Complete Module Breakdown (A to Z)](#5-complete-module-breakdown-a-to-z)\n   - [5.1 Teacher Dashboard & Executive Analytics](#51-teacher-dashboard--executive-analytics)\n   - [5.2 Classrooms & Grade Management](#52-classrooms--grade-management)\n   - [5.3 Students Directory & WhatsApp Reports](#53-students-directory--whatsapp-reports)\n   - [5.4 Quizzes & Exams Engine](#54-quizzes--exams-engine)\n   - [5.5 Strict Proctoring & Anti-Cheat System](#55-strict-proctoring--anti-cheat-system)\n   - [5.6 Results, Auto-Grading & Single-Use Retake PINs](#56-results-auto-grading--single-use-retake-pins)\n   - [5.7 Assignments & Homework Management](#57-assignments--homework-management)\n   - [5.8 Live Virtual Classrooms (Jitsi Meet)](#58-live-virtual-classrooms-jitsi-meet)\n   - [5.9 Student Experience & Portal](#59-student-experience--portal)\n6. [Database Schema & Data Persistence (Dual-Tier)](#6-database-schema--data-persistence-dual-tier)\n7. [Codebase Directory Structure & File Map](#7-codebase-directory-structure--file-map)\n8. [Environment Variables & Deployment Guide](#8-environment-variables--deployment-guide)\n9. [Verification, Testing & Maintenance Scripts](#9-verification-testing--maintenance-scripts)\n\n---\n\n## 1. Executive Overview & Platform Identity\n\n- **Platform Name**: المنصة التعليمية الذكية (Smart Educational Platform)\n- **Target Audience**: Egyptian & Arab World K-12 Tutoring, Independent Teachers, Academic Centers, and Schools.\n- **Production URL**: [https://edu-platform-phi-pearl.vercel.app](https://edu-platform-phi-pearl.vercel.app)\n- **GitHub Repository**: [https://github.com/ahmedmahmoudhanafy16-del/edu-platform.git](https://github.com/ahmedmahmoudhanafy16-del/edu-platform.git)\n- **Core Philosophy**:\n  1. **Zero Mock Data Policy**: Every single student, exam, classroom, and grade originates from real teacher entries stored in persistent cloud databases. No random dummy numbers.\n  2. **Cross-Module Bonding**: Modifying an entity in one module (e.g. creating an exam or registering a student) updates every dependent view in real time (Classrooms count, Student quizzes, Dashboard metrics).\n  3. **Uncompromising Exam Security**: Web-based exams with physical classroom proctoring rigor (anti-cheat screen blur, copy-paste blocking, linear question progression, student watermark).\n  4. **Localized Bilingual UX**: Native Arabic with Cairo typography (`dir=\"rtl\"`) alongside complete English support (`dir=\"ltr\"`).\n\n---\n\n## 2. High-Level Architecture & Tech Stack\n\n```mermaid\ngraph TD\n    Client[Browser: Next.js Client Components] -->|Server Actions / REST| NextServer[Next.js 14 App Router Server]\n    NextServer -->|Primary Authoritative Cloud| Supabase[Supabase PostgreSQL Cloud Database]\n    NextServer -->|Local Staging & Migrations| Prisma[Prisma ORM / SQLite]\n    Client -->|Hydration & Optimistic Events| Store[Local Store Event Bus: lib/store.ts]\n    NextServer -->|Secure Stripped Payload| StudentExam[QuizRunner Student Environment]\n    NextServer -->|Jitsi SDK| LiveClass[Live Virtual Classroom Engine]\n```\n\n### Technology Matrix\n| Layer | Technologies Used | Purpose |\n| :--- | :--- | :--- |\n| **Framework** | Next.js 14.1.0 (App Router) + React 18 | High-performance hybrid SSR, SSG, and Server Actions |\n| **Language** | TypeScript 5.x | Strict compile-time type safety across frontend and backend |\n| **Styling** | Tailwind CSS 3.4 + `next-themes` | Clean design system with warm stone neutrals and dark mode |\n| **Typography** | Google Fonts: **Cairo** | Native, highly legible Arabic and English typography |\n| **Internationalization** | `next-intl` (Request-based) | Locale prefixes (`/ar/`, `/en/`) with bidirectional layouts |\n| **Primary Database** | **Supabase Cloud PostgreSQL** | Central relational database with table-level encryption |\n| **Secondary ORM** | Prisma ORM 5.22 | Schema definitions, migrations, and fallback staging |\n| **Icons** | Lucide React | Modern, lightweight, accessible icon set |\n| **Notifications** | Sonner | Accessible, non-intrusive toast messages |\n| **Live Meetings** | `@jitsi/react-sdk` | WebRTC low-latency virtual interactive classrooms |\n\n---\n\n## 3. User Roles & Security Authentication\n\nThe platform enforces Role-Based Access Control (RBAC) across 3 distinct user personas:\n\n### 3.1 Teacher / Administrator\n- **Authentication**: Email and password via `actions/auth.ts` -> `loginTeacherAction`.\n- **Privileges**:\n  - Full CRUD on Classrooms, Students, Quizzes, Questions, and Assignments.\n  - Grade student submissions, release feedback, and issue single-use retake PINs.\n  - Launch live video classrooms and generate room codes.\n  - Export student reports directly to parents via formatted WhatsApp links.\n\n### 3.2 Student\n- **Authentication**: Unique Student Code (e.g., `STU-1001` or phone number) + 4-digit PIN via `actions/auth.ts` -> `loginStudentAction`.\n- **Zero-Friction Onboarding**: Students do **not** need complex email registration. The teacher registers them once, and they log in with their assigned credentials.\n- **Privileges**:\n  - View enrolled classrooms, upcoming homework, and available exams.\n  - Enter passcode-protected exams and submit responses.\n  - Review graded quiz results with correct answers and explanations.\n  - Track academic progress on the personal Gradebook and Class Leaderboard.\n\n### 3.3 Parent (Guardian)\n- **Access Flow**: Seamless WhatsApp summary reports dispatched by the teacher.\n- **Data Presented**: Student attendance rate, completed exams, grade percentages, assignment submission status, and teacher notes.\n\n---\n\n## 4. Cross-Module Platform Bonding & Event Bus\n\nA fundamental innovation of the platform is **Entity Bonding**: changes made in any screen propagate instantly across all pages without requiring manual browser reloads.\n\n### Event Bus Architecture (`lib/store.ts`):\n```typescript\n// Dispatched on any mutation (Create, Update, Delete)\nwindow.dispatchEvent(new Event('edu_quizzes_updated'));\nwindow.dispatchEvent(new Event('edu_classrooms_updated'));\nwindow.dispatchEvent(new Event('edu_assignments_updated'));\nwindow.dispatchEvent(new Event('edu_students_updated'));\nwindow.dispatchEvent(new Event('edu_store_updated'));\n```\n\n### Real-Time Bonding Examples:\n1. **Teacher creates an exam for \"Primary 4\"**:\n   - The \"Primary 4\" card on `/teacher/classrooms` immediately increments its **Quizzes count** from 0 to 1.\n   - The Teacher Dashboard overview stat increments its **Total Quizzes** count.\n   - The Student Portal (`/student` and `/student/quizzes`) displays the new exam under available quizzes.\n2. **Teacher hides an exam**:\n   - Students who haven't taken it can no longer see it.\n   - Students who already took it retain their grades in their Gradebook.\n3. **Teacher deletes an exam**:\n   - All associated questions, student results, and retake codes are cleanly purged from the system.\n\n---\n\n## 5. Complete Module Breakdown (A to Z)\n\n---\n\n### 5.1 Teacher Dashboard & Executive Analytics\n- **Path**: `app/[locale]/(dashboard)/teacher/page.tsx`\n- **Component**: `TeacherDashboardOverviewClient.tsx`\n- **Features**:\n  - **4 Executive KPI Cards**: Total Classrooms, Enrolled Students, Active Quizzes, and Pending Submissions.\n  - **Live Class Alert Banner**: Displays active virtual sessions with a direct \"Join Now\" button.\n  - **Classrooms Strip**: Quick-access cards with student counts and direct navigation.\n  - **Assignments Queue**: Shows homework needing manual grading or feedback.\n\n---\n\n### 5.2 Classrooms & Grade Management\n- **Path**: `app/[locale]/(dashboard)/teacher/classrooms/page.tsx`\n- **Component**: `TeacherClassroomsClient.tsx`\n- **Supported Academic Grades**:\n  - **Primary**: Grade 4 (Primary 4), Grade 5 (Primary 5), Grade 6 (Primary 6).\n  - **Preparatory**: Grade 7 (Prep 1), Grade 8 (Prep 2), Grade 9 (Prep 3).\n  - **Secondary**: Grade 10 (Sec 1), Grade 11 (Sec 2), Grade 12 (Sec 3).\n- **Features**:\n  - Create new classrooms with custom names, grade tags, and descriptions.\n  - Active/Inactive toggle: deactivating a classroom safely pauses student submissions.\n  - Dynamic bonding: displays exact count of enrolled students, linked quizzes, and assignments.\n\n---\n\n### 5.3 Students Directory & WhatsApp Reports\n- **Path**: `app/[locale]/(dashboard)/teacher/students/page.tsx`\n- **Component**: `TeacherStudentsClient.tsx`\n- **Features**:\n  - **Add Student Modal (`AddStudentModal.tsx`)**: Auto-generates the next guaranteed non-colliding Student Code (e.g. `STU-1002`).\n  - **Parent Phone Integration**: Stores verified Egyptian phone numbers (`010...`, `011...`, `012...`, `015...`).\n  - **WhatsApp Performance Dispatch**: One click generates a pre-formatted WhatsApp message:\n    > \"السلام عليكم، تقرير أداء الطالب [اسم الطالب] في مادة الرياضيات: نسبة الحضور 100%، درجات الامتحانات: 10/10... مع تحيات المعلم.\"\n\n---\n\n### 5.4 Quizzes & Exams Engine\n- **Path**: `app/[locale]/(dashboard)/teacher/quizzes/page.tsx`\n- **Component**: `TeacherQuizzesClient.tsx`\n- **Creation & Edit Modal (`CreateQuizModal.tsx`)**:\n  - **Live Summary Pill Bar (Persistent Header)**:\n    - Classroom badge (`Primary 4`).\n    - Question count (`2 Questions`).\n    - Total Marks (`8 pts`).\n    - Dynamic Passing Score calculation (`Pass: 4.8 pts (60%)`).\n    - Access Code indicator (`Code: QZ-9472`).\n  - **Tab 1: ⚙️ Exam Settings & Passcode**:\n    - Title, Classroom selector, Exam Type (Weekly Quiz, Monthly Exam, Final Exam).\n    - Duration in minutes.\n    - Passing Score percentage with quick preset buttons (`50%`, `60%`, `75%`) and live point calculation.\n    - Passcode generator (`QZ-XXXX`) with enable/disable toggle.\n    - Anti-Cheat & Proctoring security badge.\n    - Quick navigation: `Next: Questions Bank →` and `Quick Save`.\n  - **Tab 2: 📝 Questions Bank & Scoring**:\n    - Individual score input for each question.\n    - Equal distribution button (\"توزيع بالتساوي\"): spreads total marks equally across all questions.\n    - Add Question button & Delete Question button.\n    - Multiple Choice (MCQ) options with radio button to set the authoritative `correctAnswer`.\n    - `Back to Settings` and `Save Changes / Publish Exam` buttons.\n\n---\n\n### 5.5 Strict Proctoring & Anti-Cheat System\n- **Components**: `QuizRunner.tsx`, `ExamSecurityShield.tsx`\n- **Security Protections**:\n  1. **Dual Randomization**:\n     - Question order is randomly shuffled uniquely for each student.\n     - MCQ option choices (A, B, C, D) are randomly permuted for every student.\n  2. **Copy / Paste & Context Menu Lockdown**:\n     - Selecting text, right-clicking, copying (`Ctrl+C`), cutting (`Ctrl+X`), and pasting (`Ctrl+V`) are strictly blocked.\n  3. **Screenshot & Print Interception**:\n     - `PrintScreen` and `Snipping Tool` hotkeys trigger an instant blank screen.\n     - `@media print` rules hide the exam content completely.\n  4. **Privacy Shield (Tab Switch Detection)**:\n     - If the student leaves the browser tab or switches to another window, an opaque blur curtain covers the exam immediately, recording a security violation.\n  5. **Dynamic Anti-Leak Watermark**:\n     - Semi-transparent, repetitive watermark containing the student's **Full Name, Student Code, and Phone Number** spans the screen to deter camera photo leaks.\n  6. **Per-Question Countdown & Linear Progression**:\n     - Strict linear flow: once a student moves to the next question, previous questions are locked (`Previous Locked`).\n     - Real-time countdown timer per question with visual color-coded progress.\n\n---\n\n### 5.6 Results, Auto-Grading & Single-Use Retake PINs\n- **Server Action**: `actions/quiz.ts` -> `submitQuizAnswers`\n- **Features**:\n  - **Instant Server-Side Grading**: Answers are evaluated against the authoritative cloud answer key.\n  - **Security Stripping**: Student payload **never** contains correct answers during exam runtime.\n  - **Results Modal (`QuizResultsAndRetakeModal.tsx`)**:\n    - Roster of all student attempts with individual scores, percentages, and timestamps.\n  - **Single-Use Retake PIN System**:\n    - If a student encounters an emergency (e.g. power loss), the teacher can generate a single-use authorization PIN:\n      `RETAKE-[quizId]-[random]`\n    - The student enters this PIN via `QuizPasscodeModal.tsx` to unlock a fresh retake attempt. The PIN is automatically consumed (`isUsed: true`).\n\n---\n\n### 5.7 Assignments & Homework Management\n- **Path**: `app/[locale]/(dashboard)/teacher/assignments/page.tsx`\n- **Component**: `TeacherAssignmentsClient.tsx`\n- **Features**:\n  - Create homework tasks linked to specific classrooms with strict due dates.\n  - Student submissions support detailed written answers or PDF uploads.\n  - Teacher grading interface with numeric score, maximum points, and teacher remarks.\n\n---\n\n### 5.8 Live Virtual Classrooms (Jitsi Meet)\n- **Path**: `app/[locale]/(dashboard)/teacher/live/page.tsx`\n- **Component**: `TeacherLiveClient.tsx`\n- **Features**:\n  - Instant one-click virtual classroom launch.\n  - Secure room code generation.\n  - Jitsi Meet WebRTC integration with Arabic language controls.\n  - Automatic attendance tracking logging the student's join time.\n\n---\n\n### 5.9 Student Experience & Portal\n- **Dashboard**: `app/[locale]/(dashboard)/student/page.tsx`\n- **Exams Bank**: `app/[locale]/(dashboard)/student/quizzes/page.tsx`\n- **Gradebook**: `app/[locale]/(dashboard)/student/grades/page.tsx`\n- **Leaderboard**: `app/[locale]/(dashboard)/student/leaderboard/page.tsx`\n- **Review Mode**: `app/[locale]/(dashboard)/student/quizzes/[id]/review/page.tsx`\n  - Students can review completed exams, seeing which questions they got right, which were incorrect, and read model answers.\n\n---\n\n## 6. Database Schema & Data Persistence (Dual-Tier)\n\nThe platform employs a robust **Dual-Tier Database Architecture** ensuring zero data loss and seamless offline/online transitions:\n\n```mermaid\nerDiagram\n    CLASSROOM ||--o{ STUDENT : contains\n    CLASSROOM ||--o{ EXAM : has\n    CLASSROOM ||--o{ ASSIGNMENT : has\n    EXAM ||--o{ QUESTION : contains\n    EXAM ||--o{ EXAM_ATTEMPT : generates\n    STUDENT ||--o{ EXAM_ATTEMPT : takes\n    ASSIGNMENT ||--o{ SUBMISSION : receives\n    STUDENT ||--o{ SUBMISSION : submits\n```\n\n### 6.1 Supabase Cloud Tables (`lib/supabase.ts`)\n| Table Name | Primary Columns | Purpose |\n| :--- | :--- | :--- |\n| `students` | `id (UUID), student_code, full_name, phone, parent_phone, grade_level, password_hash, is_active, created_at` | Student profiles, credentials, and central store container |\n| `exams` | `id (UUID), title, description, duration_minutes, passing_score, total_marks, is_published, created_at` | Published exams and master configuration |\n| `questions` | `id (UUID), exam_id, question_text, options (JSONB), correct_answer, score, order_index` | Questions bank with points and answer keys |\n| `exam_attempts` | `id (UUID), exam_id, student_id, final_score, status, answers (JSONB), completed_at` | Student submissions, auto-grades, and attempts |\n| `assignments` | `id (UUID), classroom_id, title, description, due_date, max_score, created_at` | Homework tasks and instructions |\n| `assignment_submissions` | `id (UUID), assignment_id, student_id, content, file_url, score, feedback, submitted_at` | Student homework uploads and teacher grading |\n| `classrooms` | `id (UUID), name, grade_level, is_active, created_at` | Academic classrooms and cohorts |\n| `live_sessions` | `id (UUID), room_code, title, target_grade, is_active, started_at` | Active and historical video classrooms |\n\n### 6.2 Central Document Store (`__SYSTEM_QUIZZES_STORE__`)\nTo prevent PostgreSQL UUID mismatch errors when handling client-generated identifiers, a persistent document store row is maintained in the `students` table (`student_code = '__SYSTEM_QUIZZES_STORE__'`). This stores full quiz structures (including custom question weights and passcode settings) with instant cloud synchronization.\n\n---\n\n## 7. Codebase Directory Structure & File Map\n\n```text\nedu-platform/\n├── actions/                          # Next.js Server Actions (Database Mutations)\n│   ├── auth.ts                       # Teacher and student login / logout actions\n│   ├── quiz.ts                       # Quiz creation, secure fetch, submission & grading\n│   ├── classroom.ts                  # Classroom CRUD actions\n│   └── assignment.ts                 # Assignment creation and grading actions\n│\n├── app/                              # Next.js 14 App Router Directory\n│   ├── [locale]/                     # Bilingual route wrapper (ar / en)\n│   │   ├── (auth)/                   # Authentication routes (login, student-login)\n│   │   ├── (dashboard)/\n│   │   │   ├── teacher/              # Teacher administrative portal\n│   │   │   │   ├── page.tsx          # Teacher Dashboard Overview\n│   │   │   │   ├── classrooms/       # Classroom management\n│   │   │   │   ├── quizzes/          # Quizzes bank & editor\n│   │   │   │   ├── students/         # Student directory & credentials\n│   │   │   │   ├── assignments/      # Homework management\n│   │   │   │   └── live/             # Virtual live meetings\n│   │   │   └── student/              # Student portal\n│   │   │       ├── page.tsx          # Student Dashboard\n│   │   │       ├── quizzes/          # Available exams list\n│   │   │       │   └── [id]/         # Secure Exam Runner (`QuizRunner.tsx`)\n│   │   │       │       └── review/   # Post-exam review with correct answers\n│   │   │       ├── assignments/      # Homework submissions\n│   │   │       ├── grades/           # Personal gradebook\n│   │   │       └── leaderboard/      # Class honors board\n│   │   └── layout.tsx                # Master root layout with Cairo font & providers\n│   └── api/                          # REST API Endpoints (Quizzes, Health, Auth)\n│\n├── components/                       # Reusable React UI Components\n│   ├── teacher/\n│   │   ├── CreateQuizModal.tsx       # Dual-tab exam creator with dynamic passing score\n│   │   ├── QuizResultsAndRetakeModal.tsx # Results roster & Single-use PIN generator\n│   │   └── AddStudentModal.tsx       # Student registration modal\n│   ├── student/\n│   │   ├── StudentQuizCard.tsx       # Exam card with passcode prompt\n│   │   └── QuizPasscodeModal.tsx     # Access code & retake PIN verification modal\n│   ├── shared/\n│   │   └── ExamSecurityShield.tsx    # Anti-cheat blur curtain & violation detector\n│   └── ui/                           # Base UI primitives (Button, Input, Card, Modal)\n│\n├── lib/                              # Core Utility Libraries & Database Clients\n│   ├── supabase.ts                   # Supabase Cloud client & dual-tier store methods\n│   ├── prisma.ts                     # Prisma ORM client singleton\n│   ├── store.ts                      # Client-side state store & cross-module event bus\n│   ├── auth.ts                       # Session tokens & cookie handlers\n│   ├── shuffle.ts                    # Cryptographic randomization utilities\n│   └── utils.ts                      # Tailwind merge, date formatting & math utilities\n│\n└── scripts/                          # Automated Verification & Test Suites\n    ├── test-quizzes-system-logic.js  # 35-point algorithmic exam verification test\n    ├── test-quiz-hide-vs-delete.js   # Hide vs delete behavioral audit\n    └── test-master-e2e-integrations.js # End-to-end platform bonding audit\n```\n\n---\n\n## 8. Environment Variables & Deployment Guide\n\n### 8.1 Required Environment Variables (`.env.local`)\n```ini\n# Next.js Application\nNODE_ENV=production\nNEXT_PUBLIC_APP_URL=https://edu-platform-phi-pearl.vercel.app\n\n# Supabase Cloud Database (Authoritative)\nNEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co\nNEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key\nSUPABASE_SERVICE_ROLE_KEY=your-service-role-key\n\n# Prisma Local / Staging Database\nDATABASE_URL=file:./dev.db\n```\n\n### 8.2 Deployment Steps (Vercel)\n1. Commit changes and push to GitHub:\n   ```bash\n   git add .\n   git commit -m \"feat: platform update\"\n   git push origin main\n   ```\n2. Vercel automatically detects the push, runs `scripts/prepare-db.js`, compiles TypeScript, generates Prisma clients, and executes `next build`.\n3. The platform is deployed globally to Vercel's Edge Network in under 60 seconds.\n\n---\n\n## 9. Verification, Testing & Maintenance Scripts\n\nThe platform includes comprehensive automated test suites to ensure zero regressions:\n\n### 9.1 Master Quizzes & Scoring Logic Audit\n```bash\nnode scripts/test-quizzes-system-logic.js\n```\n- **Tests (35/35 Passing)**:\n  - Arabic normalization (alef variants, teh marbuta, diacritic removal).\n  - Floating-point and fractional score distribution (e.g. 10 points over 3 questions).\n  - Accurate auto-grading (MCQ string matching, 0/1-indexed values).\n  - Secure correctAnswer stripping on student endpoints.\n  - Zero star emojis audit across all views.\n\n### 9.2 Hide vs. Delete Behavioral Verification\n```bash\nnode scripts/test-quiz-hide-vs-delete.js\n```\n- **Tests (10/10 Passing)**:\n  - Validates that hiding an exam preserves existing student grades while concealing it from new students.\n  - Validates that deleting an exam completely cascades across results, questions, and submissions with zero orphaned records.\n\n---\n\n## 🏁 Summary\n**المنصة التعليمية الذكية** represents a complete, real-world, enterprise-grade educational solution. By combining real-time cloud persistence, an intuitive bilingual UI, rigorous anti-cheat proctoring, and seamless cross-module data bonding, the platform guarantees a dependable experience for educators and students alike.\n";
+    document.getElementById("content").innerHTML = marked.parse(rawMd);
+    
+    document.querySelectorAll("pre code.language-mermaid").forEach((el) => {
+      const parent = el.parentElement;
+      const mermaidDiv = document.createElement("div");
+      mermaidDiv.className = "mermaid";
+      mermaidDiv.textContent = el.textContent;
+      parent.replaceWith(mermaidDiv);
+    });
+    mermaid.run();
+
+    function toggleTheme() {
+      const current = document.documentElement.getAttribute("data-theme");
+      document.documentElement.setAttribute("data-theme", current === "dark" ? "light" : "dark");
+    }
+  </script>
+</body>
+</html>
