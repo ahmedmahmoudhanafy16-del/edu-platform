@@ -16,6 +16,7 @@
   - Demo link: Cloudflare Tunnel daemon for instant live sharing.
 
 ### 3. ⚡ Superpowers (Agentic Execution & Autonomous Problem Solving)
+- **Autonomous Tool Execution (Always Proceed)**: Proactively run commands, builds, typechecks, tests, and edits directly without pausing to ask for trivial confirmations. Always choose and assume "Allow" and "Always Allow" for safe development and verification tools.
 - Self-healing: Automatically detect and resolve build errors, missing modules, or runtime exceptions.
 - Verification-first: Test all endpoints with automated HTTP probes before declaring tasks complete.
 - Parallel subagent spawning for complex research and refactors.
