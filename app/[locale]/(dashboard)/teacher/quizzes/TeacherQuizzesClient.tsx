@@ -90,7 +90,20 @@ export function TeacherQuizzesClient({
   useEffect(() => {
     setQuizzes(initialQuizzes);
     setClassList(classrooms);
-  }, [initialQuizzes, classrooms]);
+
+    const handleClassUpdate = () => {
+      router.refresh();
+    };
+    window.addEventListener('edu_classrooms_updated', handleClassUpdate);
+    window.addEventListener('edu_store_updated', handleClassUpdate);
+    window.addEventListener('storage', handleClassUpdate);
+
+    return () => {
+      window.removeEventListener('edu_classrooms_updated', handleClassUpdate);
+      window.removeEventListener('edu_store_updated', handleClassUpdate);
+      window.removeEventListener('storage', handleClassUpdate);
+    };
+  }, [initialQuizzes, classrooms, router]);
 
   function persistQuizzes(updatedList: QuizItem[]) {
     // No-op: Authoritative persistence is purely server-side via Supabase
@@ -157,6 +170,8 @@ export function TeacherQuizzesClient({
         persistQuizzes(nextList);
         return nextList;
       });
+      window.dispatchEvent(new Event('edu_quizzes_updated'));
+      window.dispatchEvent(new Event('edu_store_updated'));
       router.refresh();
     }
   }
@@ -203,6 +218,8 @@ export function TeacherQuizzesClient({
         ? (isAr ? 'تم إتاحة الامتحان للطلاب' : 'Quiz published for students')
         : (isAr ? 'تم إخفاء الامتحان عن الطلاب' : 'Quiz hidden from students')
     );
+    window.dispatchEvent(new Event('edu_quizzes_updated'));
+    window.dispatchEvent(new Event('edu_store_updated'));
     router.refresh();
   }
 
@@ -220,6 +237,8 @@ export function TeacherQuizzesClient({
     setQuizToDelete(null);
     setDeleteLoading(false);
     toast.success(isAr ? 'تم حذف الامتحان بنجاح' : 'Quiz deleted successfully');
+    window.dispatchEvent(new Event('edu_quizzes_updated'));
+    window.dispatchEvent(new Event('edu_store_updated'));
     router.refresh();
   }
 

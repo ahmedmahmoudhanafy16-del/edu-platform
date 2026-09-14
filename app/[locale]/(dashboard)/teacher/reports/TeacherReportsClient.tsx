@@ -96,6 +96,28 @@ export function TeacherReportsClient({
     setReports(initialReports);
   }, [initialReports]);
 
+  useEffect(() => {
+    const handleGlobalUpdate = () => {
+      router.refresh();
+    };
+
+    window.addEventListener('edu_students_updated', handleGlobalUpdate);
+    window.addEventListener('edu_classrooms_updated', handleGlobalUpdate);
+    window.addEventListener('edu_quizzes_updated', handleGlobalUpdate);
+    window.addEventListener('edu_assignments_updated', handleGlobalUpdate);
+    window.addEventListener('edu_store_updated', handleGlobalUpdate);
+    window.addEventListener('storage', handleGlobalUpdate);
+
+    return () => {
+      window.removeEventListener('edu_students_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_classrooms_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_quizzes_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_assignments_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_store_updated', handleGlobalUpdate);
+      window.removeEventListener('storage', handleGlobalUpdate);
+    };
+  }, [router]);
+
   // Clean phone number for WhatsApp link
   function formatWhatsAppPhone(phone: string): string {
     const cleaned = (phone || '').replace(/[^\d]/g, '');

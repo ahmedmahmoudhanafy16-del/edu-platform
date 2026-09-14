@@ -86,6 +86,28 @@ export function TeacherClassroomsClient({
     router.refresh();
   }
 
+  useEffect(() => {
+    const handleGlobalUpdate = () => {
+      refresh();
+    };
+
+    window.addEventListener('edu_students_updated', handleGlobalUpdate);
+    window.addEventListener('edu_classrooms_updated', handleGlobalUpdate);
+    window.addEventListener('edu_quizzes_updated', handleGlobalUpdate);
+    window.addEventListener('edu_assignments_updated', handleGlobalUpdate);
+    window.addEventListener('edu_store_updated', handleGlobalUpdate);
+    window.addEventListener('storage', handleGlobalUpdate);
+
+    return () => {
+      window.removeEventListener('edu_students_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_classrooms_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_quizzes_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_assignments_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_store_updated', handleGlobalUpdate);
+      window.removeEventListener('storage', handleGlobalUpdate);
+    };
+  }, []);
+
   async function handleToggleStatus(classroom: ClassroomItem) {
     const nextState = classroom.isActive === false ? true : false;
 

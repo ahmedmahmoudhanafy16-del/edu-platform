@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { BookOpen, Users, FileText, ClipboardList, Video, Ticket, BarChart3 } from 'lucide-react';
 import { AssignmentData, getClassroomsFromStore, getStudentsFromStore } from '@/lib/store';
 
@@ -18,6 +19,7 @@ export function TeacherDashboardOverviewClient({
   initialAssignments?: AssignmentData[];
   locale: string;
 }) {
+  const router = useRouter();
   const [classroomsCount, setClassroomsCount] = useState<number>(initialClassroomsCount);
   const [studentsCount, setStudentsCount] = useState<number>(initialStudentsCount);
   const [assignments, setAssignments] = useState<AssignmentData[]>(initialAssignments || []);
@@ -32,21 +34,35 @@ export function TeacherDashboardOverviewClient({
     const handleClassroomsUpdated = () => {
       const cls = getClassroomsFromStore();
       if (cls && cls.length > 0) setClassroomsCount(cls.length);
+      router.refresh();
     };
 
     const handleStudentsUpdated = () => {
       const stu = getStudentsFromStore();
       if (stu && stu.length > 0) setStudentsCount(stu.length);
+      router.refresh();
+    };
+
+    const handleGlobalUpdate = () => {
+      router.refresh();
     };
 
     window.addEventListener('edu_classrooms_updated', handleClassroomsUpdated);
     window.addEventListener('edu_students_updated', handleStudentsUpdated);
+    window.addEventListener('edu_quizzes_updated', handleGlobalUpdate);
+    window.addEventListener('edu_assignments_updated', handleGlobalUpdate);
+    window.addEventListener('edu_store_updated', handleGlobalUpdate);
+    window.addEventListener('storage', handleGlobalUpdate);
 
     return () => {
       window.removeEventListener('edu_classrooms_updated', handleClassroomsUpdated);
       window.removeEventListener('edu_students_updated', handleStudentsUpdated);
+      window.removeEventListener('edu_quizzes_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_assignments_updated', handleGlobalUpdate);
+      window.removeEventListener('edu_store_updated', handleGlobalUpdate);
+      window.removeEventListener('storage', handleGlobalUpdate);
     };
-  }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount, initialAssignments]);
+  }, [initialClassroomsCount, initialStudentsCount, initialQuizzesCount, initialAssignments, router]);
 
   const isAr = locale === 'ar';
   const card = 'rounded-xl border border-n-200 dark:border-n-300 bg-white dark:bg-n-100';

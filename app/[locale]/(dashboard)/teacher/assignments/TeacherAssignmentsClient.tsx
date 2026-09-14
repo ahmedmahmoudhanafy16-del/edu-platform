@@ -79,7 +79,20 @@ export function TeacherAssignmentsClient({
   useEffect(() => {
     setAssignments(initialAssignments);
     setClassList(classrooms);
-  }, [initialAssignments, classrooms]);
+
+    const handleClassUpdate = () => {
+      router.refresh();
+    };
+    window.addEventListener('edu_classrooms_updated', handleClassUpdate);
+    window.addEventListener('edu_store_updated', handleClassUpdate);
+    window.addEventListener('storage', handleClassUpdate);
+
+    return () => {
+      window.removeEventListener('edu_classrooms_updated', handleClassUpdate);
+      window.removeEventListener('edu_store_updated', handleClassUpdate);
+      window.removeEventListener('storage', handleClassUpdate);
+    };
+  }, [initialAssignments, classrooms, router]);
 
   function persistAssignments(updatedList: AssignmentItem[]) {
     // No-op: Authoritative state is server-persisted
@@ -134,6 +147,8 @@ export function TeacherAssignmentsClient({
         persistAssignments(nextList);
         return nextList;
       });
+      window.dispatchEvent(new Event('edu_assignments_updated'));
+      window.dispatchEvent(new Event('edu_store_updated'));
       router.refresh();
     }
   }
@@ -165,6 +180,8 @@ export function TeacherAssignmentsClient({
     );
 
     toggleAssignmentLockAction(item.id, nextLocked).then(() => {
+      window.dispatchEvent(new Event('edu_assignments_updated'));
+      window.dispatchEvent(new Event('edu_store_updated'));
       router.refresh();
     }).catch(() => null);
   }
@@ -190,6 +207,8 @@ export function TeacherAssignmentsClient({
 
     // 3. Silent server action backup (fail-safe)
     deleteAssignmentAction(targetId).then(() => {
+      window.dispatchEvent(new Event('edu_assignments_updated'));
+      window.dispatchEvent(new Event('edu_store_updated'));
       router.refresh();
     }).catch(() => null);
   }

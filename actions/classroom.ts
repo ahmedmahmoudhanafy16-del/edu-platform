@@ -292,8 +292,12 @@ export async function createStudentAction(formData: {
     try {
       revalidatePath('/ar/teacher/students');
       revalidatePath('/en/teacher/students');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/teacher/reports');
       revalidatePath('/en/teacher/reports');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
       revalidatePath('/', 'layout');
     } catch (revalErr) {}
 
@@ -374,11 +378,17 @@ export async function addStudentToClassroom(
 
     // Authoritative Cloud Persistence: Sync new student to Supabase
     try {
+      let targetGrade = '';
+      try {
+        const cls = await prisma.classroom.findUnique({ where: { id: classroomId }, select: { name: true } });
+        if (cls?.name) targetGrade = cls.name;
+      } catch {}
+
       await syncStudentToSupabase({
         student_code: studentCode,
         full_name: name.trim(),
         phone: phone.trim() || undefined,
-        grade_level: '',
+        grade_level: targetGrade,
         password_hash: hashed,
         is_active: true,
       });
@@ -392,6 +402,10 @@ export async function addStudentToClassroom(
       revalidatePath('/en/teacher/students');
       revalidatePath('/ar/teacher/classrooms');
       revalidatePath('/en/teacher/classrooms');
+      revalidatePath('/ar/teacher/reports');
+      revalidatePath('/en/teacher/reports');
+      revalidatePath('/ar/teacher');
+      revalidatePath('/en/teacher');
     } catch (e) {}
 
     return student;

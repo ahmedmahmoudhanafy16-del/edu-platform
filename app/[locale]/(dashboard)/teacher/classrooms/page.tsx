@@ -1,10 +1,29 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherClassroomsClient } from './TeacherClassroomsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+function matchesClassroomGrade(classroomName: string, itemGrade?: string): boolean {
+  if (!classroomName || !itemGrade) return false;
+  const cName = classroomName.trim();
+  const g = itemGrade.trim();
+  if (cName.includes(g) || g.includes(cName)) return true;
+  if (
+    (g.includes('الرابع') && (cName.includes('Primary 4') || cName.includes('Grade 4') || cName.includes('الرابع'))) ||
+    (g.includes('الخامس') && (cName.includes('Primary 5') || cName.includes('Grade 5') || cName.includes('الخامس'))) ||
+    (g.includes('السادس') && (cName.includes('Primary 6') || cName.includes('Grade 6') || cName.includes('السادس'))) ||
+    (g.includes('الثالث الإعدادي') && (cName.includes('Prep 3') || cName.includes('Grade 9') || cName.includes('الثالث الإعدادي'))) ||
+    (g.includes('الثاني الإعدادي') && (cName.includes('Prep 2') || cName.includes('Grade 8') || cName.includes('الثاني الإعدادي'))) ||
+    (g.includes('الأول الإعدادي') && (cName.includes('Prep 1') || cName.includes('Grade 7') || cName.includes('الأول الإعدادي'))) ||
+    (g.includes('الأول الثانوي') && (cName.includes('Secondary 1') || cName.includes('Grade 10') || cName.includes('الأول الثانوي'))) ||
+    (g.includes('الثاني الثانوي') && (cName.includes('Secondary 2') || cName.includes('Grade 11') || cName.includes('الثاني الثانوي'))) ||
+    (g.includes('الثالث الثانوي') && (cName.includes('Secondary 3') || cName.includes('Grade 12') || cName.includes('الثالث الثانوي')))
+  ) return true;
+  return false;
+}
 
 export default async function TeacherClassroomsPage({
   params,
@@ -62,6 +81,7 @@ export default async function TeacherClassroomsPage({
     console.warn('[Teacher Classrooms] Supabase lookup notice:', sbErr);
   }
 
+  // Authoritative Supabase Cloud Students
   let allStudents: any[] = [];
   try {
     allStudents = await prisma.user.findMany({
@@ -76,14 +96,61 @@ export default async function TeacherClassroomsPage({
     });
   } catch (e) {}
 
-  // Compute accurate studentsCount on server
+  try {
+    const { data: sbStudents } = await supabase
+      .from('students')
+      .select('*')
+      .not('student_code', 'like', '\\_\\_%');
+
+    if (Array.isArray(sbStudents) && sbStudents.length > 0) {
+      const existingCodes = new Set(allStudents.map((s) => String(s.studentCode || '').toUpperCase()));
+      for (const sb of sbStudents) {
+        const code = String(sb.student_code || '').toUpperCase();
+        if (code.startsWith('__')) continue;
+        if (!existingCodes.has(code)) {
+          allStudents.push({
+            id: sb.id,
+            studentCode: sb.student_code,
+            grade: sb.grade_level || '',
+            gradeLevel: sb.grade_level || '',
+            enrollments: [],
+          });
+          existingCodes.add(code);
+        }
+      }
+    }
+  } catch (sbErr) {
+    console.warn('[Teacher Classrooms] Supabase student sync notice:', sbErr);
+  }
+
+  // Authoritative Supabase Cloud Quizzes & Assignments
+  let allQuizzes: any[] = [];
+  let allAssignments: any[] = [];
+  try {
+    const sbExamsRes = await supabase.from('exams').select('id, title, is_published');
+    allQuizzes = sbExamsRes?.data || [];
+  } catch (e) {}
+  try {
+    allAssignments = await getAssignmentsFromSupabase();
+  } catch (e) {}
+
+  // Compute accurate studentsCount, quizzesCount, assignmentsCount on server
   const formatted = classrooms.map((c) => {
     const directEnrollments = c.enrollments?.length ?? 0;
     const matchingGradeStudents = allStudents.filter(
       (s) =>
         s.enrollments?.some((e: any) => e.classroomId === c.id) ||
-        (c.name && s.grade && (c.name.includes(s.grade) || s.grade.includes(c.name))) ||
-        (c.name && s.gradeLevel && (c.name.includes(s.gradeLevel) || s.gradeLevel.includes(c.name)))
+        matchesClassroomGrade(c.name, s.grade || s.gradeLevel)
+    ).length;
+
+    const directQuizzes = c.quizzes?.length ?? 0;
+    const matchedQuizzes = allQuizzes.filter(
+      (q: any) => q.classroomId === c.id || matchesClassroomGrade(c.name, q.grade || q.title)
+    ).length;
+
+    const directAssignments = c.assignments?.length ?? 0;
+    const matchedAssignments = allAssignments.filter(
+      (a: any) => a.classroomId === c.id || matchesClassroomGrade(c.name, a.grade || a.classroomName)
     ).length;
 
     return {
@@ -93,8 +160,8 @@ export default async function TeacherClassroomsPage({
       code: c.code,
       isActive: c.isActive !== false,
       studentsCount: Math.max(directEnrollments, matchingGradeStudents),
-      quizzesCount: c.quizzes?.length ?? 0,
-      assignmentsCount: c.assignments?.length ?? 0,
+      quizzesCount: Math.max(directQuizzes, matchedQuizzes),
+      assignmentsCount: Math.max(directAssignments, matchedAssignments),
     };
   });
 

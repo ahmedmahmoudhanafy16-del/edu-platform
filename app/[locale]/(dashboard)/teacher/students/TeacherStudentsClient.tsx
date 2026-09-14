@@ -41,12 +41,20 @@ export function TeacherStudentsClient({
   useEffect(() => {
     setStudents(initialStudents);
 
-    const handleStudentsUpdated = () => {
+    const handleUpdate = () => {
       refresh();
     };
-    window.addEventListener('edu_students_updated', handleStudentsUpdated);
+
+    window.addEventListener('edu_students_updated', handleUpdate);
+    window.addEventListener('edu_classrooms_updated', handleUpdate);
+    window.addEventListener('edu_store_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
     return () => {
-      window.removeEventListener('edu_students_updated', handleStudentsUpdated);
+      window.removeEventListener('edu_students_updated', handleUpdate);
+      window.removeEventListener('edu_classrooms_updated', handleUpdate);
+      window.removeEventListener('edu_store_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
     };
   }, [initialStudents]);
 

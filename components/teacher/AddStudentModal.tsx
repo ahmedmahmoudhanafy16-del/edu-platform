@@ -59,18 +59,42 @@ export function AddStudentModal({
   const [password, setPassword] = useState(() => generateRandomPin());
   const [loading, setLoading] = useState(false);
 
-  // Keep classroomId and password perfectly synchronized whenever modal opens or props change
+  // Keep classroomId, grade, and password perfectly synchronized whenever modal opens or props change
   useEffect(() => {
     if (isOpen) {
       const existingStudents = getStudentsFromStore();
       const existingPins = existingStudents.map((s: any) => s.defaultPassword || s.password);
       setPassword(generateRandomPin(existingPins));
 
+      const targetCId = defaultClassroomId || (classrooms && classrooms.length > 0 ? (classroomId || classrooms[0].id) : '');
       if (defaultClassroomId) {
         setClassroomId(defaultClassroomId);
       } else if (classrooms && classrooms.length > 0) {
         if (!classroomId || !classrooms.some((c) => c.id === classroomId)) {
           setClassroomId(classrooms[0].id);
+        }
+      }
+
+      if (targetCId && classrooms && classrooms.length > 0) {
+        const clsObj = classrooms.find((c) => c.id === targetCId);
+        if (clsObj) {
+          const matched = ACADEMIC_GRADES.find((g) => {
+            const cName = clsObj.name;
+            if (cName.includes(g) || g.includes(cName)) return true;
+            if (
+              (g.includes('الرابع') && (cName.includes('Primary 4') || cName.includes('Grade 4') || cName.includes('الرابع'))) ||
+              (g.includes('الخامس') && (cName.includes('Primary 5') || cName.includes('Grade 5') || cName.includes('الخامس'))) ||
+              (g.includes('السادس') && (cName.includes('Primary 6') || cName.includes('Grade 6') || cName.includes('السادس'))) ||
+              (g.includes('الثالث الإعدادي') && (cName.includes('Prep 3') || cName.includes('Grade 9') || cName.includes('الثالث الإعدادي'))) ||
+              (g.includes('الثاني الإعدادي') && (cName.includes('Prep 2') || cName.includes('Grade 8') || cName.includes('الثاني الإعدادي'))) ||
+              (g.includes('الأول الإعدادي') && (cName.includes('Prep 1') || cName.includes('Grade 7') || cName.includes('الأول الإعدادي'))) ||
+              (g.includes('الأول الثانوي') && (cName.includes('Secondary 1') || cName.includes('Grade 10') || cName.includes('الأول الثانوي'))) ||
+              (g.includes('الثاني الثانوي') && (cName.includes('Secondary 2') || cName.includes('Grade 11') || cName.includes('الثاني الثانوي'))) ||
+              (g.includes('الثالث الثانوي') && (cName.includes('Secondary 3') || cName.includes('Grade 12') || cName.includes('الثالث الثانوي')))
+            ) return true;
+            return false;
+          });
+          if (matched) setGradeLevel(matched);
         }
       }
     }
@@ -274,7 +298,30 @@ export function AddStudentModal({
               </label>
               <select
                 value={classroomId || (classrooms && classrooms[0]?.id) || ''}
-                onChange={(e) => setClassroomId(e.target.value)}
+                onChange={(e) => {
+                  const newCId = e.target.value;
+                  setClassroomId(newCId);
+                  const clsObj = classrooms.find((c) => c.id === newCId);
+                  if (clsObj) {
+                    const matched = ACADEMIC_GRADES.find((g) => {
+                      const cName = clsObj.name;
+                      if (cName.includes(g) || g.includes(cName)) return true;
+                      if (
+                        (g.includes('الرابع') && (cName.includes('Primary 4') || cName.includes('Grade 4') || cName.includes('الرابع'))) ||
+                        (g.includes('الخامس') && (cName.includes('Primary 5') || cName.includes('Grade 5') || cName.includes('الخامس'))) ||
+                        (g.includes('السادس') && (cName.includes('Primary 6') || cName.includes('Grade 6') || cName.includes('السادس'))) ||
+                        (g.includes('الثالث الإعدادي') && (cName.includes('Prep 3') || cName.includes('Grade 9') || cName.includes('الثالث الإعدادي'))) ||
+                        (g.includes('الثاني الإعدادي') && (cName.includes('Prep 2') || cName.includes('Grade 8') || cName.includes('الثاني الإعدادي'))) ||
+                        (g.includes('الأول الإعدادي') && (cName.includes('Prep 1') || cName.includes('Grade 7') || cName.includes('الأول الإعدادي'))) ||
+                        (g.includes('الأول الثانوي') && (cName.includes('Secondary 1') || cName.includes('Grade 10') || cName.includes('الأول الثانوي'))) ||
+                        (g.includes('الثاني الثانوي') && (cName.includes('Secondary 2') || cName.includes('Grade 11') || cName.includes('الثاني الثانوي'))) ||
+                        (g.includes('الثالث الثانوي') && (cName.includes('Secondary 3') || cName.includes('Grade 12') || cName.includes('الثالث الثانوي')))
+                      ) return true;
+                      return false;
+                    });
+                    if (matched) setGradeLevel(matched);
+                  }
+                }}
                 className="w-full h-9 px-3 rounded-md border border-n-200 dark:border-n-300 text-xs text-n-800 dark:text-n-700 bg-white dark:bg-n-200 outline-none focus:border-accent font-medium"
               >
                 {classrooms && classrooms.length > 0 ? (
