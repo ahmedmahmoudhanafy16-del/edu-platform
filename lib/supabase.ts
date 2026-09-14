@@ -85,6 +85,22 @@ export async function checkStudentExamAttempt(studentId: string, examId: string)
   }
 }
 
+function isValidUUID(str?: string): boolean {
+  if (!str || typeof str !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+}
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 /**
  * Inserts or updates an exam and its questions into Supabase.
  */
@@ -96,6 +112,9 @@ export async function syncExamToSupabase(examData: {
   passing_score: number;
   total_marks: number;
   is_published?: boolean;
+  classroomId?: string;
+  classroomName?: string;
+  accessCode?: string;
   questions?: Array<{
     question_text: string;
     options: string[];
@@ -106,12 +125,27 @@ export async function syncExamToSupabase(examData: {
 }) {
   if (!isSupabaseConfigured()) return null;
   try {
+    const targetId = isValidUUID(examData.id) ? examData.id! : generateUUID();
+
+    // Preserve rich metadata in description
+    let richDescription = examData.description || '';
+    try {
+      const meta = {
+        desc: examData.description || '',
+        originalId: examData.id || targetId,
+        classroomId: examData.classroomId || '',
+        classroomName: examData.classroomName || '',
+        accessCode: examData.accessCode || '',
+      };
+      richDescription = JSON.stringify(meta);
+    } catch {}
+
     const { data: exam, error: examErr } = await supabase
       .from('exams')
       .upsert({
-        ...(examData.id ? { id: examData.id } : {}),
+        id: targetId,
         title: examData.title,
-        description: examData.description || '',
+        description: richDescription,
         duration_minutes: examData.duration_minutes,
         passing_score: examData.passing_score,
         total_marks: examData.total_marks,
@@ -972,5 +1006,271 @@ export async function endLiveSessionInSupabase(sessionIdOrRoomCode: string): Pro
     return false;
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Authoritative Central Quizzes Engine (Dual-Tier Persistence)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SupabaseQuiz {
+  id: string;
+  title: string;
+  type?: string;
+  duration?: number;
+  passingScore?: number;
+  accessCode?: string;
+  isCodeRequired?: boolean;
+  isPublished?: boolean;
+  classroomName?: string;
+  classroomId?: string;
+  grade?: string;
+  totalScore?: number;
+  questionsCount?: number;
+  resultsCount?: number;
+  questions?: Array<{
+    id?: string;
+    text: string;
+    type?: string;
+    options: string | string[];
+    correctAnswer?: string | null;
+    maxScore?: number;
+    order?: number;
+  }>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+/**
+ * Retrieves all authoritative Quizzes from Supabase.
+ * Merges Cloud document store (__SYSTEM_QUIZZES_STORE__) with native public.exams table.
+ */
+export async function getQuizzesFromSupabase(): Promise<SupabaseQuiz[]> {
+  if (!isSupabaseConfigured()) return [];
+  const client = getSupabaseServerClient();
+  const quizMap = new Map<string, SupabaseQuiz>();
+
+  // Tier 1: Cloud document store (__SYSTEM_QUIZZES_STORE__)
+  try {
+    const { data, error } = await client
+      .from('students')
+      .select('password_hash')
+      .eq('student_code', '__SYSTEM_QUIZZES_STORE__')
+      .maybeSingle();
+
+    if (!error && data?.password_hash) {
+      const parsed = JSON.parse(data.password_hash);
+      if (Array.isArray(parsed)) {
+        for (const q of parsed) {
+          if (q && q.id) {
+            quizMap.set(q.id, q);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] getQuizzesFromSupabase store notice:', err?.message);
+  }
+
+  // Tier 2: Native public.exams table
+  try {
+    const { data: exams, error } = await client
+      .from('exams')
+      .select(`
+        id,
+        title,
+        description,
+        duration_minutes,
+        passing_score,
+        total_marks,
+        is_published,
+        created_at,
+        updated_at,
+        questions ( id, question_text, options, correct_answer, score, order_index )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (!error && Array.isArray(exams)) {
+      for (const e of exams) {
+        let meta: any = {};
+        try {
+          if (e.description && e.description.startsWith('{')) {
+            meta = JSON.parse(e.description);
+          }
+        } catch {}
+
+        const originalId = meta.originalId || e.id;
+        if (!quizMap.has(e.id) && !quizMap.has(originalId)) {
+          const qs = (e.questions || []).map((qn: any) => {
+            let opts: string[] = [];
+            if (Array.isArray(qn.options)) opts = qn.options;
+            else if (typeof qn.options === 'string') {
+              try { opts = JSON.parse(qn.options); } catch { opts = [qn.options]; }
+            }
+            return {
+              id: qn.id,
+              text: qn.question_text || '',
+              type: 'MCQ',
+              options: opts,
+              correctAnswer: qn.correct_answer || '',
+              maxScore: Number(qn.score) || 1,
+              order: qn.order_index || 1,
+            };
+          });
+
+          quizMap.set(e.id, {
+            id: e.id,
+            title: e.title,
+            type: meta.type || 'WEEKLY',
+            duration: Number(e.duration_minutes) || 20,
+            passingScore: Number(e.passing_score) || 60,
+            accessCode: meta.accessCode || '',
+            isCodeRequired: Boolean(meta.accessCode),
+            isPublished: e.is_published !== false,
+            classroomName: meta.classroomName || '',
+            classroomId: meta.classroomId || '',
+            grade: meta.grade || '',
+            totalScore: Number(e.total_marks) || 10,
+            questionsCount: qs.length,
+            resultsCount: 0,
+            questions: qs,
+            createdAt: e.created_at || new Date().toISOString(),
+            updatedAt: e.updated_at || new Date().toISOString(),
+          });
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] getQuizzesFromSupabase exams notice:', err?.message);
+  }
+
+  return Array.from(quizMap.values());
+}
+
+/**
+ * Saves or updates a quiz in Supabase (persisting to both __SYSTEM_QUIZZES_STORE__ and exams table).
+ */
+export async function syncQuizToSupabase(quiz: SupabaseQuiz): Promise<boolean> {
+  if (!isSupabaseConfigured() || !quiz?.id) return false;
+  const client = getSupabaseServerClient();
+
+  // Tier 1: Cloud document store (__SYSTEM_QUIZZES_STORE__)
+  try {
+    const existing = await getQuizzesFromSupabase();
+    const idx = existing.findIndex((q) => q.id === quiz.id || (quiz.accessCode && q.accessCode === quiz.accessCode));
+    const updated: SupabaseQuiz = {
+      ...quiz,
+      isPublished: quiz.isPublished !== false,
+      createdAt: quiz.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (idx >= 0) {
+      existing[idx] = { ...existing[idx], ...updated };
+    } else {
+      existing.unshift(updated);
+    }
+
+    const jsonStr = JSON.stringify(existing);
+    const { data: updateRes } = await client
+      .from('students')
+      .update({
+        full_name: 'System Quizzes Store',
+        password_hash: jsonStr,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_QUIZZES_STORE__')
+      .select();
+
+    if (!updateRes || updateRes.length === 0) {
+      await client.from('students').insert({
+        student_code: '__SYSTEM_QUIZZES_STORE__',
+        full_name: 'System Quizzes Store',
+        password_hash: jsonStr,
+        grade_level: 'SYSTEM',
+        is_active: true,
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] syncQuizToSupabase store error:', err?.message);
+  }
+
+  // Tier 2: Native public.exams and questions tables
+  try {
+    const formattedQuestions = (quiz.questions || []).map((q: any, i: number) => {
+      let opts: string[] = [];
+      if (Array.isArray(q.options)) opts = q.options;
+      else if (typeof q.options === 'string') {
+        try { opts = JSON.parse(q.options); } catch { opts = [q.options]; }
+      }
+      return {
+        question_text: q.text || `Question ${i + 1}`,
+        options: opts,
+        correct_answer: q.correctAnswer || '',
+        score: Number(q.maxScore) || 5,
+        order_index: q.order || i + 1,
+      };
+    });
+
+    const computedTotal = (quiz.questions || []).reduce(
+      (sum: number, q: any) => sum + (Number(q.maxScore) || 5),
+      0
+    );
+
+    await syncExamToSupabase({
+      id: quiz.id,
+      title: quiz.title,
+      description: quiz.grade ? `الصف: ${quiz.grade}` : '',
+      duration_minutes: Number(quiz.duration) || 20,
+      passing_score: Number(quiz.passingScore) || 60,
+      total_marks: computedTotal > 0 ? computedTotal : (quiz.totalScore || 10),
+      is_published: quiz.isPublished !== false,
+      classroomId: quiz.classroomId || '',
+      classroomName: quiz.classroomName || '',
+      accessCode: quiz.accessCode || '',
+      questions: formattedQuestions,
+    });
+  } catch (err: any) {
+    console.warn('[Supabase] syncQuizToSupabase native table sync notice:', err?.message);
+  }
+
+  return true;
+}
+
+/**
+ * Deletes a quiz from Supabase (both cloud store and native tables).
+ */
+export async function deleteQuizFromSupabase(quizId: string): Promise<boolean> {
+  if (!isSupabaseConfigured() || !quizId) return false;
+  const client = getSupabaseServerClient();
+  const cleanId = quizId.trim();
+
+  // Tier 1: Cloud document store
+  try {
+    const existing = await getQuizzesFromSupabase();
+    const filtered = existing.filter((q) => q.id !== cleanId && q.accessCode !== cleanId);
+    await client
+      .from('students')
+      .update({
+        password_hash: JSON.stringify(filtered),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('student_code', '__SYSTEM_QUIZZES_STORE__');
+  } catch (err: any) {
+    console.warn('[Supabase] deleteQuizFromSupabase store notice:', err?.message);
+  }
+
+  // Tier 2: Native public tables (cascade)
+  try {
+    if (isValidUUID(cleanId)) {
+      await client.from('questions').delete().eq('exam_id', cleanId);
+      await client.from('exam_attempts').delete().eq('exam_id', cleanId);
+      await client.from('exams').delete().eq('id', cleanId);
+    }
+  } catch (err: any) {
+    console.warn('[Supabase] deleteQuizFromSupabase native tables notice:', err?.message);
+  }
+
+  return true;
+}
+
 
 

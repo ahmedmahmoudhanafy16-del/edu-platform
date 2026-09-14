@@ -8,7 +8,15 @@ import {
   memoryRetakeCodes,
   isDatabaseReadOnlyError,
 } from '@/lib/prisma';
-import { supabase, checkStudentExamAttempt, syncExamToSupabase } from '@/lib/supabase';
+import {
+  supabase,
+  checkStudentExamAttempt,
+  syncExamToSupabase,
+  syncQuizToSupabase,
+  getQuizzesFromSupabase,
+  deleteQuizFromSupabase,
+  getClassroomsFromSupabase,
+} from '@/lib/supabase';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { requireStudentOwnership, requireRole } from '@/lib/auth';
@@ -1178,22 +1186,44 @@ export async function createQuiz(data: {
 
     // 3. Resolve classroom safely (if provided classroomId doesn't exist in DB, handle gracefully)
     let validClassroomId: string | null = null;
+    let resolvedClassroomName = '';
     if (data.classroomId) {
       try {
         const classroomExists = await prisma.classroom.findUnique({
           where: { id: data.classroomId },
-          select: { id: true },
+          select: { id: true, name: true },
         });
         if (classroomExists) {
           validClassroomId = classroomExists.id;
+          resolvedClassroomName = classroomExists.name;
         } else {
           // Check if any classroom exists
-          const firstClassroom = await prisma.classroom.findFirst({ select: { id: true } });
+          const firstClassroom = await prisma.classroom.findFirst({ select: { id: true, name: true } });
           validClassroomId = firstClassroom?.id || null;
+          resolvedClassroomName = firstClassroom?.name || '';
         }
       } catch (clsErr) {
         console.warn('[createQuiz] Classroom lookup error:', clsErr);
       }
+
+      if (!resolvedClassroomName) {
+        try {
+          const sbClasses = await getClassroomsFromSupabase();
+          const found = sbClasses.find((c) => c.id === data.classroomId);
+          if (found) {
+            resolvedClassroomName = found.name;
+            if (!validClassroomId) validClassroomId = found.id;
+          }
+        } catch {}
+      }
+    }
+
+    let quizUuid = '';
+    try {
+      const cryptoMod = await import('crypto');
+      quizUuid = cryptoMod.randomUUID();
+    } catch {
+      quizUuid = `quiz-${Date.now()}`;
     }
 
     // 4. Format questions safely
@@ -1227,6 +1257,7 @@ export async function createQuiz(data: {
     try {
       quiz = await prisma.quiz.create({
         data: {
+          id: quizUuid,
           title,
           type,
           duration,
@@ -1251,6 +1282,7 @@ export async function createQuiz(data: {
       try {
         quiz = await prisma.quiz.create({
           data: {
+            id: quizUuid,
             title,
             type,
             duration,
@@ -1271,7 +1303,7 @@ export async function createQuiz(data: {
         console.error('[createQuiz] Fatal database error:', retryErr);
         if (isDatabaseReadOnlyError(retryErr)) {
           const fallbackQuiz = {
-            id: `quiz-${Date.now()}`,
+            id: quizUuid,
             title,
             type,
             duration,
@@ -1280,7 +1312,8 @@ export async function createQuiz(data: {
             isCodeRequired,
             grade,
             isPublished: true,
-            classroomId: validClassroomId || 'class-math-3',
+            classroomId: validClassroomId || data.classroomId || 'class-1',
+            classroom: { id: validClassroomId || data.classroomId || 'class-1', name: resolvedClassroomName || 'الفصل الدراسي' },
             questions: formattedQuestions.map((fq: any, idx: number) => ({
               id: `q-${Date.now()}-${idx}`,
               text: fq.text,
@@ -1299,7 +1332,7 @@ export async function createQuiz(data: {
       }
     }
 
-    // 5b. Sync to Supabase central 'exams' and 'questions' tables
+    // 5b. Authoritative Dual-Tier Sync to Supabase Cloud
     try {
       if (quiz) {
         const totalMarks = (quiz.questions || []).reduce(
@@ -1317,22 +1350,29 @@ export async function createQuiz(data: {
             }
           }
           return {
-            question_text: q.text,
+            id: q.id || `q-${idx + 1}`,
+            text: q.text,
             options: opts,
-            correct_answer: q.correctAnswer || '',
-            score: Number(q.maxScore) || 1,
-            order_index: q.order || idx + 1,
+            correctAnswer: q.correctAnswer || '',
+            maxScore: Number(q.maxScore) || 5,
+            order: q.order || idx + 1,
           };
         });
 
-        await syncExamToSupabase({
+        await syncQuizToSupabase({
           id: quiz.id,
           title: quiz.title,
-          description: quiz.grade ? `الصف: ${quiz.grade}` : '',
-          duration_minutes: Number(quiz.duration) || 20,
-          passing_score: Number(quiz.passingScore) || 50,
-          total_marks: totalMarks > 0 ? totalMarks : 100,
-          is_published: quiz.isPublished !== false,
+          type: quiz.type,
+          duration: Number(quiz.duration) || 20,
+          passingScore: Number(quiz.passingScore) || 60,
+          accessCode: quiz.accessCode || '',
+          isCodeRequired: Boolean(quiz.isCodeRequired),
+          isPublished: quiz.isPublished !== false,
+          classroomId: validClassroomId || data.classroomId || '',
+          classroomName: resolvedClassroomName || quiz.classroom?.name || '',
+          grade: quiz.grade || '',
+          totalScore: totalMarks > 0 ? totalMarks : 10,
+          questionsCount: questionsForSupabase.length,
           questions: questionsForSupabase,
         });
       }
@@ -1342,22 +1382,22 @@ export async function createQuiz(data: {
 
     // 6. Revalidate cache across dashboard pages and layouts
     try {
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/quizzes');
       revalidatePath('/[locale]/teacher');
-      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student/quizzes');
       revalidatePath('/[locale]/student');
-      revalidatePath('/student');
-      revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
-      revalidatePath('/[locale]/(dashboard)/teacher');
-      revalidatePath('/[locale]/(dashboard)/student');
-      revalidatePath('/[locale]/(dashboard)/student/quizzes');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
       revalidatePath('/ar/teacher');
       revalidatePath('/en/teacher');
-      revalidatePath('/ar/student');
-      revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
+      revalidatePath('/teacher/classrooms');
       revalidatePath('/teacher/quizzes');
       revalidatePath('/student/quizzes');
     } catch (e) {}
@@ -1514,7 +1554,7 @@ export async function updateQuiz(
       }
     }
 
-    // 6b. Sync updated quiz to Supabase central 'exams' and 'questions' tables
+    // 6b. Sync updated quiz to Supabase central cloud store and tables
     try {
       if (finalQuiz) {
         const quizQuestions: any[] = (finalQuiz as any).questions || [];
@@ -1533,22 +1573,29 @@ export async function updateQuiz(
             }
           }
           return {
-            question_text: q.text,
+            id: q.id || `q-${idx + 1}`,
+            text: q.text,
             options: opts,
-            correct_answer: q.correctAnswer || '',
-            score: Number(q.maxScore) || 1,
-            order_index: q.order || idx + 1,
+            correctAnswer: q.correctAnswer || '',
+            maxScore: Number(q.maxScore) || 5,
+            order: q.order || idx + 1,
           };
         });
 
-        await syncExamToSupabase({
+        await syncQuizToSupabase({
           id: finalQuiz.id,
           title: finalQuiz.title,
-          description: finalQuiz.grade ? `الصف: ${finalQuiz.grade}` : '',
-          duration_minutes: Number(finalQuiz.duration) || 20,
-          passing_score: Number(finalQuiz.passingScore) || 50,
-          total_marks: totalMarks > 0 ? totalMarks : 100,
-          is_published: finalQuiz.isPublished !== false,
+          type: finalQuiz.type,
+          duration: Number(finalQuiz.duration) || 20,
+          passingScore: Number(finalQuiz.passingScore) || 60,
+          accessCode: finalQuiz.accessCode || '',
+          isCodeRequired: Boolean(finalQuiz.isCodeRequired),
+          isPublished: finalQuiz.isPublished !== false,
+          classroomId: (finalQuiz as any).classroomId || '',
+          classroomName: (finalQuiz as any).classroom?.name || '',
+          grade: (finalQuiz as any).grade || '',
+          totalScore: totalMarks > 0 ? totalMarks : 10,
+          questionsCount: questionsForSupabase.length,
           questions: questionsForSupabase,
         });
       }
@@ -1558,23 +1605,23 @@ export async function updateQuiz(
 
     // 7. Cache revalidation across all routes and layouts
     try {
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/quizzes');
       revalidatePath('/[locale]/teacher');
-      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student/quizzes');
       revalidatePath('/[locale]/student');
-      revalidatePath('/student');
-      revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
-      revalidatePath('/[locale]/(dashboard)/teacher');
-      revalidatePath('/[locale]/(dashboard)/student');
-      revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath(`/[locale]/(dashboard)/student/quizzes/${quizId}`);
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
       revalidatePath('/ar/teacher');
       revalidatePath('/en/teacher');
-      revalidatePath('/ar/student');
-      revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
+      revalidatePath('/teacher/classrooms');
       revalidatePath('/teacher/quizzes');
       revalidatePath('/student/quizzes');
     } catch (e) {}
@@ -1675,36 +1722,34 @@ export async function deleteQuiz(quizId: string) {
       }
     }
 
-    // Cascade clean from Supabase central cloud tables
+    // Cascade clean from Supabase central cloud store and tables
     try {
-      await supabase.from('questions').delete().eq('exam_id', cleanId);
-      await supabase.from('exam_attempts').delete().eq('exam_id', cleanId);
-      await supabase.from('exams').delete().eq('id', cleanId);
+      await deleteQuizFromSupabase(cleanId);
     } catch (sbDelErr: any) {
       console.warn('[deleteQuiz] Supabase delete notice:', sbDelErr?.message);
     }
 
     // 3. Cache revalidation across all layouts and routes
     try {
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/quizzes');
       revalidatePath('/[locale]/teacher');
-      revalidatePath('/teacher');
+      revalidatePath('/[locale]/student/quizzes');
       revalidatePath('/[locale]/student');
-      revalidatePath('/student');
-      revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
-      revalidatePath('/[locale]/(dashboard)/teacher');
-      revalidatePath('/[locale]/(dashboard)/student');
-      revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath('/[locale]/(dashboard)/student/grades');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/teacher/quizzes');
       revalidatePath('/en/teacher/quizzes');
       revalidatePath('/ar/teacher');
       revalidatePath('/en/teacher');
-      revalidatePath('/ar/student');
-      revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
       revalidatePath('/ar/student/grades');
       revalidatePath('/en/student/grades');
+      revalidatePath('/ar/student');
+      revalidatePath('/en/student');
+      revalidatePath('/teacher/classrooms');
       revalidatePath('/teacher/quizzes');
       revalidatePath('/student/quizzes');
       revalidatePath('/student/grades');
@@ -1767,25 +1812,34 @@ export async function toggleQuizPublish(quizId: string, isPublished: boolean) {
     // 3. Authoritative Supabase cloud update
     try {
       await supabase.from('exams').update({ is_published: Boolean(isPublished) }).eq('id', cleanId);
+      const sbQuizzes = await getQuizzesFromSupabase();
+      const matched = sbQuizzes.find((q) => q.id === cleanId || q.accessCode === cleanId);
+      if (matched) {
+        await syncQuizToSupabase({ ...matched, isPublished: Boolean(isPublished) });
+      }
     } catch (sbErr: any) {
       console.warn('[toggleQuizPublish] Supabase update notice:', sbErr?.message);
     }
 
     try {
+      revalidatePath('/[locale]/teacher/classrooms');
+      revalidatePath('/[locale]/teacher/quizzes');
       revalidatePath('/[locale]/teacher');
-      revalidatePath('/teacher');
       revalidatePath('/[locale]/student');
-      revalidatePath('/student');
       revalidatePath('/[locale]/(dashboard)/teacher/quizzes');
       revalidatePath('/[locale]/(dashboard)/student');
       revalidatePath('/[locale]/(dashboard)/student/quizzes');
       revalidatePath('/[locale]/(dashboard)/student/grades');
+      revalidatePath('/ar/teacher/classrooms');
+      revalidatePath('/en/teacher/classrooms');
       revalidatePath('/ar/student');
       revalidatePath('/en/student');
       revalidatePath('/ar/student/quizzes');
       revalidatePath('/en/student/quizzes');
       revalidatePath('/ar/student/grades');
       revalidatePath('/en/student/grades');
+      revalidatePath('/teacher/classrooms');
+      revalidatePath('/teacher/quizzes');
       revalidatePath('/student');
       revalidatePath('/student/quizzes');
       revalidatePath('/student/grades');
@@ -1816,84 +1870,67 @@ export async function toggleQuizVisibility(quizId: string, isPublished: boolean)
  */
 export async function getTeacherQuizzesAction() {
   try {
-    const quizzes = await prisma.quiz.findMany({
-      include: {
-        classroom: {
-          select: { id: true, name: true },
+    let mapped: any[] = [];
+    try {
+      const quizzes = await prisma.quiz.findMany({
+        include: {
+          classroom: {
+            select: { id: true, name: true },
+          },
+          questions: {
+            select: { id: true },
+          },
+          results: {
+            select: { id: true, studentId: true, totalScore: true, isPassed: true },
+          },
         },
-        questions: {
-          select: { id: true },
-        },
-        results: {
-          select: { id: true, studentId: true, totalScore: true, isPassed: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      });
 
-    const mapped = quizzes.map((q) => ({
-      id: q.id,
-      title: q.title,
-      type: q.type,
-      duration: q.duration,
-      passingScore: q.passingScore,
-      accessCode: q.accessCode,
-      isCodeRequired: q.isCodeRequired,
-      isPublished: q.isPublished,
-      grade: q.grade,
-      classroomId: q.classroomId,
-      classroomName: q.classroom?.name || 'عام لجميع الفصول',
-      questionsCount: q.questions.length,
-      resultsCount: q.results.length,
-      createdAt: q.createdAt.toISOString(),
-    }));
+      mapped = quizzes.map((q) => ({
+        id: q.id,
+        title: q.title,
+        type: q.type,
+        duration: q.duration,
+        passingScore: q.passingScore,
+        accessCode: q.accessCode,
+        isCodeRequired: q.isCodeRequired,
+        isPublished: q.isPublished,
+        grade: q.grade,
+        classroomId: q.classroomId,
+        classroomName: q.classroom?.name || 'عام لجميع الفصول',
+        questionsCount: q.questions.length,
+        resultsCount: q.results.length,
+        createdAt: q.createdAt.toISOString(),
+      }));
+    } catch (dbErr) {
+      console.warn('[getTeacherQuizzesAction] DB skipped:', dbErr);
+    }
 
     // Authoritative Supabase Cloud Sync
     try {
-      const { data: sbExams } = await supabase
-        .from('exams')
-        .select(`
-          id,
-          title,
-          description,
-          duration_minutes,
-          passing_score,
-          total_marks,
-          is_published,
-          created_at,
-          questions ( id )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (sbExams && sbExams.length > 0) {
-        const { data: attempts } = await supabase.from('exam_attempts').select('exam_id');
-        const attemptCounts = new Map<string, number>();
-        if (attempts) {
-          for (const a of attempts) {
-            attemptCounts.set(a.exam_id, (attemptCounts.get(a.exam_id) || 0) + 1);
-          }
-        }
-
+      const sbQuizzes = await getQuizzesFromSupabase();
+      if (Array.isArray(sbQuizzes) && sbQuizzes.length > 0) {
         const existingIds = new Set(mapped.map((m) => m.id));
-        for (const e of sbExams) {
-          if (!existingIds.has(e.id)) {
+        for (const sbq of sbQuizzes) {
+          if (!existingIds.has(sbq.id)) {
             mapped.push({
-              id: e.id,
-              title: e.title,
-              type: 'EXAM',
-              duration: e.duration_minutes || 30,
-              passingScore: Number(e.passing_score) || 50,
-              accessCode: '',
-              isCodeRequired: false,
-              isPublished: e.is_published !== false,
-              grade: '',
-              classroomId: '',
-              classroomName: 'الامتحان السحابي المركزي',
-              questionsCount: (e.questions || []).length,
-              resultsCount: attemptCounts.get(e.id) || 0,
-              createdAt: e.created_at || new Date().toISOString(),
+              id: sbq.id,
+              title: sbq.title,
+              type: sbq.type || 'WEEKLY',
+              duration: sbq.duration || 20,
+              passingScore: sbq.passingScore || 60,
+              accessCode: sbq.accessCode || '',
+              isCodeRequired: Boolean(sbq.isCodeRequired),
+              isPublished: sbq.isPublished !== false,
+              grade: sbq.grade || '',
+              classroomId: sbq.classroomId || '',
+              classroomName: sbq.classroomName || 'عام لجميع الفصول',
+              questionsCount: sbq.questions?.length ?? sbq.questionsCount ?? 0,
+              resultsCount: sbq.resultsCount || 0,
+              createdAt: sbq.createdAt || new Date().toISOString(),
             });
-            existingIds.add(e.id);
+            existingIds.add(sbq.id);
           }
         }
       }
@@ -1957,22 +1994,8 @@ export async function getStudentQuizzesAction(studentId?: string) {
 
     // Authoritative Supabase Cloud Sync
     try {
-      const { data: sbExams } = await supabase
-        .from('exams')
-        .select(`
-          id,
-          title,
-          description,
-          duration_minutes,
-          passing_score,
-          total_marks,
-          is_published,
-          questions ( id )
-        `)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false });
-
-      if (sbExams && sbExams.length > 0) {
+      const sbQuizzes = await getQuizzesFromSupabase();
+      if (Array.isArray(sbQuizzes) && sbQuizzes.length > 0) {
         const sbAttemptsMap = new Map<string, any>();
         if (studentId) {
           const { data: sbAttempts } = await supabase
@@ -1988,27 +2011,27 @@ export async function getStudentQuizzesAction(studentId?: string) {
         }
 
         const existingIds = new Set(mapped.map((m) => m.id));
-        for (const e of sbExams) {
-          if (!existingIds.has(e.id)) {
+        for (const e of sbQuizzes) {
+          if (e.isPublished !== false && !existingIds.has(e.id)) {
             const attempt = sbAttemptsMap.get(e.id);
             mapped.push({
               id: e.id,
               title: e.title,
-              type: 'EXAM',
-              duration: e.duration_minutes || 30,
-              passingScore: Number(e.passing_score) || 50,
-              accessCode: '',
-              isCodeRequired: false,
-              grade: '',
-              questionsCount: (e.questions || []).length,
-              classroomName: 'الامتحان المركزي',
+              type: e.type || 'EXAM',
+              duration: e.duration || 20,
+              passingScore: Number(e.passingScore) || 60,
+              accessCode: e.accessCode || '',
+              isCodeRequired: Boolean(e.isCodeRequired),
+              grade: e.grade || '',
+              questionsCount: e.questions?.length ?? e.questionsCount ?? 0,
+              classroomName: e.classroomName || 'عام',
               result: attempt
                 ? {
                     id: attempt.id,
                     quizId: e.id,
                     totalScore: Number(attempt.final_score) || 0,
-                    maxScore: Number(e.total_marks) || 100,
-                    isPassed: Number(attempt.final_score) >= Number(e.passing_score),
+                    maxScore: Number(e.totalScore) || 10,
+                    isPassed: Number(attempt.final_score) >= Number(e.passingScore),
                     submittedAt: attempt.completed_at,
                   }
                 : null,

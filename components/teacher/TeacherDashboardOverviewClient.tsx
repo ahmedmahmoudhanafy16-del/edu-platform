@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BookOpen, Users, FileText, ClipboardList, Video, Ticket, BarChart3 } from 'lucide-react';
-import { AssignmentData, getClassroomsFromStore, getStudentsFromStore } from '@/lib/store';
+import { AssignmentData, getClassroomsFromStore, getStudentsFromStore, getQuizzes } from '@/lib/store';
 
 export function TeacherDashboardOverviewClient({
   initialClassroomsCount = 0,
@@ -26,9 +26,10 @@ export function TeacherDashboardOverviewClient({
   const [quizzesCount, setQuizzesCount] = useState<number>(initialQuizzesCount);
 
   useEffect(() => {
+    const storeQuizzes = getQuizzes();
     setClassroomsCount(initialClassroomsCount);
     setStudentsCount(initialStudentsCount);
-    setQuizzesCount(initialQuizzesCount);
+    setQuizzesCount(Math.max(initialQuizzesCount, storeQuizzes.length));
     setAssignments(initialAssignments || []);
 
     const handleClassroomsUpdated = () => {
@@ -44,6 +45,8 @@ export function TeacherDashboardOverviewClient({
     };
 
     const handleGlobalUpdate = () => {
+      const qz = getQuizzes();
+      if (qz && qz.length > 0) setQuizzesCount((prev) => Math.max(prev, qz.length));
       router.refresh();
     };
 

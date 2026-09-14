@@ -59,6 +59,29 @@ function countStudentsForClassroom(c: ClassroomItem, allStudents: any[]): number
   }).length;
 }
 
+function countQuizzesForClassroom(c: ClassroomItem, allQuizzes: any[]): number {
+  if (!allQuizzes || !Array.isArray(allQuizzes)) return 0;
+  return allQuizzes.filter((q: any) => {
+    if (!q) return false;
+    if (q.classroomId && (q.classroomId === c.id || q.classroomId === c.code)) return true;
+    if (c.name) {
+      const cName = c.name.trim();
+      if (q.classroomName && typeof q.classroomName === 'string' && q.classroomName.trim() === cName) return true;
+      const qGrade = (q.grade || q.title || q.classroomName || '').trim();
+      if (qGrade && (cName.includes(qGrade) || qGrade.includes(cName))) return true;
+      if (
+        (qGrade.includes('الرابع') && (cName.includes('Primary 4') || cName.includes('Grade 4') || cName.includes('الرابع'))) ||
+        (qGrade.includes('الخامس') && (cName.includes('Primary 5') || cName.includes('Grade 5') || cName.includes('الخامس'))) ||
+        (qGrade.includes('السادس') && (cName.includes('Primary 6') || cName.includes('Grade 6') || cName.includes('السادس'))) ||
+        (qGrade.includes('الثالث الإعدادي') && (cName.includes('Prep 3') || cName.includes('Grade 9') || cName.includes('الثالث الإعدادي'))) ||
+        (qGrade.includes('الثاني الإعدادي') && (cName.includes('Prep 2') || cName.includes('Grade 8') || cName.includes('الثاني الإعدادي'))) ||
+        (qGrade.includes('الأول الإعدادي') && (cName.includes('Prep 1') || cName.includes('Grade 7') || cName.includes('الأول الإعدادي')))
+      ) return true;
+    }
+    return false;
+  }).length;
+}
+
 export function TeacherClassroomsClient({
   initialClassrooms,
   teacherId,
@@ -77,12 +100,29 @@ export function TeacherClassroomsClient({
   const [classroomToEdit, setClassroomToEdit] = useState<ClassroomItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Server-authoritative classrooms state
+  // Server-authoritative + client-store bonded classrooms state
   useEffect(() => {
-    setClassrooms(initialClassrooms);
+    const storeQuizzes = getQuizzes();
+    const storeStudents = getStudentsFromStore();
+    setClassrooms(
+      initialClassrooms.map((c) => ({
+        ...c,
+        quizzesCount: Math.max(c.quizzesCount, countQuizzesForClassroom(c, storeQuizzes)),
+        studentsCount: Math.max(c.studentsCount, countStudentsForClassroom(c, storeStudents)),
+      }))
+    );
   }, [initialClassrooms]);
 
   function refresh() {
+    const storeQuizzes = getQuizzes();
+    const storeStudents = getStudentsFromStore();
+    setClassrooms((prev) =>
+      prev.map((c) => ({
+        ...c,
+        quizzesCount: Math.max(c.quizzesCount, countQuizzesForClassroom(c, storeQuizzes)),
+        studentsCount: Math.max(c.studentsCount, countStudentsForClassroom(c, storeStudents)),
+      }))
+    );
     router.refresh();
   }
 

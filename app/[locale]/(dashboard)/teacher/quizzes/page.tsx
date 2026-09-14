@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { supabase, getClassroomsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getQuizzesFromSupabase } from '@/lib/supabase';
 import { TeacherQuizzesClient } from './TeacherQuizzesClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
 
@@ -62,57 +62,38 @@ export default async function TeacherQuizzesPage({
 
   // Primary Authoritative Cloud Sync: Fetch exams from Supabase
   try {
-    const { data: sbExams } = await supabase
-      .from('exams')
-      .select(`
-        id,
-        title,
-        description,
-        duration_minutes,
-        passing_score,
-        total_marks,
-        is_published,
-        created_at,
-        questions ( id, question_text, options, correct_answer, score, order_index )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (sbExams && sbExams.length > 0) {
-      const { data: attempts } = await supabase
-        .from('exam_attempts')
-        .select('exam_id');
-
-      const attemptCounts = new Map<string, number>();
-      if (attempts) {
-        for (const a of attempts) {
-          attemptCounts.set(a.exam_id, (attemptCounts.get(a.exam_id) || 0) + 1);
-        }
-      }
-
+    const sbQuizzes = await getQuizzesFromSupabase();
+    if (Array.isArray(sbQuizzes) && sbQuizzes.length > 0) {
       const existingQuizIds = new Set(quizzes.map((q) => q.id));
-      for (const e of sbExams) {
+      for (const e of sbQuizzes) {
         if (!existingQuizIds.has(e.id)) {
-          const qs = (e.questions || []).map((qn: any) => ({
-            id: qn.id,
-            text: qn.question_text || '',
-            type: 'MCQ',
-            options: JSON.stringify(qn.options || []),
-            correctAnswer: qn.correct_answer || '',
-            maxScore: Number(qn.score) || 1,
+          const qs = (e.questions || []).map((qn: any, i: number) => ({
+            id: qn.id || `qn-${i + 1}`,
+            text: qn.text || '',
+            type: qn.type || 'MCQ',
+            options: typeof qn.options === 'string' ? qn.options : JSON.stringify(qn.options || []),
+            correctAnswer: qn.correctAnswer || '',
+            maxScore: Number(qn.maxScore) || 5,
           }));
+
+          const matchedClass = classrooms.find((c) => c.id === e.classroomId || c.name === e.classroomName);
+
           quizzes.push({
             id: e.id,
             title: e.title,
-            type: 'EXAM',
-            duration: e.duration_minutes || 30,
-            passingScore: Number(e.passing_score) || 50,
-            accessCode: '',
-            isCodeRequired: false,
-            isPublished: e.is_published !== false,
-            classroom: { id: '', name: isAr ? 'الامتحان المركزي' : 'Central Exam' },
-            classroomId: '',
+            type: e.type || 'WEEKLY',
+            duration: Number(e.duration) || 20,
+            passingScore: Number(e.passingScore) || 60,
+            accessCode: e.accessCode || '',
+            isCodeRequired: Boolean(e.isCodeRequired),
+            isPublished: e.isPublished !== false,
+            classroom: {
+              id: e.classroomId || matchedClass?.id || '',
+              name: e.classroomName || matchedClass?.name || (isAr ? 'عام' : 'General'),
+            },
+            classroomId: e.classroomId || matchedClass?.id || '',
             questions: qs,
-            results: new Array(attemptCounts.get(e.id) || 0).fill({}),
+            results: new Array(e.resultsCount || 0).fill({}),
           });
           existingQuizIds.add(e.id);
         }

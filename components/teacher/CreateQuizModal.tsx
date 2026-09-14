@@ -249,6 +249,17 @@ export function CreateQuizModal({
       return;
     }
 
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
     if (isCodeRequired && !accessCode.trim()) {
       toast.error(isAr ? 'يرجى كتابة أو توليد كود دخول الامتحان' : 'Please enter or generate an exam passcode');
       return;
@@ -263,10 +274,13 @@ export function CreateQuizModal({
           maxScore: Number(q.maxScore) || 5,
         }));
       const computedTotalScore = validQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || totalScore;
+      const targetClassroom = classrooms.find((c) => c.id === classroomId);
+      const classroomName = targetClassroom?.name || '';
 
       const payload = {
         title: title.trim(),
         classroomId: classroomId || undefined,
+        classroomName,
         type,
         duration: Number(duration) || 20,
         passingScore: Number(passingScore) || 60,
@@ -288,9 +302,10 @@ export function CreateQuizModal({
       }
 
       const returnedQuiz = {
-        id: isEditing && quizToEdit?.id ? quizToEdit.id : (res?.quiz?.id || `quiz-${Date.now()}`),
+        id: isEditing && quizToEdit?.id ? quizToEdit.id : (res?.quiz?.id || generateUUID()),
         title: title.trim(),
         classroomId,
+        classroomName,
         type,
         duration: Number(duration) || 20,
         passingScore: Number(passingScore) || 60,
@@ -303,6 +318,10 @@ export function CreateQuizModal({
       };
 
       saveQuiz(returnedQuiz as any);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('edu_quizzes_updated'));
+        window.dispatchEvent(new Event('edu_store_updated'));
+      }
 
       toast.success(
         isEditing
@@ -327,11 +346,14 @@ export function CreateQuizModal({
           maxScore: Number(q.maxScore) || 5,
         }));
       const computedTotalScore = validQuestions.reduce((sum, q) => sum + (Number(q.maxScore) || 0), 0) || totalScore;
+      const targetClassroom = classrooms.find((c) => c.id === classroomId);
+      const classroomName = targetClassroom?.name || '';
 
       const fallbackQuiz = {
-        id: isEditing && quizToEdit?.id ? quizToEdit.id : `quiz-${Date.now()}`,
+        id: isEditing && quizToEdit?.id ? quizToEdit.id : generateUUID(),
         title: title.trim(),
         classroomId,
+        classroomName,
         type,
         duration: Number(duration) || 20,
         passingScore: Number(passingScore) || 60,
@@ -342,6 +364,10 @@ export function CreateQuizModal({
         questions: validQuestions,
       };
       saveQuiz(fallbackQuiz as any);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('edu_quizzes_updated'));
+        window.dispatchEvent(new Event('edu_store_updated'));
+      }
       toast.success(isAr ? `تم حفظ امتحان "${title}" بنجاح!` : `Exam "${title}" saved successfully!`);
       onSuccess(fallbackQuiz);
       onClose();
@@ -446,9 +472,16 @@ export function CreateQuizModal({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-n-700 dark:text-n-600 mb-1">
-                {isAr ? 'نسبة النجاح (%):' : 'Passing Score (%):'}
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-n-700 dark:text-n-600">
+                  {isAr ? 'نسبة النجاح (%):' : 'Passing Score (%):'}
+                </label>
+                <span className="text-[10px] font-bold text-accent bg-accent/10 dark:bg-accent/20 px-1.5 py-0.5 rounded">
+                  {isAr
+                    ? `${((passingScore / 100) * totalScore).toFixed(1)} من ${totalScore} درجات`
+                    : `${((passingScore / 100) * totalScore).toFixed(1)} / ${totalScore} pts`}
+                </span>
+              </div>
               <Input
                 type="number"
                 min={1}
@@ -457,6 +490,22 @@ export function CreateQuizModal({
                 value={passingScore}
                 onChange={(e) => setPassingScore(Math.min(100, Math.max(1, parseInt(e.target.value) || 50)))}
               />
+              <div className="flex items-center gap-1.5 mt-1.5">
+                {[50, 60, 75].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setPassingScore(preset)}
+                    className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                      passingScore === preset
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-n-100 dark:bg-n-300 text-n-600 dark:text-n-700 border-transparent hover:border-accent/40'
+                    }`}
+                  >
+                    {preset}% ({((preset / 100) * totalScore).toFixed(1)} {isAr ? 'درجة' : 'pts'})
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

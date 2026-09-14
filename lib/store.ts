@@ -116,7 +116,30 @@ const EVENT_STORE_UPDATED = 'edu_store_updated';
 function notifyStoreUpdated() {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event(EVENT_STORE_UPDATED));
+    window.dispatchEvent(new Event('edu_quizzes_updated'));
+    window.dispatchEvent(new Event('edu_classrooms_updated'));
+    window.dispatchEvent(new Event('edu_assignments_updated'));
+    window.dispatchEvent(new Event('edu_students_updated'));
   }
+}
+
+function loadQuizzesFromStorage(): QuizData[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.QUIZZES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+}
+
+function persistQuizzesToStorage(quizzes: QuizData[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.QUIZZES, JSON.stringify(quizzes));
+  } catch {}
 }
 
 const memQuizzes: QuizData[] = [];
@@ -127,18 +150,26 @@ const memStudents: any[] = [];
 const memClassrooms: any[] = [];
 
 export function getQuizzes(): QuizData[] {
+  if (typeof window !== 'undefined' && memQuizzes.length === 0) {
+    const stored = loadQuizzesFromStorage();
+    if (stored.length > 0) {
+      memQuizzes.push(...stored);
+    }
+  }
   return [...memQuizzes];
 }
 
 export function getStudentQuizzes(studentId?: string): QuizData[] {
-  return memQuizzes.filter((q) => q.isPublished !== false && !q.isHidden);
+  const all = getQuizzes();
+  return all.filter((q) => q.isPublished !== false && !q.isHidden);
 }
 
 export function getQuizById(idOrCode: string): QuizData | null {
   if (!idOrCode) return null;
   const clean = idOrCode.trim().toUpperCase();
+  const all = getQuizzes();
   return (
-    memQuizzes.find(
+    all.find(
       (q) => q.id === idOrCode || (q.accessCode && q.accessCode.toUpperCase() === clean)
     ) || null
   );
@@ -172,16 +203,19 @@ export function saveQuiz(quiz: Partial<QuizData> & { id: string; title: string }
   } else {
     memQuizzes.unshift(formatted);
   }
+  persistQuizzesToStorage(memQuizzes);
   notifyStoreUpdated();
   return formatted;
 }
 
 export function toggleQuizVisibility(quizId: string, isPublished?: boolean): boolean {
-  const quiz = memQuizzes.find((q) => q.id === quizId || q.accessCode === quizId);
+  const all = getQuizzes();
+  const quiz = all.find((q) => q.id === quizId || q.accessCode === quizId);
   if (quiz) {
     const nextState = isPublished !== undefined ? isPublished : !quiz.isPublished;
     quiz.isPublished = nextState;
     quiz.isHidden = !nextState;
+    persistQuizzesToStorage(memQuizzes);
     notifyStoreUpdated();
     return nextState;
   }
@@ -189,6 +223,7 @@ export function toggleQuizVisibility(quizId: string, isPublished?: boolean): boo
 }
 
 export function deleteQuiz(quizId: string): boolean {
+  getQuizzes();
   const idx = memQuizzes.findIndex((q) => q.id === quizId || q.accessCode === quizId);
   if (idx !== -1) {
     memQuizzes.splice(idx, 1);
@@ -198,6 +233,7 @@ export function deleteQuiz(quizId: string): boolean {
       memSubmissions.splice(i, 1);
     }
   }
+  persistQuizzesToStorage(memQuizzes);
   notifyStoreUpdated();
   return true;
 }

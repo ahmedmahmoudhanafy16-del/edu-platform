@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { TeacherClassroomsClient } from './TeacherClassroomsClient';
 import { getAuthenticatedTeacher } from '@/lib/auth';
-import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase } from '@/lib/supabase';
+import { supabase, getClassroomsFromSupabase, getAssignmentsFromSupabase, getQuizzesFromSupabase } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -127,8 +127,7 @@ export default async function TeacherClassroomsPage({
   let allQuizzes: any[] = [];
   let allAssignments: any[] = [];
   try {
-    const sbExamsRes = await supabase.from('exams').select('id, title, is_published');
-    allQuizzes = sbExamsRes?.data || [];
+    allQuizzes = await getQuizzesFromSupabase();
   } catch (e) {}
   try {
     allAssignments = await getAssignmentsFromSupabase();
@@ -145,7 +144,10 @@ export default async function TeacherClassroomsPage({
 
     const directQuizzes = c.quizzes?.length ?? 0;
     const matchedQuizzes = allQuizzes.filter(
-      (q: any) => q.classroomId === c.id || matchesClassroomGrade(c.name, q.grade || q.title)
+      (q: any) =>
+        (q.classroomId && (q.classroomId === c.id || q.classroomId === c.code)) ||
+        (q.classroomName && q.classroomName.trim() === c.name.trim()) ||
+        matchesClassroomGrade(c.name, q.grade || q.title || q.classroomName)
     ).length;
 
     const directAssignments = c.assignments?.length ?? 0;
